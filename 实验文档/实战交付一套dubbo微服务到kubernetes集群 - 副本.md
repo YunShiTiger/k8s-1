@@ -134,8 +134,8 @@ docker pull jenkins/jenkins:2.195-centos
 在运维主机上编辑dockerfile
 
 ```bash
-mkdir -p /data/dockerfile/jenkins
-cd /data/dockerfile/jenkins
+mkdir -p /data/software/dockerfile/jenkins
+cd /data/software/dockerfile/jenkins
 cat << EOF >Dockerfile
 FROM jenkins/jenkins:2.195-centos
 USER root
@@ -179,7 +179,7 @@ yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/d
 yum makecache fast
 rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
 yum makecache fast
-yum install -y docker-ce-18.09.9-3.el7
+yum install -y docker-ce-18.06.3.ce-3.el7
 EOF
 ```
 
@@ -494,7 +494,7 @@ cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
 
    > Name : git_repo
    > Default Value :
-   > Description : project git repository. e.g: https://gitee.com/stanleywang/dubbo-demo-service.git
+   > Description : project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git
 
 4. Add Parameter -> String Parameter
 
@@ -545,9 +545,9 @@ cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
     > - 2.2.1-6u025
     >   Description : different maven edition.
 
-## Pipeline Script
+![image-20200524230105011](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200524230105011.png)
 
-复制
+## Pipeline Script
 
 ```
 pipeline {
@@ -570,9 +570,9 @@ pipeline {
       }
       stage('image') { //build image and push to registry
         steps {
-          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.od.com/${params.base_image}
+          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
 ADD ${params.target_dir}/project_dir /opt/project_dir"""
-          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.od.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.od.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
         }
       }
     }
@@ -585,79 +585,57 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 进入jenkins的docker容器里，检查docker客户端是否可用。
 
-复制
-
+```bash
+docker exec -ti 52e250789b78 bash
+docker ps -a
 ```
-[root@hdss7-22 ~]# docker exec -ti 52e250789b78 bash
-root@52e250789b78:/# docker ps -a
-```
-
-
 
 ## 检查jenkins容器里的SSH key
 
 进入jenkins的docker容器里，检查ssh连接git仓库，确认是否能拉到代码。
 
-复制
-
+```bash
+docker exec -ti 52e250789b78 bash
+ssh -i /root/.ssh/id_rsa -T git@github.com (有可能失败，但是只要能拉到代码)                                       
 ```
-[root@hdss7-22 ~]# docker exec -ti 52e250789b78 bash
-root@52e250789b78:/# ssh -i /root/.ssh/id_rsa -T git@gitee.com                                                                                              
-Hi Anonymous! You've successfully authenticated, but GITEE.COM does not provide shell access.
-Note: Perhaps the current use is DeployKey.
-Note: DeployKey only supports pull/fetch operations
-```
-
-
 
 ## 部署maven软件
 
 [maven官方下载地址](http://maven.apache.org/docs/history.html)
-在运维主机`HDSS7-200.host.com`上二进制部署，这里部署maven-3.6.0版
+在运维主机上二进制部署，这里部署maven-3.6.3版
 
-复制
-
+```bash
+tar xf /data/software/sf/apache-maven-3.6.3-bin.tar.gz -C /data/nfs-volume/jenkins_home
+mv /data/nfs-volume/jenkins_home/apache-maven-3.6.3 /data/nfs-volume/jenkins_home/maven-3.6.3-8u222
 ```
-/opt/src
-[root@hdss7-22 src]# ls -l
-total 8852
--rw-r--r-- 1 root root 9063587 Jan  17 19:57 apache-maven-3.6.0-bin.tar.gz
-[root@hdss7-200 src]# tar xf apache-maven-3.6.0-bin.tar.gz -C /data/nfs-volume/jenkins_home/maven-3.6.0-8u181
-[root@hdss7-200 src]# mv /data/nfs-volume/jenkins_home/apache-maven-3.6.0/ /data/nfs-volume/jenkins_home/maven-3.6.0-8u181
-[root@hdss7-200 src]# ls -ld /data/nfs-volume/jenkins_home/maven-3.6.0-8u181
-drwxr-xr-x 6 root root 99 Jan  17 19:58 /data/nfs-volume/jenkins_home/maven-3.6.0-8u181
-```
-
-
 
 设置国内镜像源
 
-复制
-
+```bash
+vim /data/nfs-volume/jenkins_home/maven-3.6.3-8u222/conf/settings.xml
+  <mirror>
+    <id>alimaven</id>
+    <name>aliyun maven</name>
+    <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+    <mirrorOf>central</mirrorOf>
+  </mirror>  
+</mirrors>
+<!-- profiles
+#注意位置
 ```
-/data/nfs-volume/jenkins_home/maven-3.6.0-8u181/conf/setting.xml
-<mirror>
-  <id>alimaven</id>
-  <name>aliyun maven</name>
-  <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
-  <mirrorOf>central</mirrorOf>        
-</mirror>
-```
-
-
 
 其他版本略
 
 ## 制作dubbo微服务的底包镜像
 
-运维主机`HDSS7-200.host.com`上
+运维主机上
 
 1. 自定义Dockerfile
 
-复制
-
-```
-/data/dockerfile/jre8/Dockerfile
+```bash
+mkdir -p /data/software/dockerfile/jre8
+cd /data/software/dockerfile/jre8
+cat << EOF >Dockerfile
 FROM stanleyws/jre8:8u112
 RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
     echo 'Asia/Shanghai' >/etc/timezone
@@ -666,73 +644,43 @@ ADD jmx_javaagent-0.3.1.jar /opt/prom/
 WORKDIR /opt/project_dir
 ADD entrypoint.sh /entrypoint.sh
 CMD ["/entrypoint.sh"]
+EOF
 ```
 
-- [config.yml](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jre-dockerfile-1)
-- [jmx_javaagent-0.3.1.jar](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jre-dockerfile-2)
-- [entrypoint.sh](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jre-dockerfile-3)
+config.yml
 
-vi config.yml
-
-复制
-
-```
+```bash
+cat << 'EOF' >config.yml
 ---
 rules:
   - pattern: '.*'
+EOF
 ```
 
-1. 制作dubbo服务docker底包
+jmx_javaagent-0.3.1.jar
 
-复制
-
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar
 ```
-/data/dockerfile/jre8
-[root@hdss7-200 jre8]# ls -l
-total 372
--rw-r--r-- 1 root root     29 Jan  17 19:09 config.yml
--rw-r--r-- 1 root root    287 Jan  17 19:06 Dockerfile
--rwxr--r-- 1 root root    250 Jan  17 19:11 entrypoint.sh
--rw-r--r-- 1 root root 367417 May 10  2018 jmx_javaagent-0.3.1.jar
 
-[root@hdss7-200 jre8]# docker build . -t harbor.od.com/base/jre8:8u112
-Sending build context to Docker daemon 372.2 kB
-Step 1 : FROM stanleyws/jre8:8u112
- ---> fa3a085d6ef1
-Step 2 : RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&    echo 'Asia/Shanghai' >/etc/timezone
- ---> Using cache
- ---> 5da5ab0b1a48
-Step 3 : ADD config.yml /opt/prom/config.yml
- ---> Using cache
- ---> 70d3ebfe88f5
-Step 4 : ADD jmx_javaagent-0.3.1.jar /opt/prom/
- ---> Using cache
- ---> 08b38a0684a8
-Step 5 : WORKDIR /opt/project_dir
- ---> Using cache
- ---> f06adf17fb69
-Step 6 : ADD entrypoint.sh /entrypoint.sh
- ---> e34f185d5c52
-Removing intermediate container ee213576ca0e
-Step 7 : CMD /entrypoint.sh
- ---> Running in 655f594bcbe2
- ---> 47852bc0ade9
-Removing intermediate container 655f594bcbe2
-Successfully built 47852bc0ade9
+entrypoint.sh
 
-[root@hdss7-200 jre8]# docker push harbor.od.com/base/jre8:8u112
-The push refers to a repository [harbor.od.com/base/jre8]
-0b2b753b122e: Pushed 
-67e1b844d09c: Pushed 
-ad4fa4673d87: Pushed 
-0ef3a1b4ca9f: Pushed 
-052016a734be: Pushed 
-0690f10a63a5: Pushed 
-c843b2cf4e12: Pushed 
-fddd8887b725: Pushed 
-42052a19230c: Pushed 
-8d4d1ab5ff74: Pushed 
-8u112: digest: sha256:252e3e869039ee6242c39bdfee0809242e83c8c3a06830f1224435935aeded28 size: 2405
+```bash
+cat << 'EOF' >entrypoint.sh
+#!/bin/sh
+M_OPTS="-Duser.timezone=Asia/Shanghai -javaagent:/opt/prom/jmx_javaagent-0.3.1.jar=$(hostname -i):${M_PORT:-"12346"}:/opt/prom/config.yml"
+C_OPTS=${C_OPTS}
+JAR_BALL=${JAR_BALL}
+exec java -jar ${M_OPTS} ${C_OPTS} ${JAR_BALL}
+EOF
+chmod +x entrypoint.sh
+```
+
+制作dubbo服务docker底包
+
+```bash
+docker build . -t harbor.wzxmt.com/base/jre8:8u112
+docker push harbor.wzxmt.com/base/jre8:8u112
 ```
 
 **注意：**jre7底包制作类似，这里略
@@ -745,7 +693,7 @@ fddd8887b725: Pushed
 
 打开jenkins页面，使用admin登录，准备构建`dubbo-demo`项目
 
-![jenkins构建](https://blog.stanley.wang/images/jenkins-firstbuild.png)
+![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200524231817369.png)
 点`Build with Parameters`
 
 ![jenkins构建详情](https://blog.stanley.wang/images/jenkins-builddetail.png)
@@ -761,7 +709,7 @@ fddd8887b725: Pushed
 
 - git_repo
 
-  > https://gitee.com/stanleywang/dubbo-demo-service.git
+  > https://github.com/wzxmt/dubbo-demo-service.git
 
 - git_ver
 
@@ -801,14 +749,12 @@ test $? -eq 0 && 成功，进行下一步 || 失败，排错直到成功
 
 ### 准备k8s资源配置清单
 
-运维主机`HDSS7-200.host.com`上，准备资源配置清单：
+运维主机上，准备资源配置清单：
 
-复制
-
-```
-/data/k8s-yaml/dubbo-demo-service/deployment.yaml
+```yaml
+cat << 'EOF' >/data/software/yaml/dubbo-demo-service/deployment.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-demo-service
   namespace: app
@@ -827,7 +773,7 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-service
-        image: harbor.od.com/app/dubbo-demo-service:master_190117_1920
+        image: harbor.wzxmt.com/app/dubbo-demo-service:master_200525_0100
         ports:
         - containerPort: 20880
           protocol: TCP
@@ -836,7 +782,7 @@ spec:
           value: dubbo-server.jar
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -849,26 +795,18 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
 ```
-
-
 
 ### 应用资源配置清单
 
 在任意一台k8s运算节点执行：
 
-复制
-
+```bash
+kubectl apply -f /data/software/yaml/dubbo-demo-service/deployment.yaml
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-service/deployment.yaml
-deployment.extensions/dubbo-demo-service created
-```
-
-
 
 ### 检查docker运行情况及zk里的信息
-
-复制
 
 ```
 /opt/zookeeper/bin/zkCli.sh
@@ -885,9 +823,7 @@ deployment.extensions/dubbo-demo-service created
 
 #### 下载源码
 
-下载到运维主机`HDSS7-200.host.com`上
-
-复制
+下载到运维主机上
 
 ```
 /opt/src
@@ -895,11 +831,7 @@ deployment.extensions/dubbo-demo-service created
 drwxr-xr-x 4 root root      81 Jan  17 13:58 dubbo-monitor
 ```
 
-
-
 #### 修改配置
-
-复制
 
 ```
 /opt/src/dubbo-monitor/dubbo-monitor-simple/conf/dubbo_origin.properties
@@ -915,33 +847,27 @@ dubbo.log4j.file=logs/dubbo-monitor.log
 
 1. 准备环境
 
-   复制
-
    ```
-   [root@hdss7-200 src]# mkdir /data/dockerfile/dubbo-monitor
+[root@hdss7-200 src]# mkdir /data/dockerfile/dubbo-monitor
    [root@hdss7-200 src]# cp -a dubbo-monitor/* /data/dockerfile/dubbo-monitor/
    [root@hdss7-200 src]# cd /data/dockerfile/dubbo-monitor/
    [root@hdss7-200 dubbo-monitor]# sed -r -i -e '/^nohup/{p;:a;N;$!ba;d}'  ./dubbo-monitor-simple/bin/start.sh && sed  -r -i -e "s%^nohup(.*)%exec \1%"  ./dubbo-monitor-simple/bin/start.sh
    ```
-
+   
 2. 准备Dockerfile
 
-   复制
-
    ```
-   /data/dockerfile/dubbo-monitor/Dockerfile
+/data/dockerfile/dubbo-monitor/Dockerfile
    FROM jeromefromcn/docker-alpine-java-bash
    MAINTAINER Jerome Jiang
    COPY dubbo-monitor-simple/ /dubbo-monitor-simple/
    CMD /dubbo-monitor-simple/bin/start.sh
    ```
-
+   
 3. build镜像
 
-   复制
-
    ```
-   [root@hdss7-200 dubbo-monitor]# docker build . -t harbor.od.com/infra/dubbo-monitor:latest
+[root@hdss7-200 dubbo-monitor]# docker build . -t harbor.od.com/infra/dubbo-monitor:latest
    Sending build context to Docker daemon 26.21 MB
    Step 1 : FROM harbor.od.com/base/jre7:7u80
     ---> dbba4641da57
