@@ -455,8 +455,11 @@ cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
 ### 调整安全选项
 
 - Manage Jenkins
-- Configure Global Security
-- Allow anonymous read access
+  - Configure Global Security
+    - Allow anonymous read access（钩上）
+
+- Manage Jenkins
+  - 防止跨站点请求伪造(取消钩)
 
 ## 配置New job
 
