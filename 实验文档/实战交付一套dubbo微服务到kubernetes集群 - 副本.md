@@ -549,7 +549,7 @@ cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
 
 ## Pipeline Script
 
-```
+```yaml
 pipeline {
   agent any 
     stages {
@@ -572,10 +572,10 @@ pipeline {
         steps {
           writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
 ADD ${params.target_dir}/project_dir /opt/project_dir"""
-          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} && docker rmi harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
         }
       }
-    }
+   }
 }
 ```
 
@@ -717,7 +717,7 @@ docker push harbor.wzxmt.com/base/jre8:8u112
 
 - add_tag
 
-  > 190117_1920
+  > 200525_0100
 
 - mvn_dir
 
