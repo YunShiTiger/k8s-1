@@ -241,20 +241,18 @@ systemctl enable nfs
 
 运维主机上：
 
-```
-/data/k8s-yaml
-mkdir /data/k8s-yaml/jenkins && mkdir /data/nfs-volume/jenkins_home && cd /data/k8s-yaml/jenkins
+```bash
+mkdir  -p /data/software/yaml/jenkins 
+mkdir -p /data/nfs-volume/jenkins_home
+cd /data/software/yaml/jenkins
 ```
 
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-yaml-1)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-yaml-2)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-yaml-3)
+deployment
 
-vi deployment.yaml
-
-```
+```yaml
+cat << EOF >deployment.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: jenkins
   namespace: infra
@@ -274,7 +272,7 @@ spec:
       volumes:
       - name: data
         nfs: 
-          server: hdss7-200
+          server: 10.0.0.20
           path: /data/nfs-volume/jenkins_home
       - name: docker
         hostPath: 
@@ -282,7 +280,7 @@ spec:
           type: ''
       containers:
       - name: jenkins
-        image: harbor.od.com/infra/jenkins:v2.164.1
+        image: harbor.wzxmt.com/infra/jenkins:v2.195
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -305,7 +303,7 @@ spec:
         terminationMessagePolicy: File
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -318,32 +316,77 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
+```
+
+svc
+
+```yaml
+cat << EOF >svc.yaml
+kind: Service
+apiVersion: v1
+metadata: 
+  name: jenkins
+  namespace: infra
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  selector:
+    app: jenkins
+  type: ClusterIP
+  sessionAffinity: None
+EOF
+```
+
+ingress
+
+```yaml
+cat << EOF >ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: jenkins
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: jenkins.wzxmt.com      
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: jenkins            
+            servicePort: 80
+EOF
 ```
 
 ## 应用资源配置清单
 
+创建docker-registry
+
+```bash
+kubectl create secret docker-registry harborlogin \
+--namespace=infra  \
+--docker-server=https://harbor.wzxmt.com \
+--docker-username=admin \
+--docker-password=admin
+```
+
 任意一个k8s运算节点上
 
+```bash
+kubectl create namespace infra
+kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
+kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/svc.yaml
+kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/ingress.yaml
+
+kubectl get pods -n infra|grep jenkins
+kubectl get svc -n infra|grep jenkins
+kubectl get ingress -n infra|grep jenkins
 ```
-[root@hdss7-21 ~]# kubectl create namespace infra
-[root@hdss7-21 ~]# kubectl apply -f  http://k8s-yaml.od.com/jenkins/deployment.yaml
-[root@hdss7-21 ~]# kubectl apply -f  http://k8s-yaml.od.com/jenkins/svc.yaml
-[root@hdss7-21 ~]# kubectl apply -f  http://k8s-yaml.od.com/jenkins/ingress.yaml
-
-[root@hdss7-21 ~]# kubectl get pods -n infra|grep jenkins
-NAME                                READY     STATUS    RESTARTS   AGE
-jenkins-84455f9675-jpkr8            1/1       Running   0          0d
-
-[root@hdss7-21 ~]# kubectl get svc -n infra|grep jenkins
-NAME           TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
-jenkins        ClusterIP   None             <none>        8080/TCP   0d
-
-[root@hdss7-21 ~]# kubectl get ingress -n infra|grep jenkins
-NAME           HOSTS                          ADDRESS   PORTS     AGE
-jenkins        jenkins.od.com                           80        0d
-```
-
-
 
 ## 解析域名
 
@@ -352,46 +395,55 @@ jenkins        jenkins.od.com                           80        0d
 复制
 
 ```
-/var/named/od.com.zone
-jenkins	60 IN A 10.4.7.10
+jenkins	60 IN A 10.0.0.50
 ```
-
-
 
 ## 浏览器访问
 
-[http://jenkins.od.com](http://jenkins.od.com/)
+[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)
+
+## 优化jenkins插件下载速度
+
+在管理机上
+
+```bash
+WORK_DIR=/data/nfs-volume/jenkins_home/
+sed -i.bak 's#http://updates.jenkins-ci.org/download#https://mirrors.tuna.tsinghua.edu.cn/jenkins#g;s#http://www.google.com#https://www.baidu.com#g' ${WORK_DIR}/updates/default.json
+```
+
+从新在运算节点部署jenkins
+
+```bash
+kubectl delete -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
+kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
+```
 
 ## 页面配置jenkins
 
-![jenkins初始化页面](https://blog.stanley.wang/images/jenkins-init.png)
+![jenkins初始化页面](../upload/image-20200524143150587.png)
 
 ### 初始化密码
 
-复制
-
 ```
-/data/nfs-volume/jenkins_home/secrets/initialAdminPassword
-[root@hdss7-200 secrets]# cat initialAdminPassword 
-08d17edc125444a28ad6141ffdfd5c69
+cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
 ```
 
 ### 安装插件
 
-![jenkins安装页面](https://blog.stanley.wang/images/jenkins-install.png)
+![jenkins安装页面](../upload/image-20200524143444194.png)
 
 ### 设置用户
 
-![jenkins设置用户](https://blog.stanley.wang/images/jenkins-user.png)
+![jenkins设置用户](../upload/image-20200524161048685.png)
 
 ### 完成安装
 
-![jenkins完成安装1](https://blog.stanley.wang/images/jenkins-url.png)
-![jenkins完成安装2](https://blog.stanley.wang/images/jenkins-ready.png)
+![jenkins完成安装1](../upload/image-20200524161225578.png)
+![jenkins完成安装2](../upload/image-20200524161328386.png)
 
 ### 使用admin登录
 
-![jenkins登录](https://blog.stanley.wang/images/jenkins-welcome.png)
+![jenkins登录](../upload/jenkins-welcome.png)
 
 ### 安装Blue Ocean插件
 
