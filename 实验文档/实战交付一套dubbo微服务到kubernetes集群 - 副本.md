@@ -24,17 +24,22 @@
 > [jdk1.7](https://www.oracle.com/technetwork/java/javase/downloads/java-archive-downloads-javase7-521261.html)
 > [jdk1.8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
 
+```bash
+mkdir -p /opt/java
+tar xf /opt/src/jdk-8u251-linux-x64.tar.gz -C /opt/java
+ln -s /opt/java/jdk1.8.0_251 /opt/java/jdk
+cat << 'EOF' >>/etc/profile
+export JAVA_HOME=/opt/java/jdk
+export PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH
+export CLASSPATH=.:$JAVA_HOME/lib:$JAVA_HOME/jre/lib:$JAVA_HOME/lib/tools.jar
+EOF
 ```
-/opt/src
-[root@hdss7-11 src]# ls -l|grep jdk
--rw-r--r-- 1 root root 153530841 Jan 17 17:49 jdk-8u201-linux-x64.tar.gz
-[root@hdss7-11 src]# mkdir /usr/java
-[root@hdss7-11 src]# tar xf jdk-8u201-linux-x64.tar.gz -C /usr/java
-[root@hdss7-11 src]# ln -s /usr/java/jdk1.8.0_201 /usr/java/jdk
-[root@hdss7-11 src]# vi /etc/profile
-export JAVA_HOME=/usr/java/jdk
-export PATH=$JAVA_HOME/bin:$JAVA_HOME/bin:$PATH
-export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar
+
+加载环境变量，验证版本
+
+```bash
+source /etc/profile
+java -version
 ```
 
 ## 安装zookeeper（3台zk角色主机）
@@ -44,88 +49,71 @@ export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar
 
 ### 解压、配置
 
-复制
-
-```
-/opt/src
-[root@hdss7-11 src]# ls -l|grep zoo
--rw-r--r-- 1 root root 153530841 Jan 17 18:10 zookeeper-3.4.14.tar.gz
-[root@hdss7-11 src]# tar xf /opt/src/zookeeper-3.4.14.tar.gz -C /opt
-[root@hdss7-11 opt]# ln -s /opt/zookeeper-3.4.14/ /opt/zookeeper
-[root@hdss7-11 opt]# mkdir -pv /data/zookeeper/data /data/zookeeper/logs
-[root@hdss7-11 opt]# vi /opt/zookeeper/conf/zoo.cfg
+```bash
+mkdir -p /opt/zookeeper
+tar xf /opt/src/apache-zookeeper-3.5.8-bin.tar.gz -C /opt/zookeeper
+ln -s /opt/zookeeper/apache-zookeeper-3.5.8-bin /opt/zookeeper/zookeeper
+mkdir -p /data/zookeeper/{data,logs}
+cat << EOF >/opt/zookeeper/zookeeper/conf/zoo.cfg
 tickTime=2000
 initLimit=10
 syncLimit=5
+clientPort=2181
 dataDir=/data/zookeeper/data
 dataLogDir=/data/zookeeper/logs
-clientPort=2181
-server.1=zk1.od.com:2888:3888
-server.2=zk2.od.com:2888:3888
-server.3=zk3.od.com:2888:3888
+server.1=zk1.wzxmt.com:2888:3888
+server.2=zk2.wzxmt.com:2888:3888
+server.3=zk3.wzxmt.com:2888:3888
+EOF
 ```
 
 **注意：**各节点zk配置相同。
 
-### myid
+**zookeeper myid各节点一定要不一样**
 
-`HDSS7-11.host.com`上：
-
-复制
+m1上：
 
 ```
-/data/zookeeper/data/myid
-1
+echo '1' > /data/zookeeper/data/myid
 ```
 
-
-
-`HDSS7-12.host.com`上：
-
-复制
+m2上：
 
 ```
-/data/zookeeper/data/myid
-2
+echo '2' > /data/zookeeper/data/myid
 ```
 
-
-
-`HDSS7-21.host.com`上：
-
-复制
+m3上：
 
 ```
-/data/zookeeper/data/myid
-3
+echo '3' > /data/zookeeper/data/myid
 ```
-
-
 
 ### 做dns解析
 
-`HDSS7-11.host.com`上
+manege
 
-复制
-
+```bash
+zk1	60 IN A 10.0.0.31
+zk2	60 IN A 10.0.0.32
+zk3	60 IN A 10.0.0.33
 ```
-/var/named/od.com.zone
-zk1	60 IN A 10.4.7.11
-zk2	60 IN A 10.4.7.12
-zk3	60 IN A 10.4.7.21
-```
-
-
 
 ### 依次启动
 
-复制
-
+```bash
+/opt/zookeeper/zookeeper/bin/zkServer.sh start
 ```
-[root@hdss7-11 opt]# /opt/zookeeper/bin/zkServer.sh start
-ZooKeeper JMX enabled by default
-Using config: /opt/zookeeper/bin/../conf/zoo.cfg
-Starting zookeeper ... STARTED
+
+查看状态
+
+```bash
+[root@m1 src]# /opt/zookeeper/zookeeper/bin/zkServer.sh status
+Mode: follower
+[root@m2 src]# /opt/zookeeper/zookeeper/bin/zkServer.sh status
+Mode: leader
+[root@m3 src]# /opt/zookeeper/zookeeper/bin/zkServer.sh status
+Mode: follower
 ```
 
 # 部署jenkins
@@ -135,51 +123,21 @@ Starting zookeeper ... STARTED
 > [jenkins官网](https://jenkins.io/download/)
 > [jenkins镜像](https://hub.docker.com/r/jenkins/jenkins)
 
-在运维主机下载官网上的稳定版（这里下载2.164.1）
+在运维主机下载官网上的稳定版
 
-复制
-
+```bash
+docker pull jenkins/jenkins:2.195-centos
 ```
-[root@hdss7-200 ~]#  docker pull jenkins/jenkins:2.164.1
-2.164.1: Pulling from jenkins/jenkins
-22dbe790f715: Pull complete 
-0250231711a0: Pull complete 
-6fba9447437b: Pull complete 
-c2b4d327b352: Pull complete 
-cddb9bb0d37c: Pull complete 
-b535486c968f: Pull complete 
-f3e976e6210c: Pull complete 
-b2c11b10291d: Pull complete 
-f4c0181e1976: Pull complete 
-924c8e712392: Pull complete 
-d13006b7c9dd: Pull complete 
-fc80aeb92627: Pull complete 
-36a6e96ba1b5: Pull complete 
-f50f33dc1d0a: Pull complete 
-b10642432117: Pull complete 
-850c260511d8: Pull complete 
-47f95e65a629: Pull complete 
-3b33ce546dc6: Pull complete 
-051c7665e760: Pull complete 
-fe379aecc538: Pull complete 
-Digest: sha256:12fd14965de7274b5201653b2bffa62700c5f5f336ec75c945321e2cb70d7af0
-Status: Downloaded newer image for jenkins/jenkins:2.164.1
-
-[root@hdss7-200 ~]# docker tag 256cb12e72d6 harbor.od.com/public/jenkins:v2.164.1
-[root@hdss7-200 ~]# docker push harbor.od.com/public/jenkins:v2.164.1
-```
-
-
 
 ## 自定义Dockerfile
 
-在运维主机`HDSS7-200.host.com`上编辑自定义dockerfile
+在运维主机上编辑dockerfile
 
-复制
-
-```
-/data/dockerfile/jenkins/Dockerfile
-FROM harbor.od.com/public/jenkins:v2.164.1
+```bash
+mkdir -p /data/dockerfile/jenkins
+cd /data/dockerfile/jenkins
+cat << EOF >Dockerfile
+FROM jenkins/jenkins:2.195-centos
 USER root
 RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\ 
     echo 'Asia/Shanghai' >/etc/timezone
@@ -188,9 +146,8 @@ ADD config.json /root/.docker/config.json
 ADD get-docker.sh /get-docker.sh
 RUN echo "    StrictHostKeyChecking no" >> /etc/ssh/sshd_config &&\
     /get-docker.sh
+EOF
 ```
-
-
 
 这个Dockerfile里我们主要做了以下几件事
 
@@ -203,166 +160,97 @@ RUN echo "    StrictHostKeyChecking no" >> /etc/ssh/sshd_config &&\
 
 生成ssh密钥对：
 
-复制
-
-```
-[root@hdss7-200 ~]# ssh-keygen -t rsa -b 2048 -C "stanley.wang.m@qq.com" -N "" -f /root/.ssh/id_rsa
+```bash
+ssh-keygen -t rsa -b 2048 -C "wzxmt.com@qq.com" -N "" -f /root/.ssh/id_rsa
 ```
 
+get-docker.sh
 
+```bash
+cat  << 'EOF' >get-docker.sh
+#!/bin/bash
+cd /etc/yum.repos.d
+mv /etc/yum.repos.d/{CentOS-Base.repo,.bak}
+mv /etc/yum.repos.d/{epel.repo,bak}
+curl https://mirrors.aliyun.com/repo/Centos-7.repo -o CentOS-Base.repo 
+curl https://mirrors.aliyun.com/repo/epel-7.repo -o epel.repo
+yum install -y yum-utils device-mapper-persistent-data lvm2
+yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+yum makecache fast
+rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
+yum makecache fast
+yum install -y docker-ce-18.09.9-3.el7
+EOF
+```
 
-- [config.json](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-dockerfile-1)
-- [get-docker.sh](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-dockerfile-2)
-
-复制
+cat /root/.docker/config.json
 
 ```
 {
-    "auths": {
-        "harbor.od.com": {
-            "auth": "YWRtaW46SGFyYm9yMTIzNDU="
-        }
-    }
-}
+	"auths": {
+		"harbor.wzxmt.com": {
+			"auth": "YWRtaW46YWRtaW4="
+		}
+	},
+	"HttpHeaders": {
+		"User-Agent": "Docker-Client/19.03.8 (linux)"
+	}
 ```
 
 ## 制作自定义镜像
 
-复制
-
-```
-/data/dockerfile/jenkins
-[root@hdss7-200 jenkins]# ls -l
-total 24
--rw------- 1 root root    98 Jan  17 15:58 config.json
--rw-r--r-- 1 root root   158 Jan  17 15:59 Dockerfile
--rwxr-xr-x 1 root root 13847 Jan  17 15:37 get-docker.sh
--rw------- 1 root root  1679 Jan  17 15:39 id_rsa
-[root@hdss7-200 jenkins]# docker build . -t harbor.od.com/infra/jenkins:v2.164.1
-Sending build context to Docker daemon 19.46 kB
-Step 1 : FROM harbor.od.com/public/jenkins:v2.164.1
- ---> 256cb12e72d6
-Step 2 : USER root
- ---> Running in d600e9db8305
- ---> 03687cf21cb3
-Removing intermediate container d600e9db8305
-Step 3 : RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&    echo 'Asia/Shanghai' >/etc/timezone
- ---> Running in 3d79b4025e97
- ---> e4790b3bb6d9
-Removing intermediate container 3d79b4025e97
-Step 4 : ADD id_rsa /root/.ssh/id_rsa
- ---> 39d80713d43c
-Removing intermediate container 7b4e66e726dd
-Step 5 : ADD config.json /root/.docker/config.json
- ---> a44402fd4bc1
-Removing intermediate container f1ae1871d035
-Step 6 : ADD get-docker.sh /get-docker.sh
- ---> 189ccca429e4
-Removing intermediate container a0ff59237fe5
-Step 7 : RUN /get-docker.sh
- ---> Running in 5a7d69c1af45
-# Executing docker install script, commit: cfba462
-+ sh -c apt-get update -qq >/dev/null
-+ sh -c apt-get install -y -qq apt-transport-https ca-certificates curl >/dev/null
-debconf: delaying package configuration, since apt-utils is not installed
-+ sh -c curl -fsSL "https://download.docker.com/linux/debian/gpg" | apt-key add -qq - >/dev/null
-Warning: apt-key output should not be parsed (stdout is not a terminal)
-+ sh -c echo "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" > /etc/apt/sources.list.d/docker.list
-+ sh -c apt-get update -qq >/dev/null
-+ sh -c apt-get install -y -qq --no-install-recommends docker-ce >/dev/null
-debconf: delaying package configuration, since apt-utils is not installed
-If you would like to use Docker as a non-root user, you should now consider
-adding your user to the "docker" group with something like:
-
-  sudo usermod -aG docker your-user
-
-Remember that you will have to log out and back in for this to take effect!
-
-WARNING: Adding a user to the "docker" group will grant the ability to run
-         containers which can be used to obtain root privileges on the
-         docker host.
-         Refer to https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface
-         for more information.
-
-** DOCKER ENGINE - ENTERPRISE **
-
-If you’re ready for production workloads, Docker Engine - Enterprise also includes:
-
-  * SLA-backed technical support
-  * Extended lifecycle maintenance policy for patches and hotfixes
-  * Access to certified ecosystem content
-
-** Learn more at https://dockr.ly/engine2 **
-
-ACTIVATE your own engine to Docker Engine - Enterprise using:
-
-  sudo docker engine activate
-
- ---> 64c74242ee28
-Removing intermediate container 5a7d69c1af45
-Successfully built 64c74242ee28
-[root@hdss7-200 jenkins]# docker push harbor.od.com/infra/jenkins:v2.164.1
+```bash
+cp -r /root/.ssh/id_rsa ./
+cp -r /root/.docker/config.json ./
+chmod +x get-docker.sh
+ls #查看Dokerfile所需文件
+#config.json  Dockerfile  get-docker.sh  id_rsa
+docker build . -t harbor.wzxmt.com/infra/jenkins:v2.195
+docker push harbor.wzxmt.com/infra/jenkins:v2.195
 ```
 
 ## 准备共享存储
 
 运维主机，以及所有运算节点上：
 
-复制
-
 ```
-# yum install nfs-utils -y
+yum install nfs-utils -y
 ```
-
-
 
 - 配置NFS服务
 
-运维主机`HDSS7-200.host.com`上：
-
-复制
+运维主机：
 
 ```
-/etc/exports
-/data/nfs-volume 10.4.7.0/24(rw,no_root_squash)
+cat<< EOF >/etc/exports
+/data/nfs-volume 10.0.0.0/24(rw,no_root_squash)
+EOF
 ```
-
-
 
 - 启动NFS服务
 
-运维主机`HDSS7-200.host.com`上：
+运维主机上：
 
-复制
-
+```bash
+mkdir -p /data/nfs-volume
+systemctl start nfs
+systemctl enable nfs
 ```
-[root@hdss7-200 ~]# mkdir -p /data/nfs-volume
-[root@hdss7-200 ~]# systemctl start nfs
-[root@hdss7-200 ~]# systemctl enable nfs
-```
-
-
 
 ## 准备资源配置清单
 
-运维主机`HDSS7-200.host.com`上：
-
-复制
+运维主机上：
 
 ```
 /data/k8s-yaml
-[root@hdss7-200 k8s-yaml]# mkdir /data/k8s-yaml/jenkins && mkdir /data/nfs-volume/jenkins_home && cd /data/k8s-yaml/jenkins
+mkdir /data/k8s-yaml/jenkins && mkdir /data/nfs-volume/jenkins_home && cd /data/k8s-yaml/jenkins
 ```
-
-
 
 - [Deployment](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-yaml-1)
 - [Service](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-yaml-2)
 - [Ingress](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#jenkins-yaml-3)
 
 vi deployment.yaml
-
-复制
 
 ```
 kind: Deployment
@@ -435,8 +323,6 @@ spec:
 ## 应用资源配置清单
 
 任意一个k8s运算节点上
-
-复制
 
 ```
 [root@hdss7-21 ~]# kubectl create namespace infra
@@ -530,7 +416,7 @@ jenkins	60 IN A 10.4.7.10
 
 - Pipeline -> OK
 
-- Discard old builds
+- Discard wzxmt builds
 
   > Days to keep builds : 3
   > Max # of builds to keep : 30
