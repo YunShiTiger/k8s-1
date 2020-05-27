@@ -773,7 +773,7 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-service
-        image: harbor.wzxmt.com/app/dubbo-demo-service:master_200525_0100
+        image: harbor.wzxmt.com/app/dubbo-demo-service:master_200526_2355
         ports:
         - containerPort: 20880
           protocol: TCP
@@ -803,14 +803,23 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```bash
-kubectl apply -f /data/software/yaml/dubbo-demo-service/deployment.yaml
+kubectl create ns app
+
+kubectl create secret docker-registry harborlogin \
+--namespace=app  \
+--docker-server=https://harbor.wzxmt.com \
+--docker-username=admin \
+--docker-password=admin
+
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-service/deployment.yaml
 ```
 
 ### 检查docker运行情况及zk里的信息
 
-```
-/opt/zookeeper/bin/zkCli.sh
-[root@hdss7-11 ~]# /opt/zookeeper/bin/zkCli.sh -server localhost
+```bash
+/opt/zookeeper/zookeeper/bin/zkCli.sh 
+#打开另外一个zookeeper
+/opt/zookeeper/bin/zkCli.sh -server localhost
 [zk: localhost(CONNECTED) 0] ls /dubbo
 [com.od.dubbotest.api.HelloService]
 ```
@@ -825,17 +834,15 @@ kubectl apply -f /data/software/yaml/dubbo-demo-service/deployment.yaml
 
 下载到运维主机上
 
-```
-/opt/src
-[root@hdss7-200 src]# ls -l|grep dubbo-monitor
-drwxr-xr-x 4 root root      81 Jan  17 13:58 dubbo-monitor
+```bash
+git clone https://github.com/Jeromefromcn/dubbo-monitor.git
 ```
 
 #### 修改配置
 
 ```
-/opt/src/dubbo-monitor/dubbo-monitor-simple/conf/dubbo_origin.properties
-dubbo.registry.address=zookeeper://zk1.od.com:2181?backup=zk2.od.com:2181,zk3.od.com:2181
+dubbo-monitor/dubbo-monitor-simple/conf/dubbo_origin.properties
+dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk2.wzxmt.com:2181,zk3.wzxmt.com:2181
 dubbo.protocol.port=20880
 dubbo.jetty.port=8080
 dubbo.jetty.directory=/dubbo-monitor-simple/monitor
@@ -848,10 +855,12 @@ dubbo.log4j.file=logs/dubbo-monitor.log
 1. 准备环境
 
    ```
-[root@hdss7-200 src]# mkdir /data/dockerfile/dubbo-monitor
-   [root@hdss7-200 src]# cp -a dubbo-monitor/* /data/dockerfile/dubbo-monitor/
-   [root@hdss7-200 src]# cd /data/dockerfile/dubbo-monitor/
-   [root@hdss7-200 dubbo-monitor]# sed -r -i -e '/^nohup/{p;:a;N;$!ba;d}'  ./dubbo-monitor-simple/bin/start.sh && sed  -r -i -e "s%^nohup(.*)%exec \1%"  ./dubbo-monitor-simple/bin/start.sh
+mkdir /data/software/dockerfile/dubbo-monitor
+   cp -a dubbo-monitor/* /data/software/dockerfile/dubbo-monitor
+   cd /data/software/dockerfile/dubbo-monitor
+   vim ./dubbo-monitor-simple/bin/start.sh
+   exec  java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OPTS -classpath $CONF_DIR:$LIB_JARS com.alibaba.dubbo.container.Main > $STDOUT_FILE 2>&1
+   #删除以下内容
    ```
    
 2. 准备Dockerfile
