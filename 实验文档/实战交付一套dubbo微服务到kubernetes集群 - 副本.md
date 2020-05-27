@@ -826,121 +826,96 @@ kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-service/deployment.yaml
 
 ## dubbo-monitor工具
 
-[dubbo-monitor源码包](https://github.com/Jeromefromcn/dubbo-monitor.git)
-
-### 准备docker镜像
+[dubbo-monitor源码包](https://github.com/alibaba/dubbo/archive/dubbo-2.6.0.zip)
 
 #### 下载源码
 
-下载到运维主机上
+```bash
+wget https://github.com/alibaba/dubbo/archive/dubbo-2.6.0.zip
+unzip dubbo-2.6.0.zip && cd dubbo-dubbo-2.6.0/dubbo-simple/dubbo-monitor-simple
+```
+
+安装依赖，编译dubbo-monitor
 
 ```bash
-git clone https://github.com/Jeromefromcn/dubbo-monitor.git
+yum -y install java-1.8.0-openjdk maven
+mvn clean install
 ```
 
-#### 修改配置
+编译成功后的目标文件为：target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
 
+解压
+
+```bash
+mkdir -p /dockerfile
+tar xf target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
+mv dubbo-monitor-simple-2.6.0 /dockerfile/dubbo-monitor-simple
 ```
-dubbo-monitor/dubbo-monitor-simple/conf/dubbo_origin.properties
+
+修改配置
+
+```bash
+cat << EOF >dubbo-monitor-simple/conf/dubbo.properties
+dubbo.container=log4j,spring,registry,jetty
+dubbo.application.name=monitor
+dubbo.application.owner=wzxmt
 dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk2.wzxmt.com:2181,zk3.wzxmt.com:2181
 dubbo.protocol.port=20880
 dubbo.jetty.port=8080
 dubbo.jetty.directory=/dubbo-monitor-simple/monitor
-dubbo.statistics.directory=/dubbo-monitor-simple/statistics
-dubbo.log4j.file=logs/dubbo-monitor.log
+dubbo.charts.directory=/dubbo-monitor-simple/charts
+dubbo.statistics.directory=/dubbo-monitor-simple/monitor/statistics
+dubbo.log4j.file=logs/dubbo-monitor-simple.log
+dubbo.log4j.level=WARN
+EOF
 ```
 
 #### 制作镜像
 
 1. 准备环境
 
-   ```
-mkdir /data/software/dockerfile/dubbo-monitor
-   cp -a dubbo-monitor/* /data/software/dockerfile/dubbo-monitor
-   cd /data/software/dockerfile/dubbo-monitor
-   vim ./dubbo-monitor-simple/bin/start.sh
-   exec  java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OPTS -classpath $CONF_DIR:$LIB_JARS com.alibaba.dubbo.container.Main > $STDOUT_FILE 2>&1
-   #删除以下内容
+   修改启动初始化内存
+
+   ```bash
+   sed -i "s#128m#16m#g;s#256m#32m#g;s#1g#128m#g;s#2g#256m#g" dubbo-monitor-simple/bin/start.sh
+   sed -i '69,$d' dubbo-monitor-simple/bin/start.sh
+   echo 'exec java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OPTS -classpath $CONF_DIR:$LIB_JARS com.alibaba.dubbo.container.Main &> $STDOUT_FILE' >>dubbo-monitor-simple/bin/start.sh
    ```
    
 2. 准备Dockerfile
 
-   ```
-/data/dockerfile/dubbo-monitor/Dockerfile
+   ```bash
+   cat << EOF >Dockerfile
    FROM jeromefromcn/docker-alpine-java-bash
    MAINTAINER Jerome Jiang
    COPY dubbo-monitor-simple/ /dubbo-monitor-simple/
    CMD /dubbo-monitor-simple/bin/start.sh
+   EOF
    ```
-   
+
 3. build镜像
 
-   ```
-[root@hdss7-200 dubbo-monitor]# docker build . -t harbor.od.com/infra/dubbo-monitor:latest
-   Sending build context to Docker daemon 26.21 MB
-   Step 1 : FROM harbor.od.com/base/jre7:7u80
-    ---> dbba4641da57
-   Step 2 : MAINTAINER Stanley Wang
-    ---> Running in 8851a3c55d4b
-    ---> 6266a6f15dc5
-   Removing intermediate container 8851a3c55d4b
-   Step 3 : COPY dubbo-monitor-simple/ /opt/dubbo-monitor/
-    ---> f4e0a9067c5c
-   Removing intermediate container f1038ecb1055
-   Step 4 : WORKDIR /opt/dubbo-monitor
-    ---> Running in 4056339d1b5a
-    ---> e496e2d3079e
-   Removing intermediate container 4056339d1b5a
-   Step 5 : CMD /opt/dubbo-monitor/bin/start.sh
-    ---> Running in c33b8fb98326
-    ---> 97e40c179bbe
-   Removing intermediate container c33b8fb98326
-   Successfully built 97e40c179bbe
-   
-   [root@hdss7-200 dubbo-monitor]# docker push harbor.od.com/infra/dubbo-monitor:latest
-   The push refers to a repository [harbor.od.com/infra/dubbo-monitor]
-   750135a87545: Pushed 
-   0b2b753b122e: Pushed 
-   5b1f1b5295ff: Pushed 
-   d54f1d9d76d3: Pushed 
-   8d51c20d6553: Pushed 
-   106b765202e9: Pushed 
-   c6698ca565d0: Pushed 
-   50ecb880731d: Pushed 
-   fddd8887b725: Pushed 
-   42052a19230c: Pushed 
-   8d4d1ab5ff74: Pushed 
-   190107_1930: digest: sha256:73007a37a55ecd5fd72bc5b36d2ab0bb639c96b32b7879984d5cdbc759778790 size: 2617
+   ```bash
+   docker build . -t harbor.wzxmt.com/infra/dubbo-monitor:latest
+   docker push harbor.wzxmt.com/infra/dubbo-monitor:latest
    ```
 
 ### 解析域名
 
-在DNS主机`HDSS7-11.host.com`上：
-
-复制
-
+```bash
+dubbo-monitor IN A 60 10.0.0.50
 ```
-/var/named/od.com.zone
-dubbo-monitor IN A 60 10.9.7.10
-```
-
-
 
 ### 准备k8s资源配置清单
 
-运维主机`HDSS7-200.host.com`上
+运维主机上
 
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#dubbo-monitor-1)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#dubbo-monitor-2)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#dubbo-monitor-3)
+deployment
 
-vi /data/k8s-yaml/dubbo-monitor/deployment.yaml
-
-复制
-
-```
+```yaml
+cat << EOF >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-monitor
   namespace: infra
@@ -959,7 +934,7 @@ spec:
     spec:
       containers:
       - name: dubbo-monitor
-        image: harbor.od.com/infra/dubbo-monitor:latest
+        image: harbor.wzxmt.com/infra/dubbo-monitor:latest
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -967,7 +942,7 @@ spec:
           protocol: TCP
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -980,30 +955,67 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
 ```
 
+Service
 
+```yaml
+cat << EOF >svc.yaml
+kind: Service
+apiVersion: v1
+metadata: 
+  name: dubbo-monitor
+  namespace: infra
+spec:
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector: 
+    app: dubbo-monitor
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+EOF
+```
+
+ingress
+
+```yaml
+cat << EOF >ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: dubbo-monitor
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: dubbo-monitor.wzxmt.com      
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: dubbo-monitor            
+            servicePort: 80
+EOF
+```
 
 ### 应用资源配置清单
 
 在任意一台k8s运算节点执行：
 
-复制
-
+```bash
+kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/deployment.yaml
+kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/svc.yaml
+kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/ingress.yaml
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/deployment.yaml
-deployment.extensions/dubbo-monitor created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/svc.yaml
-service/dubbo-monitor created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/ingress.yaml
-ingress.extensions/dubbo-monitor created
-```
-
-
 
 ### 浏览器访问
 
-[http://dubbo-monitor.od.com](http://dubbo-monitor.od.com/)
+http://dubbo-monitor.wzxmt.com
 
 ## dubbo服务消费者（dubbo-demo-consumer）
 
@@ -1027,7 +1039,7 @@ ingress.extensions/dubbo-monitor created
 
 - git_repo
 
-  > [git@gitee.com](mailto:git@gitee.com):stanleywang/dubbo-demo-web.git
+  > https://github.com/wzxmt/dubbo-demo-web.git
 
 - git_ver
 
@@ -1067,30 +1079,18 @@ test $? -eq 0 && 成功，进行下一步 || 失败，排错直到成功
 
 ### 解析域名
 
-在DNS主机`HDSS7-11.host.com`上：
-
-复制
-
 ```
-/var/named/od.com.zone
 demo IN A 60 10.9.7.10
 ```
 
-
-
 ### 准备k8s资源配置清单
 
-运维主机`HDSS7-200.host.com`上，准备资源配置清单
+运维主机准备资源配置清单
 
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#dubbo-demo-consumer-1)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#dubbo-demo-consumer-2)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/#dubbo-demo-consumer-3)
+deployment
 
-vi /data/k8s-yaml/dubbo-demo-consumer/deployment.yaml
-
-复制
-
-```
+```yaml
+cat << EOF >dp.yaml
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
@@ -1111,7 +1111,7 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-consumer
-        image: harbor.od.com/app/dubbo-demo-consumer:master_190119_2015
+        image: harbor.wzxmt.com/app/dubbo-demo-consumer:master_190119_2015
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -1122,7 +1122,7 @@ spec:
           value: dubbo-client.jar
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -1137,32 +1137,68 @@ spec:
   progressDeadlineSeconds: 600
 ```
 
+Service
 
+```yaml
+cat << EOF >svc.yaml
+kind: Service
+apiVersion: v1
+metadata: 
+  name: dubbo-demo-consumer
+  namespace: app
+spec:
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector: 
+    app: dubbo-demo-consumer
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+EOF
+```
+
+ingress
+
+```yaml
+cat << EOF >ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: dubbo-demo-consumer
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: demo      
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: dubbo-demo-consumer            
+            servicePort: 80
+EOF
+```
 
 ### 应用资源配置清单
 
 在任意一台k8s运算节点执行：
 
-复制
-
+```bash
+kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/deployment.yaml
+kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/svc.yaml
+kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/ingress.yaml
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/deployment.yaml
-deployment.extensions/dubbo-demo-consumer created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/svc.yaml
-service/dubbo-demo-consumer created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/ingress.yaml
-ingress.extensions/dubbo-demo-consumer created
-```
-
-
 
 ### 检查docker运行情况及dubbo-monitor
 
-[http://dubbo-monitor.od.com](http://dubbo-monitor.od.com/)
+http://dubbo-monitor.wzxmt.com
 
 ### 浏览器访问
 
-http://demo.od.com/hello?name=wangdao
+http://demo.wzxmt.com/hello?name=wangdao
 
 # 实战维护dubbo微服务集群
 
