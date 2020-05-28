@@ -847,14 +847,15 @@ mvn clean install
 解压
 
 ```bash
-mkdir -p /dockerfile
+mkdir -p /data/software/dockerfile/dubbo-monitor
 tar xf target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
-mv dubbo-monitor-simple-2.6.0 /dockerfile/dubbo-monitor-simple
+mv dubbo-monitor-simple-2.6.0 /data/software/dockerfile/dubbo-monitor/dubbo-monitor-simple
 ```
 
 修改配置
 
 ```bash
+cd /data/software/dockerfile/dubbo-monitor
 cat << EOF >dubbo-monitor-simple/conf/dubbo.properties
 dubbo.container=log4j,spring,registry,jetty
 dubbo.application.name=monitor
@@ -889,6 +890,7 @@ EOF
    FROM jeromefromcn/docker-alpine-java-bash
    MAINTAINER Jerome Jiang
    COPY dubbo-monitor-simple/ /dubbo-monitor-simple/
+   run mkdir -p /dubbo-monitor-simple/{monitor/statistics,charts}
    CMD /dubbo-monitor-simple/bin/start.sh
    EOF
    ```
@@ -913,6 +915,8 @@ dubbo-monitor IN A 60 10.0.0.50
 deployment
 
 ```yaml
+mkdir /data/software/yaml/dubbo-monitor -p
+cd /data/software/yaml/dubbo-monitor
 cat << EOF >dp.yaml
 kind: Deployment
 apiVersion: apps/v1
@@ -1008,9 +1012,9 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```bash
-kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/deployment.yaml
-kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/svc.yaml
-kubectl apply -f http://k8s-yaml.od.com/dubbo-monitor/ingress.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/dp.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/svc.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/ingress.yaml
 ```
 
 ### 浏览器访问
@@ -1047,11 +1051,11 @@ http://dubbo-monitor.wzxmt.com
 
 - add_tag
 
-  > 190117_1950
+  > 200527_2150
 
 - mvn_dir
 
-  > /
+  > ./
 
 - target_dir
 
@@ -1079,8 +1083,8 @@ test $? -eq 0 && 成功，进行下一步 || 失败，排错直到成功
 
 ### 解析域名
 
-```
-demo IN A 60 10.9.7.10
+```bash
+demo IN A 60 10.0.0.50
 ```
 
 ### 准备k8s资源配置清单
@@ -1090,9 +1094,11 @@ demo IN A 60 10.9.7.10
 deployment
 
 ```yaml
+mkdir -p /data/software/yaml/dubbo-demo-consumer
+cd /data/software/yaml/dubbo-demo-consumer
 cat << EOF >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-demo-consumer
   namespace: app
@@ -1111,7 +1117,7 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-consumer
-        image: harbor.wzxmt.com/app/dubbo-demo-consumer:master_190119_2015
+        image: harbor.wzxmt.com/app/dubbo-demo-consumer:master_200527_2150
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -1135,6 +1141,7 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
 ```
 
 Service
@@ -1167,18 +1174,18 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:  
   name: dubbo-demo-consumer
-  namespace: infra
+  namespace: app
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:  
   rules:    
-    - host: demo      
+    - host: demo.wzxmt.com      
       http:        
         paths:        
         - path: /          
           backend:            
             serviceName: dubbo-demo-consumer            
-            servicePort: 80
+            servicePort: 8080
 EOF
 ```
 
@@ -1187,12 +1194,12 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```bash
-kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/deployment.yaml
-kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/svc.yaml
-kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-consumer/ingress.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-consumer/dp.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-consumer/svc.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-consumer/ingress.yaml
 ```
 
-### 检查docker运行情况及dubbo-monitor
+### 检查dubbo-monitor
 
 http://dubbo-monitor.wzxmt.com
 
