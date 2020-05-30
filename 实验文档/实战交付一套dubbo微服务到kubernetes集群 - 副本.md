@@ -878,6 +878,7 @@ EOF
    修改启动初始化内存
 
    ```bash
+   chmod +x dubbo-monitor-simple/bin/*
    sed -i "s#128m#16m#g;s#256m#32m#g;s#1g#128m#g;s#2g#256m#g" dubbo-monitor-simple/bin/start.sh
    sed -i '69,$d' dubbo-monitor-simple/bin/start.sh
    echo 'exec java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OPTS -classpath $CONF_DIR:$LIB_JARS com.alibaba.dubbo.container.Main &> $STDOUT_FILE' >>dubbo-monitor-simple/bin/start.sh
@@ -886,12 +887,14 @@ EOF
 2. 准备Dockerfile
 
    ```bash
+   \cp /usr/share/zoneinfo/Asia/Shanghai ./
    cat << EOF >Dockerfile
    FROM jeromefromcn/docker-alpine-java-bash
    MAINTAINER Jerome Jiang
+   WORKDIR /dubbo-monitor-simple
+   ADD Shanghai /etc/localtime
    COPY dubbo-monitor-simple/ /dubbo-monitor-simple/
-   run mkdir -p /dubbo-monitor-simple/{monitor/statistics,charts}
-   CMD /dubbo-monitor-simple/bin/start.sh
+   CMD bin/start.sh
    EOF
    ```
 
