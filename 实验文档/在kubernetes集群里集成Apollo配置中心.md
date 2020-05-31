@@ -1,4 +1,4 @@
-# 实验文档3：在kubernetes集群里集成Apollo配置中心
+实验文档3：在kubernetes集群里集成Apollo配置中心
 
 ------
 
@@ -173,6 +173,7 @@ Apollo（阿波罗）是携程框架部门研发的分布式配置中心，能�
 
 [Apollo官方地址](https://github.com/ctripcorp/apollo)
 [官方release包](https://github.com/ctripcorp/apollo/releases)
+[官方启动脚本](https://github.com/ctripcorp/apollo/tree/master/scripts/apollo-on-kubernetes)
 
 ### 基础架构
 
@@ -187,7 +188,7 @@ Apollo（阿波罗）是携程框架部门研发的分布式配置中心，能�
 ### 准备软件包
 
 在运维主机上：
-[下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.3.0/apollo-configservice-1.3.0-github.zip)
+[下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.6.1/apollo-configservice-1.6.1-github.zip)
 
 ```bash
 mkdir -p /data/dockerfile/apollo-configservice
@@ -223,7 +224,7 @@ rpm --import https://mirrors.ustc.edu.cn/mariadb/yum/RPM-GPG-KEY-MariaDB
 yum install MariaDB-server -y
   ```
 
-[数据库脚本地址](https://github.com/nobodyiam/apollo-build-scripts/blob/master/sql/apolloportaldb.sql)
+[数据库脚本地址](https://github.com/ctripcorp/apollo/tree/master/scripts/sql)
 
 ### 导入数据
 
@@ -275,7 +276,6 @@ cat << 'EOF' >scripts/startup.sh
   LOG_DIR=/apollo-configserver/logs
   ## Adjust server port if necessary
   SERVER_PORT=8080
-  
   SERVER_URL="http://${APOLLO_CONFIG_SERVICE_NAME}:${SERVER_PORT}"
   
   ## Adjust memory settings if necessary
@@ -340,7 +340,6 @@ cat << 'EOF' >scripts/startup.sh
   ```bash
   cat << 'EOF' >Dockerfile
   FROM openjdk:8-jre-alpine3.8
-  
   RUN \
       echo "http://mirrors.aliyun.com/alpine/v3.8/main" > /etc/apk/repositories && \
       echo "http://mirrors.aliyun.com/alpine/v3.8/community" >> /etc/apk/repositories && \
@@ -355,7 +354,7 @@ cat << 'EOF' >scripts/startup.sh
   CMD ["/apollo-configservice/scripts/startup.sh"]
   EOF
   ```
-
+  
 - 制作镜像并推送
 
   ```bash
@@ -505,7 +504,7 @@ EOF
 
 在任意一台k8s运算节点执行：
 
-```
+```bash
 kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/cm.yaml
 kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/dp.yaml
 kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/svc.yaml
@@ -521,35 +520,30 @@ kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/ingress.yaml
 ### 准备软件包
 
 在运维主机上：
-[下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.3.0/apollo-adminservice-1.3.0-github.zip)
+[下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.6.1/apollo-adminservice-1.6.1-github.zip)
 
 ```bash
-mkdir /data/dockerfile/apollo-adminservice
-unzip -o apollo-adminservice-1.3.0-github.zip -d /data/dockerfile/apollo-adminservice
+mkdir /data/dockerfile/apollo-adminservice -p
+unzip -o apollo-adminservice-1.6.1-github.zip -d /data/dockerfile/apollo-adminservice
 ```
 
 ### 制作Docker镜像
 
 在运维主机上：
 
-- 配置数据库连接串
+- 更新starup.sh
 
   ```bash
 cd /data/dockerfile/apollo-adminservice
-  cat config/application-github.properties
-  ```
-  
-- 更新starup.sh
-
-  ```
-/data/dockerfile/apollo-adminservice/scripts/startup.sh
+  rm -f  apollo-adminservice-1.6.1-sources.jar
+  mv apollo-adminservice-1.6.1.jar apollo-adminservice.jar
+  cat << 'EOF' >scripts/startup.sh
   #!/bin/bash
   SERVICE_NAME=apollo-adminservice
   ## Adjust log dir if necessary
-  LOG_DIR=/opt/logs/apollo-adminservice
+  LOG_DIR=/apollo-adminservice/logs
   ## Adjust server port if necessary
-  SERVER_PORT=8080
-  APOLLO_ADMIN_SERVICE_NAME=$(hostname -i)
+  SERVER_PORT=8090
   # SERVER_URL="http://localhost:${SERVER_PORT}"
   SERVER_URL="http://${APOLLO_ADMIN_SERVICE_NAME}:${SERVER_PORT}"
   
@@ -560,7 +554,7 @@ cd /data/dockerfile/apollo-adminservice
   #export JAVA_OPTS="$JAVA_OPTS -server -XX:-ReduceInitialCardMarks"
   
   ########### The following is the same for configservice, adminservice, portal ###########
-  export JAVA_OPTS="$JAVA_OPTS -XX:ParallelGCThreads=4 -XX:MaxTenuringThreshold=9 -XX:+DisableExplicitGC -XX:+ScavengeBeforeFullGC -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+ExplicitGCInvokesConcurrent -XX:+PrintGCDetails -XX:+HeapDumpOnOutOfMemoryError -XX:-OmitStackTraceInFastThrow -Duser.timezone=Asia/Shanghai -Dclient.encoding.override=UTF-8 -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/./urandom"
+  export JAVA_OPTS="$JAVA_OPTS -XX:ParallelGCThreads=4 -XX:MaxTenuringThreshold=9 -XX:+DisableExplicitGC -XX:+ScavengeBeforeFullGC -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:-OmitStackTraceInFastThrow -Duser.timezone=Asia/Shanghai -Dclient.encoding.override=UTF-8 -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/./urandom"
   export JAVA_OPTS="$JAVA_OPTS -Dserver.port=$SERVER_PORT -Dlogging.file=$LOG_DIR/$SERVICE_NAME.log -XX:HeapDumpPath=$LOG_DIR/HeapDumpOnOutOfMemoryError/"
   
   # Find Java
@@ -605,97 +599,52 @@ cd /data/dockerfile/apollo-adminservice
       echo "$(date) Failed to start $SERVICE_NAME.jar, return code: $rc"
       exit $rc;
   fi
-  
   tail -f /dev/null
+  EOF
   ```
   
 - 写Dockerfile
 
-  复制
-
-  ```
-  /data/dockerfile/apollo-adminservice/Dockerfile
-  FROM stanleyws/jre8:8u112
-  
-  ENV VERSION 1.3.0
-  
-  RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
-      echo "Asia/Shanghai" > /etc/timezone
-  
-  ADD apollo-adminservice-${VERSION}.jar /apollo-adminservice/apollo-adminservice.jar
-  ADD config/ /apollo-adminservice/config
-  ADD scripts/ /apollo-adminservice/scripts
-  
+  ```bash
+  cat << 'EOF' >Dockerfile
+  FROM openjdk:8-jre-alpine3.8
+  RUN \
+      echo "http://mirrors.aliyun.com/alpine/v3.8/main" > /etc/apk/repositories && \
+      echo "http://mirrors.aliyun.com/alpine/v3.8/community" >> /etc/apk/repositories && \
+      apk update upgrade && \
+      apk add --no-cache procps curl bash tzdata && \
+      ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+      echo "Asia/Shanghai" > /etc/timezone && \
+      mkdir -p /apollo-adminservice
+  ADD . /apollo-adminservice/
+  APOLLO_ADMIN_SERVICE_NAME="config.wzxmt.com"
+  EXPOSE 8090
   CMD ["/apollo-adminservice/scripts/startup.sh"]
+  EOF
   ```
 
 - 制作镜像并推送
 
-  复制
-
-  ```
-  [root@hdss7-200 apollo-adminservice]# docker build . -t harbor.od.com/infra/apollo-adminservice:v1.3.0
-  Sending build context to Docker daemon 58.31 MB
-  Step 1 : FROM stanleyws/jre8:8u112
-   ---> fa3a085d6ef1
-  Step 2 : ENV VERSION 1.3.0
-   ---> Using cache
-   ---> feb4c0289f04
-  Step 3 : RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&    echo "Asia/Shanghai" > /etc/timezone
-   ---> Using cache
-   ---> a3e3fd61ae35
-  Step 4 : ADD apollo-adminservice-${VERSION}.jar /apollo-adminservice/apollo-adminservice.jar
-   ---> 6a1eb9565777
-  Removing intermediate container 7196df9af6af
-  Step 5 : ADD config/ /apollo-adminservice/config
-   ---> 9f364b732d46
-  Removing intermediate container 9b24669c6c78
-  Step 6 : ADD scripts/ /apollo-adminservice/scripts
-   ---> b7bc5517b0fc
-  Removing intermediate container f3e34e759148
-  Step 7 : CMD /apollo-adminservice/scripts/startup.sh
-   ---> [Warning] IPv4 forwarding is disabled. Networking will not work.
-   ---> Running in 18c6597914b4
-   ---> 82145db3ee88
-  Removing intermediate container 18c6597914b4
-  Successfully built 82145db3ee88
-  
-  [root@hdss7-200 apollo-adminservice]# docker push harbor.od.com/infra/apollo-adminservice:v1.3.0
-  docker push harbor.od.com/infra/apollo-adminservice:v1.3.0
-  The push refers to a repository [harbor.od.com/infra/apollo-adminservice]
-  19b1ca6c066d: Pushed 
-  8fa6cde49908: Pushed 
-  0b2c9b9226cc: Pushed 
-  ebfb473df5c2: Mounted from infra/apollo-configservice 
-  aae5c057d1b6: Mounted from infra/apollo-configservice 
-  dee6aef5c2b6: Mounted from infra/apollo-configservice 
-  a464c54f93a9: Mounted from infra/apollo-configservice 
-  v1.3.0: digest: sha256:75367caab9bad3d0d281eb3324451a0734e84b6aa3ee860e38ad758d7166a7d1 size: 1785
+  ```bash
+docker build . -t harbor.wzxmt.com/infra/apollo-adminservice:v1.6.1
+  docker push harbor.wzxmt.com/infra/apollo-adminservice:v1.6.1
   ```
 
 ### 准备资源配置清单
 
-在运维主机`HDSS7-200.host.com`上
+在运维主机上
 
-复制
-
-```
-/data/k8s-yaml
-[root@hdss7-200 k8s-yaml]# mkdir /data/k8s-yaml/apollo-adminservice && cd /data/k8s-yaml/apollo-adminservice
+```bash
+mkdir /data/software/yaml/apollo-adminservice
+cd /data/software/yaml/apollo-adminservice
 ```
 
+deployment
 
-
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#apollo-adminservice-yaml-1)
-- [ConfigMap](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#apollo-adminservice-yaml-2)
-
-vi deployment.yaml
-
-复制
-
-```
+```yaml
+cat << 'EOF' >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: apollo-adminservice
   namespace: infra
@@ -718,9 +667,9 @@ spec:
           name: apollo-adminservice-cm
       containers:
       - name: apollo-adminservice
-        image: harbor.od.com/infra/apollo-adminservice:v1.3.0
+        image: harbor.wzxmt.com/infra/apollo-adminservice:v1.6.1
         ports:
-        - containerPort: 8080
+        - containerPort: 8090
           protocol: TCP
         volumeMounts:
         - name: configmap-volume
@@ -729,7 +678,7 @@ spec:
         terminationMessagePolicy: File
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -742,116 +691,95 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
+```
+
+ConfigMap
+
+```yaml
+cat << 'EOF' >cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-adminservice-cm
+  namespace: infra
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigDB?characterEncoding=utf8
+    spring.datasource.username = apolloconfig
+    spring.datasource.password = admin123
+    eureka.service.url = http://config.wzxmt.com/eureka
+  app.properties: |
+    appId=100003172
+EOF
 ```
 
 ### 应用资源配置清单
 
 在任意一台k8s运算节点执行：
 
-复制
-
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/apollo-adminservice/configmap.yaml
-configmap/apollo-adminservice-cm created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/apollo-adminservice/deployment.yaml
-deployment.extensions/apollo-adminservice created
+kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-adminservice/cm.yaml
+kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-adminservice/dp.yaml
 ```
-
-
 
 ### 浏览器访问
 
-[http://config.od.com](http://config.od.com/)
-![apollo注册中心](https://blog.stanley.wang/images/eureka-ready.png)
+[http://config.wzxmt.com](http://config.od.com/)
+![apollo注册中心](../upload/image-20200531144127914.png)
 
 ## 交付apollo-portal
 
 ### 准备软件包
 
-在运维主机`HDSS7-200.host.com`上：
-[下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.3.0/apollo-portal-1.3.0-github.zip)
+在运维主机上：
+[下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.6.1/apollo-portal-1.6.1-github.zip)
 
-复制
-
+```bash
+mkdir /data/dockerfile/apollo-portal
+unzip -o apollo-portal-1.6.1-github.zip -d /data/dockerfile/apollo-portal
+cd /data/dockerfile/apollo-portal
+rm -f apollo-portal-1.6.1-sources.jar
+mv apollo-portal-1.6.1.jar  apollo-portal.jar
 ```
-[root@hdss7-200 src]# ls -l|grep apollo
--rw-r--r-- 1 root root 52713404 Feb 16 08:37 apollo-configservice-1.3.0-github.zip
--rw-r--r-- 1 root root 49418246 Feb 16 09:54 apollo-adminservice-1.3.0-github.zip
--rw-r--r-- 1 root root 36459359 Feb 16 10:00 apollo-portal-1.3.0-github.zip
-
-[root@hdss7-200 src]# mkdir /data/dockerfile/apollo-portal && unzip -o apollo-portal-1.3.0-github.zip -d /data/dockerfile/apollo-portal
-Archive:  apollo-portal-1.3.0-github.zip
-  inflating: /data/dockerfile/apollo-portal/scripts/shutdown.sh  
-  inflating: /data/dockerfile/apollo-portal/apollo-portal.conf  
-  inflating: /data/dockerfile/apollo-portal/apollo-portal-1.3.0-sources.jar  
-   creating: /data/dockerfile/apollo-portal/config/
-  inflating: /data/dockerfile/apollo-portal/config/application-github.properties  
-  inflating: /data/dockerfile/apollo-portal/scripts/startup.sh  
-  inflating: /data/dockerfile/apollo-portal/config/apollo-env.properties  
-  inflating: /data/dockerfile/apollo-portal/config/app.properties  
-  inflating: /data/dockerfile/apollo-portal/apollo-portal-1.3.0.jar
-```
-
-
 
 ### 执行数据库脚本
 
-在数据库主机`HDSS7-11.host.com`上：
-[数据库脚本地址](https://raw.githubusercontent.com/ctripcorp/apollo/master/scripts/db/migration/portaldb/V1.0.0__initialization.sql)
-
-复制
+在数据库主机上：
+[数据库脚本地址](https://github.com/ctripcorp/apollo/blob/master/scripts/sql/apolloportaldb.sql)
 
 ```
-[root@hdss7-11 ~]# mysql -uroot -p
-mysql> create database ApolloPortalDB;
-mysql> source ./apolloportal.sql
+source ./apolloportal.sql
 ```
-
-
 
 ### 数据库用户授权
 
-复制
+```
+grant INSERT,DELETE,UPDATE,SELECT on ApolloPortalDB.* to "apolloportal"@"%" identified by "admin123";
+```
+
+### 修改样板
 
 ```
-mysql> grant INSERT,DELETE,UPDATE,SELECT on ApolloPortalDB.* to "apolloportal"@"172.7.%" identified by "123456";
+update ServerConfig set Value='[{"orgId":"wzxmt01","orgName":"开发部门"},{"orgId":"wzxmt02","orgName":"测试部门"},{"orgId":"wzxmt03","orgName":"客户部门"}]' where Id=2;
 ```
 
 ### 制作Docker镜像
 
-在运维主机`HDSS7-200.host.com`上：
-
-- 配置数据库连接串
-
-  复制
-
-  ```
-  /data/dockerfile/apollo-portal
-  [root@hdss7-200 apollo-portal]# cat config/application-github.properties
-  ```
-
-- 配置Portal的meta service
-
-  复制
-
-  ```
-  /data/dockerfile/apollo-portal/config/apollo-env.properties
-  dev.meta=http://config.od.com
-  ```
+在运维主机上：
 
 - 更新starup.sh
 
-  复制
-
-  ```
-  /data/dockerfile/apollo-portal/scripts/startup.sh
+  ```bash
+cat << 'EOF' >scripts/startup.sh
   #!/bin/bash
   SERVICE_NAME=apollo-portal
   ## Adjust log dir if necessary
-  LOG_DIR=/opt/logs/apollo-portal-server
+  LOG_DIR=/apollo-portal/logs
   ## Adjust server port if necessary
-  SERVER_PORT=8080
-  APOLLO_PORTAL_SERVICE_NAME=$(hostname -i)
+  SERVER_PORT=8070
+  
   # SERVER_URL="http://localhost:$SERVER_PORT"
   SERVER_URL="http://${APOLLO_PORTAL_SERVICE_NAME}:${SERVER_PORT}"
   
@@ -862,7 +790,7 @@ mysql> grant INSERT,DELETE,UPDATE,SELECT on ApolloPortalDB.* to "apolloportal"@"
   #export JAVA_OPTS="$JAVA_OPTS -server -XX:-ReduceInitialCardMarks"
   
   ########### The following is the same for configservice, adminservice, portal ###########
-  export JAVA_OPTS="$JAVA_OPTS -XX:ParallelGCThreads=4 -XX:MaxTenuringThreshold=9 -XX:+DisableExplicitGC -XX:+ScavengeBeforeFullGC -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+ExplicitGCInvokesConcurrent -XX:+PrintGCDetails -XX:+HeapDumpOnOutOfMemoryError -XX:-OmitStackTraceInFastThrow -Duser.timezone=Asia/Shanghai -Dclient.encoding.override=UTF-8 -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/./urandom"
+  export JAVA_OPTS="$JAVA_OPTS -XX:ParallelGCThreads=4 -XX:MaxTenuringThreshold=9 -XX:+DisableExplicitGC -XX:+ScavengeBeforeFullGC -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:-OmitStackTraceInFastThrow -Duser.timezone=Asia/Shanghai -Dclient.encoding.override=UTF-8 -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/./urandom"
   export JAVA_OPTS="$JAVA_OPTS -Dserver.port=$SERVER_PORT -Dlogging.file=$LOG_DIR/$SERVICE_NAME.log -XX:HeapDumpPath=$LOG_DIR/HeapDumpOnOutOfMemoryError/"
   
   # Find Java
@@ -909,109 +837,60 @@ mysql> grant INSERT,DELETE,UPDATE,SELECT on ApolloPortalDB.* to "apolloportal"@"
   fi
   
   tail -f /dev/null
+  EOF
   ```
-
+  
 - 写Dockerfile
 
-复制
+```bash
+cat << 'EOF' >Dockerfile
+FROM openjdk:8-jre-alpine3.8
+RUN \
+    echo "http://mirrors.aliyun.com/alpine/v3.8/main" > /etc/apk/repositories && \
+    echo "http://mirrors.aliyun.com/alpine/v3.8/community" >> /etc/apk/repositories  && \
+    apk update upgrade && \
+    apk add --no-cache procps curl bash tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    mkdir -p /apollo-portal
 
-```
-/data/dockerfile/apollo-portal/Dockerfile
-FROM stanleyws/jre8:8u112
-
-ENV VERSION 1.3.0
-
-RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
-    echo "Asia/Shanghai" > /etc/timezone
-
-ADD apollo-portal-${VERSION}.jar /apollo-portal/apollo-portal.jar
-ADD config/ /apollo-portal/config
-ADD scripts/ /apollo-portal/scripts
-
+ADD . /apollo-portal/
+ENV APOLLO_PORTAL_SERVICE_NAME="portal.wzxmt.com"
+EXPOSE 8070
 CMD ["/apollo-portal/scripts/startup.sh"]
+EOF
 ```
 
 - 制作镜像并推送
 
-复制
-
-```
-[root@hdss7-200 apollo-portal]# docker build . -t harbor.od.com/infra/apollo-portal:v1.3.0
-Sending build context to Docker daemon 43.35 MB
-Step 1 : FROM stanleyws/jre8:8u112
- ---> fa3a085d6ef1
-Step 2 : ENV VERSION 1.3.0
- ---> Using cache
- ---> feb4c0289f04
-Step 3 : RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&    echo "Asia/Shanghai" > /etc/timezone
- ---> Using cache
- ---> a3e3fd61ae35
-Step 4 : ADD apollo-portal-${VERSION}.jar /apollo-portal/apollo-portal.jar
- ---> cfcf63e8eedc
-Removing intermediate container 860b55bd3fc5
-Step 5 : ADD config/ /apollo-portal/config
- ---> 3ee780369431
-Removing intermediate container 6b67ee4224b5
-Step 6 : ADD scripts/ /apollo-portal/scripts
- ---> 42c9aea2e9e3
-Removing intermediate container 2dcf8d1bf4cf
-Step 7 : CMD /apollo-portal/scripts/startup.sh
- ---> [Warning] IPv4 forwarding is disabled. Networking will not work.
- ---> Running in 9162dab8b63a
- ---> 0c020b79c36f
-Removing intermediate container 9162dab8b63a
-Successfully built 0c020b79c36f
-[root@hdss7-200 apollo-portal]# docker push harbor.od.com/infra/apollo-portal:v1.3.0
-docker push harbor.od.com/infra/apollo-portal:v1.3.0
-The push refers to a repository [harbor.od.com/infra/apollo-portal]
-e7c0e96ded4e: Pushed 
-0076c5344476: Pushed 
-3851a45d7440: Pushed 
-ebfb473df5c2: Mounted from infra/apollo-adminservice 
-aae5c057d1b6: Mounted from infra/apollo-adminservice 
-dee6aef5c2b6: Mounted from infra/apollo-adminservice 
-a464c54f93a9: Mounted from infra/apollo-adminservice 
-v1.3.0: digest: sha256:1aa30aac8642cceb97c053b7d74632240af08f64c49b65d8729021fef65628a4 size: 1785
+```bash
+docker build . -t harbor.wzxmt.com/infra/apollo-portal:v1.6.1
+docker push harbor.wzxmt.com/infra/apollo-portal:v1.6.1
 ```
 
 ### 解析域名
 
-DNS主机`HDSS7-11.host.com`上：
+DNS主机上：
 
-复制
-
+```bash
+portal	60 IN A 10.0.0.50
 ```
-/var/named/od.com.zone
-portal	60 IN A 10.4.7.10
-```
-
-
 
 ### 准备资源配置清单
 
 在运维主机`HDSS7-200.host.com`上
 
-复制
-
-```
-/data/k8s-yaml
-[root@hdss7-200 k8s-yaml]# mkdir /data/k8s-yaml/apollo-portal && cd /data/k8s-yaml/apollo-portal
+```bash
+mkdir /data/software/yaml/apollo-portal
+cd /data/software/yaml/apollo-portal
 ```
 
+deployment
 
-
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#apollo-portal-yaml-1)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#apollo-portal-yaml-2)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#apollo-portal-yaml-3)
-- [ConfigMap](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#apollo-portal-yaml-4)
-
-vi deployment.yaml
-
-复制
-
-```
+```yaml
+cat << 'EOF' >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: apollo-portal
   namespace: infra
@@ -1034,9 +913,9 @@ spec:
           name: apollo-portal-cm
       containers:
       - name: apollo-portal
-        image: harbor.od.com/infra/apollo-portal:v1.3.0
+        image: harbor.wzxmt.com/infra/apollo-portal:v1.6.1
         ports:
-        - containerPort: 8080
+        - containerPort: 8070
           protocol: TCP
         volumeMounts:
         - name: configmap-volume
@@ -1045,7 +924,7 @@ spec:
         terminationMessagePolicy: File
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -1058,35 +937,99 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+kind: Service
+apiVersion: v1
+metadata: 
+  name: apollo-portal
+  namespace: infra
+spec:
+  ports:
+  - protocol: TCP
+    port: 8070
+    targetPort: 8070
+  selector: 
+    app: apollo-portal
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+EOF
+```
+
+ingress
+
+```yaml
+cat << EOF >ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: apollo-portal
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: portal.wzxmt.com     
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: apollo-portal            
+            servicePort: 8070
+EOF
+```
+
+ConfigMap
+
+```yaml
+cat << 'EOF' >cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-portal-cm
+  namespace: infra
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloPortalDB?characterEncoding=utf8
+    spring.datasource.username = apolloportal
+    spring.datasource.password = admin123
+  app.properties: |
+    appId=100003173
+  apollo-env.properties: |
+    dev.meta=http://config.wzxmt.com
+EOF
 ```
 
 ### 应用资源配置清单
 
 在任意一台k8s运算节点执行：
 
-复制
-
+```bash
+kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-portal/cm.yaml
+kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-portal/dp.yaml
+kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-portal/svc.yaml
+kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-portal/ingress.yaml
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/apollo-portal/configmap.yaml
-configmap/apollo-portal-cm created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/apollo-portal/deployment.yaml
-deployment.extensions/apollo-portal created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/apollo-portal/svc.yaml
-service/apollo-portal created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/apollo-portal/ingress.yaml
-ingress.extensions/apollo-portal created
-```
-
-
 
 ### 浏览器访问
 
-[http://portal.od.com](http://portal.od.com/)
+[http://portal.wzxmt.com](http://portal.wzxmt.com/)
 
 - 用户名：apollo
 - 密码： admin
 
-![apollo-portal](https://blog.stanley.wang/images/portal-ready.png)
+![apollo-portal](../upload/image-20200531154325488.png)
+
+### 创建项目
+
+![image-20200531160236265](../upload/image-20200531160236265.png)
 
 # 实战dubbo微服务接入Apollo配置中心
 
@@ -1094,25 +1037,20 @@ ingress.extensions/apollo-portal created
 
 ### 使用IDE拉取项目（这里使用git bash作为范例）
 
-复制
-
-```
-$ git clone git@gitee.com/stanleywang/dubbo-demo-service.git
+```bash
+git clone https://gitee.com/wzxmt/dubbo-demo-service.git
 ```
 
 ### 切到apollo分支
 
-复制
-
-```
-$ git checkout -b apollo
+```bash
+cd dubbo-demo-service
+git checkout -b apollo
 ```
 
 ### 修改pom.xml
 
 - 加入apollo客户端jar包的依赖
-
-复制
 
 ```
 dubbo-server/pom.xml
@@ -1124,8 +1062,6 @@ dubbo-server/pom.xml
 ```
 
 - 修改resource段
-
-复制
 
 ```
 dubbo-server/pom.xml

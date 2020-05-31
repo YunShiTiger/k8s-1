@@ -136,7 +136,7 @@ docker pull jenkins/jenkins:2.195-centos
 ```bash
 mkdir -p /data/software/dockerfile/jenkins
 cd /data/software/dockerfile/jenkins
-cat << EOF >Dockerfile
+cat << 'EOF' >Dockerfile
 FROM jenkins/jenkins:2.195-centos
 USER root
 RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\ 
