@@ -195,6 +195,9 @@ Apollo（阿波罗）是携程框架部门研发的分布式配置中心，能�
 ```bash
 mkdir -p /data/dockerfile/apollo-configservice
 unzip -o apollo-configservice-1.6.1-github.zip -d /data/dockerfile/apollo-configservice
+cd /data/dockerfile/apollo-configserver/
+rm -f apollo-configservice-1.6.1-sources.jar
+mv apollo-configservice-1.6.1.jar apollo-configservice.jar
 ```
 
 ### 执行数据库脚本
@@ -252,22 +255,6 @@ select * from ServerConfig where Id=1;
 
 在运维主机上：
 
-- 配置数据库连接串
-
-  ```bash
-cd /data/dockerfile/apollo-configserver/
-  rm -f apollo-configservice-1.6.1-sources.jar
-  mv apollo-configservice-1.6.1.jar apollo-configservice.jar
-  cat << EOF >config/application-github.properties
-  # DataSource
-  spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigDB?characterEncoding=utf8
-  spring.datasource.username = FillInCorrectUser
-  spring.datasource.password = FillInCorrectPassword
-  #apollo.eureka.server.enabled=true
-  #apollo.eureka.client.enabled=true
-  EOF
-  ```
-  
 - 更新startup.sh
 
   ```bash
@@ -527,6 +514,9 @@ kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/ingress.yaml
 ```bash
 mkdir /data/dockerfile/apollo-adminservice -p
 unzip -o apollo-adminservice-1.6.1-github.zip -d /data/dockerfile/apollo-adminservice
+cd /data/dockerfile/apollo-adminservice
+rm -f  apollo-adminservice-1.6.1-sources.jar
+mv apollo-adminservice-1.6.1.jar apollo-adminservice.jar
 ```
 
 ### 制作Docker镜像
@@ -536,10 +526,7 @@ unzip -o apollo-adminservice-1.6.1-github.zip -d /data/dockerfile/apollo-adminse
 - 更新starup.sh
 
   ```bash
-cd /data/dockerfile/apollo-adminservice
-  rm -f  apollo-adminservice-1.6.1-sources.jar
-  mv apollo-adminservice-1.6.1.jar apollo-adminservice.jar
-  cat << 'EOF' >scripts/startup.sh
+cat << 'EOF' >scripts/startup.sh
   #!/bin/bash
   SERVICE_NAME=apollo-adminservice
   ## Adjust log dir if necessary
