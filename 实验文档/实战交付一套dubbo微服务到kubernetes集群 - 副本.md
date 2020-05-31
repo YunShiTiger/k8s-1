@@ -243,7 +243,7 @@ systemctl enable nfs
 
 ```bash
 mkdir  -p /data/software/yaml/jenkins 
-mkdir -p /data/nfs-volume/jenkins_home
+mkdir -p /data/nfs-volume/{jenkins_home,jenkins_repository}
 cd /data/software/yaml/jenkins
 ```
 
@@ -274,6 +274,10 @@ spec:
         nfs: 
           server: 10.0.0.20
           path: /data/nfs-volume/jenkins_home
+      - name: repository
+        nfs: 
+          server: 10.0.0.20
+          path: /data/nfs-volume/jenkins_repository      
       - name: docker
         hostPath: 
           path: /run/docker.sock
@@ -297,6 +301,8 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /var/jenkins_home
+        - name: repository
+          mountPath: /root/.m2/repository
         - name: docker
           mountPath: /run/docker.sock
         terminationMessagePath: /dev/termination-log

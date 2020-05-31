@@ -23,6 +23,7 @@ syncLimit=5
 dataDir=/data/zookeeper/data
 dataLogDir=/data/zookeeper/logs
 clientPort=2181
+admin.serverPort=9099
 EOF
 ```
 
@@ -46,7 +47,8 @@ rm -fr /data/zookeeper/{data,logs}
 configmap
 
 ```yaml
-cat << EOF >/data/software/yaml/dubbo-monitor/cm.yaml
+cd /data/software/yaml/dubbo-monitor/
+cat << EOF >cm.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -71,9 +73,9 @@ EOF
 Deployment
 
 ```yaml
-cat << EOF >/data/software/yaml/dubbo-monitor/dp.yaml
+cat << EOF >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-monitor
   namespace: infra
@@ -107,7 +109,7 @@ spec:
           configMap:
             name: dubbo-monitor-cm
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -1076,8 +1078,6 @@ dubbo-server/pom.xml
 
 ### 增加resources目录
 
-复制
-
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main
 $ mkdir -pv resources/META-INF
@@ -1086,8 +1086,6 @@ mkdir: created directory 'resources/META-INF'
 ```
 
 ### 修改config.properties文件
-
-复制
 
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main/resources/config.properties
@@ -1099,16 +1097,12 @@ dubbo.port=${dubbo.port}
 
 - beans段新增属性
 
-复制
-
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main/resources/spring-config.xml
 xmlns:apollo="http://www.ctrip.com/schema/apollo"
 ```
 
 - xsi:schemaLocation段内新增属性
-
-复制
 
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main/resources/spring-config.xml
@@ -1117,16 +1111,12 @@ http://www.ctrip.com/schema/apollo http://www.ctrip.com/schema/apollo.xsd
 
 - 新增配置项
 
-复制
-
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main/resources/spring-config.xml
 <apollo:config/>
 ```
 
 - 删除配置项（注释）
-
-复制
 
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main/resources/spring-config.xml
@@ -1135,8 +1125,6 @@ http://www.ctrip.com/schema/apollo http://www.ctrip.com/schema/apollo.xsd
 
 ### 增加app.properties文件
 
-复制
-
 ```
 /d/workspace/dubbo-demo-service/dubbo-server/src/main/resources/META-INF/app.properties
 app.id=dubbo-demo-service
@@ -1144,10 +1132,8 @@ app.id=dubbo-demo-service
 
 ### 提交git中心仓库（gitee）
 
-复制
-
 ```
-$ git push origin apollo
+git push origin apollo
 ```
 
 ## 配置apollo-portal
@@ -1156,7 +1142,7 @@ $ git push origin apollo
 
 - 部门
 
-  > 样例部门1（TEST1）
+  > wzxmt01
 
 - **应用id**
 
@@ -1186,7 +1172,7 @@ $ git push origin apollo
 
 - Value
 
-  > zookeeper://zk1.od.com:2181
+  > zookeeper://zk1.wzxmt.com:2181
 
 - 选择集群
 
@@ -1213,24 +1199,65 @@ $ git push origin apollo
 ### 发布配置
 
 点击**发布**，配置生效
-![apollo-release](https://blog.stanley.wang/images/apollo-release.png)
+![apollo-release](../upload/image-20200531212735122.png)
 
 ## 使用jenkins进行CI
 
-略（注意记录镜像的tag）
+依次填入/选择：
+
+- app_name
+
+  > dubbo-demo-service
+
+- image_name
+
+  > app/dubbo-demo-service
+
+- git_repo
+
+  > https://gitee.com/wzxmt/dubbo-demo-service.git
+
+- git_ver
+
+  > apollo
+
+- add_tag
+
+  > 200531_2130
+
+- mvn_dir
+
+  > /
+
+- target_dir
+
+  > ./dubbo-server/target
+
+- mvn_cmd
+
+  > mvn clean package -Dmaven.test.skip=true
+
+- base_image
+
+  > base/jre8:8u112
+
+- maven
+
+  > 3.6.0-8u181
+
+点击`Build`进行构建，等待构建完成。
 
 ## 上线新构建的项目
 
 ### 准备资源配置清单
 
-运维主机`HDSS7-200.host.com`上：
+运维主机上：
 
-复制
-
-```
-/data/k8s-yaml/dubbo-demo-service/deployment.yaml
+```yaml
+cd /data/software/yaml/dubbo-demo-service
+cat << 'EOF' >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-demo-service
   namespace: app
@@ -1249,18 +1276,18 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-service
-        image: harbor.od.com/app/dubbo-demo-service:apollo_190119_1815
+        image: harbor.wzxmt.com/app/dubbo-demo-service:apollo_200531_2130
         ports:
         - containerPort: 20880
           protocol: TCP
         env:
         - name: C_OPTS
-          value: -Denv=dev -Dapollo.meta=http://config.od.com
+          value: -Denv=dev -Dapollo.meta=http://config.wzxmt.com
         - name: JAR_BALL
           value: dubbo-server.jar
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -1273,9 +1300,8 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
 ```
-
-
 
 **注意：**增加了env段配置
 **注意：**docker镜像新版的tag
@@ -1284,18 +1310,13 @@ spec:
 
 在任意一台k8s运算节点上执行：
 
-复制
-
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-service/deployment.yaml
-deployment.extensions/dubbo-demo-service configured
+kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-service/deployment.yaml
 ```
-
-
 
 ### 观察项目运行情况
 
-[http://dubbo-monitor.od.com](http://dubbo-monitor.od.com/)
+[http://dubbo-monitor.wzxmt.com](http://dubbo-monitor.wzxmt.com/)
 
 ## 改造dubbo-demo-web
 
@@ -1307,7 +1328,7 @@ deployment.extensions/dubbo-demo-service configured
 
 - 部门
 
-  > 样例部门1（TEST1）
+  > wzxmt01
 
 - **应用id**
 
@@ -1337,7 +1358,7 @@ deployment.extensions/dubbo-demo-service configured
 
 - Value
 
-  > zookeeper://zk1.od.com:2181
+  > zookeeper://zk1.wzxmt.com:2181
 
 - 选择集群
 
@@ -1351,20 +1372,61 @@ deployment.extensions/dubbo-demo-service configured
 
 ## 使用jenkins进行CI
 
-略（注意记录镜像的tag）
+依次填入/选择：
+
+- app_name
+
+  > dubbo-demo-consumer
+
+- image_name
+
+  > app/dubbo-demo-consumer
+
+- git_repo
+
+  > https://gitee.com/wzxmt/dubbo-demo-web.git
+
+- git_ver
+
+  > apollo
+
+- add_tag
+
+  > 200531_2350
+
+- mvn_dir
+
+  > ./
+
+- target_dir
+
+  > ./dubbo-client/target
+
+- mvn_cmd
+
+  > mvn clean package -Dmaven.test.skip=true
+
+- base_image
+
+  > base/jre8:8u112
+
+- maven
+
+  > 3.6.0-8u181
+
+点击`Build`进行构建，等待构建完成。
 
 ## 上线新构建的项目
 
 ### 准备资源配置清单
 
-运维主机`HDSS7-200.host.com`上：
+运维主机上：
 
-复制
-
-```
-/data/k8s-yaml/dubbo-demo-consumer/deployment.yaml
+```yaml
+cd /data/software/yaml/dubbo-demo-consumer/
+cat << 'EOF' >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-demo-consumer
   namespace: app
@@ -1383,7 +1445,7 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-consumer
-        image: harbor.od.com/app/dubbo-demo-consumer:apllo_190120_1815
+        image: harbor.wzxmt.com/app/dubbo-demo-consumer:apollo_200531_2350
         ports:
         - containerPort: 20880
           protocol: TCP
@@ -1391,12 +1453,12 @@ spec:
           protocol: TCP
         env:
         - name: C_OPTS
-          value: -Denv=dev -Dapollo.meta=http://config.od.com
+          value: -Denv=dev -Dapollo.meta=http://config.wzxmt.com
         - name: JAR_BALL
           value: dubbo-client.jar
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -1409,9 +1471,8 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
 ```
-
-
 
 **注意：**增加了env段配置
 **注意：**docker镜像新版的tag
@@ -1420,20 +1481,15 @@ spec:
 
 在任意一台k8s运算节点上执行：
 
-复制
-
+```bash
+kubectl apply -f http://harbor.wzxmt.com/yaml/dubbo-demo-consumer/dp.yaml
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/dubbo-demo-web/deployment.yaml
-deployment.extensions/dubbo-demo-consumer configured
-```
-
-
 
 ## 通过Apollo配置中心动态维护项目的配置
 
 以dubbo-demo-service项目为例，不用修改代码
 
-- 在[http://portal.od.com](http://portal.od.com/) 里修改dubbo.port配置项
+- 在[http://portal.wzxmt.com](http://portal.wzxmt.com/) 里修改dubbo.port配置项
 - 重启dubbo-demo-service项目
 - 配置生效
 
@@ -1449,13 +1505,13 @@ deployment.extensions/dubbo-demo-consumer configured
 
 - 物理架构
 
-| 主机名             | 角色                  | ip         |
-| :----------------- | :-------------------- | :--------- |
-| HDSS7-11.host.com  | zk-test(测试环境Test) | 10.4.7.11  |
-| HDSS7-12.host.com  | zk-prod(生产环境Prod) | 10.4.7.12  |
-| HDSS7-21.host.com  | kubernetes运算节点    | 10.4.7.21  |
-| HDSS7-22.host.com  | kubernetes运算节点    | 10.4.7.22  |
-| HDSS7-200.host.com | 运维主机，harbor仓库  | 10.4.7.200 |
+| 主机名 | 角色                               | ip        |
+| :----- | :--------------------------------- | :-------- |
+| m1     | zk-test(测试环境Test)              | 10.0.0.31 |
+| m2     | zk-prod(生产环境Prod)              | 10.0.0.32 |
+| n1     | kubernetes运算节点                 | 10.0.0.41 |
+| n2     | kubernetes运算节点                 | 10.0.0.42 |
+| manege | 运维主机，harbor仓库，mysql，named | 10.0.0.20 |
 
 - K8S内系统架构
 
@@ -1469,21 +1525,16 @@ deployment.extensions/dubbo-demo-consumer configured
 
 ## 修改/添加域名解析
 
-DNS主机`HDSS7-11.host.com`上：
+DNS主机上：
 
-复制
-
+```bash
+zk-test     60 IN A 10.0.0.31
+zk-prod     60 IN A 10.0.0.32
+config-test	60 IN A 10.0.0.50
+config-prod	60 IN A 10.0.0.50
+demo-test   60 IN A 10.0.0.50
+demo-prod   60 IN A 10.0.0.50
 ```
-/var/named/od.com.zone
-zk-test 60 IN A 10.4.7.11
-zk-prod 60 IN A 10.4.7.12
-config-test	60 IN A 10.4.7.10
-config-prod	60 IN A 10.4.7.10
-demo-test 60 IN A 10.4.7.10
-demo-prod 60 IN A 10.4.7.10
-```
-
-
 
 ## Apollo的k8s应用配置
 
@@ -1491,22 +1542,19 @@ demo-prod 60 IN A 10.4.7.10
 - 删除infra命名空间内apollo-configservice，apollo-adminservice应用
 - 数据库内删除ApolloConfigDB，创建ApolloConfigTestDB，创建ApolloConfigProdDB
 
-复制
+```bash
+drop database ApolloConfigDB;
+create database ApolloConfigTestDB;
+use ApolloConfigTestDB;
+source ./apolloconfig.sql
+update ApolloConfigTestDB.ServerConfig set ServerConfig.Value="http://config-test.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
+grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"10.4.7.%" identified by "admin123";
 
-```
-mysql> drop database ApolloConfigDB;
-
-mysql> create database ApolloConfigTestDB;
-mysql> use ApolloConfigTestDB;
-mysql> source ./apolloconfig.sql
-mysql> update ApolloConfigTestDB.ServerConfig set ServerConfig.Value="http://config-test.od.com/eureka" where ServerConfig.Key="eureka.service.url";
-mysql> grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"10.4.7.%" identified by "123456";
-
-mysql> create database ApolloConfigProdDB;
-mysql> use ApolloConfigProdDB;
-mysql> source ./apolloconfig.sql
-mysql> update ApolloConfigProdDB.ServerConfig set ServerConfig.Value="http://config-prod.od.com/eureka" where ServerConfig.Key="eureka.service.url";
-mysql> grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.4.7.%" identified by "123456";
+create database ApolloConfigProdDB;
+use ApolloConfigProdDB;
+source ./apolloconfig.sql
+update ApolloConfigProdDB.ServerConfig set ServerConfig.Value="http://config-prod.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
+grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.4.7.%" identified by "admin123";
 ```
 
 - 准备apollo-config，apollo-admin的资源配置清单（各2套）
@@ -1515,39 +1563,33 @@ mysql> grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfi
 
 - Test环境
 
-复制
-
-```
+```yaml
 application-github.properties: |
     # DataSource
-    spring.datasource.url = jdbc:mysql://mysql.od.com:3306/ApolloConfigTestDB?characterEncoding=utf8
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigTestDB?characterEncoding=utf8
     spring.datasource.username = apolloconfig
-    spring.datasource.password = 123456
-    eureka.service.url = http://config-test.od.com/eureka
+    spring.datasource.password = admin123
+    eureka.service.url = http://config-test.wzxmt.com/eureka
 ```
 
 - Prod环境
 
-复制
-
-```
+```yaml
 application-github.properties: |
     # DataSource
-    spring.datasource.url = jdbc:mysql://mysql.od.com:3306/ApolloConfigProdDB?characterEncoding=utf8
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigProdDB?characterEncoding=utf8
     spring.datasource.username = apolloconfig
-    spring.datasource.password = 123456
-    eureka.service.url = http://config-prod.od.com/eureka
+    spring.datasource.password = admin123
+    eureka.service.url = http://config-prod.wzxmt.com/eureka
 ```
 
 - 依次应用，分别发布在test和prod命名空间
 - 修改apollo-portal的configmap并重启portal
 
-复制
-
-```
+```yaml
 apollo-env.properties: |
-    TEST.meta=http://config-test.od.com
-    PROD.meta=http://config-prod.od.com
+    TEST.meta=http://config-test.wzxmt.com
+    PROD.meta=http://config-prod.wzxmt.com
 ```
 
 ## Apollo的portal配置
@@ -1592,28 +1634,3 @@ apollo-env.properties: |
 - 验证功能，通过->待上线or打回->修改代码
 - 提交发版申请，运维同学将测试后的包发往生产环境
 - 无尽的BUG修复（笑cry）
-
-坚持原创技术分享，您的支持将鼓励我继续创作！
-
-打赏
-
-[ 实验文档4：kubernetes集群的监控和日志分析](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/)
-
-
-
-[实验文档2：实战交付一套dubbo微服务到kubernetes集群 ](https://blog.stanley.wang/2019/01/18/实验文档2：实战交付一套dubbo微服务到kubernetes集群/)
-
- 
-
-- 文章目录
--  
-
-- 站点概览
-
-1. [1. 使用ConfigMap管理应用配置](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#使用ConfigMap管理应用配置)
-2. [2. 交付Apollo至Kubernetes集群](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#交付Apollo至Kubernetes集群)
-3. [3. 实战dubbo微服务接入Apollo配置中心](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#实战dubbo微服务接入Apollo配置中心)
-4. [4. 实战维护多套dubbo微服务环境](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#实战维护多套dubbo微服务环境)
-5. [5. 互联网公司技术部的日常](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/#互联网公司技术部的日常)
-
-© 2019 Stanley Wang | 388k | 5:53
