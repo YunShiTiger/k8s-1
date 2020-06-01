@@ -1525,23 +1525,22 @@ demo-prod   60 IN A 10.0.0.50
 
 ## Apollo的k8s应用配置
 
-- 删除app命名空间内应用，创建test命名空间，创建prod命名空间
-- 删除infra命名空间内apollo-configservice，apollo-adminservice应用
-- 数据库内删除ApolloConfigDB，创建ApolloConfigTestDB，创建ApolloConfigProdDB
+修改apolloportaldb.sql的数据库为ApolloConfigTestDB
 
 ```bash
-drop database ApolloConfigDB;
-create database ApolloConfigTestDB;
-use ApolloConfigTestDB;
 source ./apolloconfig.sql
 update ApolloConfigTestDB.ServerConfig set ServerConfig.Value="http://config-test.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
-grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"10.4.7.%" identified by "admin123";
+grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"10.0.0.%" identified by "admin123";
+select * from ServerConfig where Id=1;
+```
 
-create database ApolloConfigProdDB;
-use ApolloConfigProdDB;
+修改apolloportaldb.sql的数据库为ApolloConfigProdDB
+
+```bash
 source ./apolloconfig.sql
 update ApolloConfigProdDB.ServerConfig set ServerConfig.Value="http://config-prod.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
-grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.4.7.%" identified by "admin123";
+grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.0.0.%" identified by "admin123";
+select * from ServerConfig where Id=1;
 ```
 
 - 准备apollo-config，apollo-admin的资源配置清单（各2套）
@@ -1552,22 +1551,22 @@ grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.
 
 ```yaml
 application-github.properties: |
-    # DataSource
-    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigTestDB?characterEncoding=utf8
-    spring.datasource.username = apolloconfig
-    spring.datasource.password = admin123
-    eureka.service.url = http://config-test.wzxmt.com/eureka
+  # DataSource
+  spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigTestDB?characterEncoding=utf8
+  spring.datasource.username = apolloconfig
+  spring.datasource.password = admin123
+  eureka.service.url = http://config-test.wzxmt.com/eureka
 ```
 
 - Prod环境
 
 ```yaml
 application-github.properties: |
-    # DataSource
-    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigProdDB?characterEncoding=utf8
-    spring.datasource.username = apolloconfig
-    spring.datasource.password = admin123
-    eureka.service.url = http://config-prod.wzxmt.com/eureka
+  # DataSource
+  spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigProdDB?characterEncoding=utf8
+  spring.datasource.username = apolloconfig
+  spring.datasource.password = admin123
+  eureka.service.url = http://config-prod.wzxmt.com/eureka
 ```
 
 - 依次应用，分别发布在test和prod命名空间
@@ -1575,8 +1574,473 @@ application-github.properties: |
 
 ```yaml
 apollo-env.properties: |
-    TEST.meta=http://config-test.wzxmt.com
-    PROD.meta=http://config-prod.wzxmt.com
+  fat.meta=http://config-test.wzxmt.com
+  pro.meta=http://config-prod.wzxmt.com
+```
+
+## 环境配置文件：
+
+#### apollo-configserviceProd
+
+```yaml
+cat<< 'EOF' >apollo-configserviceProd.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-configservice-cm-prod
+  namespace: prod
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigProdDB?characterEncoding=utf8
+    spring.datasource.username = apolloconfig
+    spring.datasource.password = admin123
+    eureka.service.url = http://config-prod.wzxmt.com/eureka
+  app.properties: |
+    appId=100003171
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apollo-configservice
+  namespace: prod
+  labels: 
+    name: apollo-configservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: apollo-configservice
+  template:
+    metadata:
+      labels: 
+        app: apollo-configservice 
+        name: apollo-configservice
+    spec:
+      volumes:
+      - name: configmap-volume
+        configMap:
+          name: apollo-configservice-cm-prod
+      containers:
+      - name: apollo-configservice
+        image: harbor.wzxmt.com/infra/apollo-configservice:v1.6.1
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: configmap-volume
+          mountPath: /apollo-configservice/config
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: apollo-configservice
+  namespace: prod
+spec:
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector: 
+    app: apollo-configservice
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: apollo-configservice
+  namespace: prod
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: config-prod.wzxmt.com 
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: apollo-configservice            
+            servicePort: 8080
+EOF
+```
+
+#### apollo-configserviceTest
+
+```yaml
+cat<< EOF >apollo-configserviceTest.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-configservice-cm-test
+  namespace: test
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigTestDB?characterEncoding=utf8
+    spring.datasource.username = apolloconfig
+    spring.datasource.password = admin123
+    eureka.service.url = http://config-test.wzxmt.com/eureka
+  app.properties: |
+    appId=100003171
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apollo-configservice
+  namespace: test
+  labels: 
+    name: apollo-configservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: apollo-configservice
+  template:
+    metadata:
+      labels: 
+        app: apollo-configservice 
+        name: apollo-configservice
+    spec:
+      volumes:
+      - name: configmap-volume
+        configMap:
+          name: apollo-configservice-cm-test
+      containers:
+      - name: apollo-configservice
+        image: harbor.wzxmt.com/infra/apollo-configservice:v1.6.1
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: configmap-volume
+          mountPath: /apollo-configservice/config
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: apollo-configservice
+  namespace: test
+spec:
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector: 
+    app: apollo-configservice
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: apollo-configservice
+  namespace: test
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: config-test.wzxmt.com     
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: apollo-configservice            
+            servicePort: 8080
+EOF
+```
+
+#### apollo-adminserviceProd
+
+```yaml
+cat<< 'EOF' >apollo-adminserviceProd.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-adminservice-cm-prod
+  namespace: prod
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigProdDB?characterEncoding=utf8
+    spring.datasource.username = apolloconfig
+    spring.datasource.password = admin123
+    eureka.service.url = http://config-prod.wzxmt.com/eureka
+  app.properties: |
+    appId=100003172
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apollo-adminservice
+  namespace: prod
+  labels: 
+    name: apollo-adminservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: apollo-adminservice
+  template:
+    metadata:
+      labels: 
+        app: apollo-adminservice 
+        name: apollo-adminservice
+    spec:
+      volumes:
+      - name: configmap-volume
+        configMap:
+          name: apollo-adminservice-cm-prod
+      containers:
+      - name: apollo-adminservice
+        image: harbor.wzxmt.com/infra/apollo-adminservice:v1.6.1
+        ports:
+        - containerPort: 8090
+          protocol: TCP
+        volumeMounts:
+        - name: configmap-volume
+          mountPath: /apollo-adminservice/config
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+EOF
+```
+
+#### apollo-adminserviceTest
+
+```yaml
+cat<< 'EOF' >apollo-adminserviceTest.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-adminservice-cm-test
+  namespace: test
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigTestDB?characterEncoding=utf8
+    spring.datasource.username = apolloconfig
+    spring.datasource.password = admin123
+    eureka.service.url = http://config-test.wzxmt.com/eureka
+  app.properties: |
+    appId=100003172
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apollo-adminservice
+  namespace: test
+  labels: 
+    name: apollo-adminservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: apollo-adminservice
+  template:
+    metadata:
+      labels: 
+        app: apollo-adminservice 
+        name: apollo-adminservice
+    spec:
+      volumes:
+      - name: configmap-volume
+        configMap:
+          name: apollo-adminservice-cm-test
+      containers:
+      - name: apollo-adminservice
+        image: harbor.wzxmt.com/infra/apollo-adminservice:v1.6.1
+        ports:
+        - containerPort: 8090
+          protocol: TCP
+        volumeMounts:
+        - name: configmap-volume
+          mountPath: /apollo-adminservice/config
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+EOF
+```
+
+#### apollo-portal
+
+```yaml
+cat<< 'EOF' >apollo-portal.yaml 
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apollo-portal-cm-tp
+  namespace: infra
+data:
+  application-github.properties: |
+    # DataSource
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloPortalDB?characterEncoding=utf8
+    spring.datasource.username = apolloportal
+    spring.datasource.password = admin123
+  app.properties: |
+    appId=100003175
+  apollo-env.properties: |
+    fat.meta=http://config-test.wzxmt.com
+    pro.meta=http://config-prod.wzxmt.com
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apollo-portal
+  namespace: infra
+  labels: 
+    name: apollo-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: apollo-portal
+  template:
+    metadata:
+      labels: 
+        app: apollo-portal 
+        name: apollo-portal
+    spec:
+      volumes:
+      - name: configmap-volume
+        configMap:
+          name: apollo-portal-cm-tp
+      containers:
+      - name: apollo-portal
+        image: harbor.wzxmt.com/infra/apollo-portal:v1.6.1
+        ports:
+        - containerPort: 8070
+          protocol: TCP
+        volumeMounts:
+        - name: configmap-volume
+          mountPath: /apollo-portal/config
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: Always
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: apollo-portal
+  namespace: infra
+spec:
+  ports:
+  - protocol: TCP
+    port: 8070
+    targetPort: 8070
+  selector: 
+    app: apollo-portal
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:  
+  name: apollo-portal
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:  
+  rules:    
+    - host: portal.wzxmt.com     
+      http:        
+        paths:        
+        - path: /          
+          backend:            
+            serviceName: apollo-portal            
+            servicePort: 8070
+EOF
+```
+
+### 应用资源配置清单
+
+在任意一台k8s运算节点上执行：
+
+```bash
+kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-configserviceProd.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-configserviceTest.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-adminserviceProd.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-adminserviceTest.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-portal.yaml
 ```
 
 ## Apollo的portal配置
@@ -1593,19 +2057,19 @@ apollo-env.properties: |
 
 - Value
 
-  > TEST,PROD
+  > fat,pro
 
 **查询**
 
 - Value
 
-  > TEST,PROD
+  > fat,pro
 
 **保存**
 
 ## 新建dubbo-demo-service和dubbo-demo-web项目
 
-在TEST/PROD环境分别增加配置项并发布
+在fat/pro环境分别增加配置项并发布
 
 ## 发布dubbo微服务
 
