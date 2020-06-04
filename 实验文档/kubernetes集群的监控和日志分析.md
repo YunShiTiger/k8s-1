@@ -1398,8 +1398,6 @@ Targets（jobs）
 **注意：在traefik的pod控制器上加annotations，并重启pod，监控生效**
 配置范例：
 
-复制
-
 ```
 "annotations": {
   "prometheus_io_scheme": "traefik",
@@ -1435,8 +1433,6 @@ Targets（jobs）
   "blackbox_scheme": "tcp"
 }
 ```
-
-
 
 - blackbox_http_pod_probe
 
@@ -1474,8 +1470,6 @@ Targets（jobs）
 }
 ```
 
-
-
 #### kubernetes-pods*
 
 > 监控JVM信息
@@ -1512,14 +1506,10 @@ Targets（jobs）
 }
 ```
 
-
-
 ### 修改traefik服务接入prometheus监控
 
 `dashboard`上：
 kube-system名称空间->daemonset->traefik-ingress-controller->spec->template->metadata下，添加
-
-复制
 
 ```
 "annotations": {
@@ -1529,13 +1519,9 @@ kube-system名称空间->daemonset->traefik-ingress-controller->spec->template->
 }
 ```
 
-
-
 删除pod，重启traefik，观察监控
 
 继续添加blackbox监控配置项
-
-复制
 
 ```
 "annotations": {
@@ -1548,14 +1534,10 @@ kube-system名称空间->daemonset->traefik-ingress-controller->spec->template->
 }
 ```
 
-
-
 ### 修改dubbo-service服务接入prometheus监控
 
 `dashboard`上：
 app名称空间->deployment->dubbo-demo-service->spec->template=>metadata下，添加
-
-复制
 
 ```
 "annotations": {
@@ -1567,15 +1549,11 @@ app名称空间->deployment->dubbo-demo-service->spec->template=>metadata下，�
 }
 ```
 
-
-
 删除pod，重启traefik，观察监控
 
 ### 修改dubbo-consumer服务接入prometheus监控
 
 app名称空间->deployment->dubbo-demo-consumer->spec->template->metadata下，添加
-
-复制
 
 ```
 "annotations": {
@@ -1587,8 +1565,6 @@ app名称空间->deployment->dubbo-demo-consumer->spec->template->metadata下，
   "blackbox_scheme": "http"
 }
 ```
-
-
 
 删除pod，重启traefik，观察监控
 
