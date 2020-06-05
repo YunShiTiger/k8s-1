@@ -1570,7 +1570,7 @@ app名称空间->deployment->dubbo-demo-consumer->spec->template->metadata下，
 
 ## 部署Grafana
 
-运维主机`HDSS7-200.host.com`上：
+运维主机上：
 
 ### 准备grafana镜像
 
@@ -1578,79 +1578,109 @@ app名称空间->deployment->dubbo-demo-consumer->spec->template->metadata下，
 [grafana官方github地址](https://github.com/grafana/grafana)
 [grafana官网](https://grafana.com/)
 
-复制
-
+```bash
+docker pull grafana/grafana:7.0.3
+docker tag grafana/grafana:7.0.3 harbor.wzxmt.com/k8s/grafana:7.0.3
+docker push harbor.wzxmt.com/k8s/grafana:7.0.3
 ```
-[root@hdss7-200 ~]# docker pull grafana/grafana:6.1.4
-6.1.4: Pulling from grafana/grafana
-27833a3ba0a5: Pull complete 
-9412d126b236: Pull complete 
-1b7d6aaa6217: Pull complete 
-530d1110a8c8: Pull complete 
-fdcf73917f64: Pull complete 
-f5009e3ea28a: Pull complete 
-Digest: sha256:c2100550937e7aa0f3e33c2fc46a8c9668c3b5f2f71a8885e304d35de9fea009
-Status: Downloaded newer image for grafana/grafana:6.1.4
-[root@hdss7-200 ~]# docker tag d9bdb6044027 harbor.od.com/infra/grafana:v6.1.4
-[root@hdss7-200 ~]# docker push harbor.od.com/infra/grafana:v6.1.4
-docker push harbor.od.com/infra/grafana:v6.1.4
-The push refers to a repository [harbor.od.com/infra/grafana]
-b57e9e94fc2d: Pushed 
-3d4e16e25cba: Pushed 
-9642e67d431a: Pushed 
-af52591a894f: Pushed 
-0a8c2d04bf65: Pushed 
-5dacd731af1b: Pushed 
-v6.1.4: digest: sha256:db87ab263f90bdae66be744ac7935f6980c4bbd30c9756308e7382e00d4eeae8 size: 1576
-```
-
-
 
 ### 准备资源配置清单
 
-- [RBAC](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-1)
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-2)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-3)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-4)
+Deployment
 
-vi /data/k8s-yaml/grafana/rbac.yaml
-
-复制
-
+```yaml
+mkdir -p /data/software/yaml/grafana
+cd /data/software/yaml/grafana
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: grafana
+    name: grafana
+  name: grafana
+  namespace: monitoring
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 7
+  selector:
+    matchLabels:
+      name: grafana
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: grafana
+        name: grafana
+    spec:
+      containers:
+      - image: harbor.wzxmt.com/k8s/grafana:7.0.3
+        imagePullPolicy: IfNotPresent
+        name: grafana
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: data
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 0
+      volumes:
+      - nfs:
+          server: 10.0.0.20
+          path: /data/nfs-volume/grafana
+        name: data
+EOF
 ```
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
 metadata:
-  labels:
-    addonmanager.kubernetes.io/mode: Reconcile
-    kubernetes.io/cluster-service: "true"
   name: grafana
-rules:
-- apiGroups:
-  - "*"
-  resources:
-  - namespaces
-  - deployments
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+  namespace: monitoring
+spec:
+  ports:
+  - port: 3000
+    protocol: TCP
+  selector:
+    app: grafana
+  type: ClusterIP
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
 metadata:
-  labels:
-    addonmanager.kubernetes.io/mode: Reconcile
-    kubernetes.io/cluster-service: "true"
   name: grafana
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: grafana
-subjects:
-- kind: User
-  name: k8s-node
+  namespace: monitoring
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: grafana.wzxmt.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: grafana
+          servicePort: 3000
+EOF
 ```
 
 ### 应用资源配置清单
