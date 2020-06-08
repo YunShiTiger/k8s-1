@@ -1,5 +1,3 @@
-实验文档4：kubernetes集群的监控和日志分析
-
 ------
 
 # 改造dubbo-demo-web项目为Tomcat启动项目
@@ -11,19 +9,22 @@
 ### 准备tomcat二进制包
 
 运维主机上：
-[Tomcat8下载链接](http://mirrors.tuna.tsinghua.edu.cn/apache/tomcat/tomcat-8/v8.5.40/bin/apache-tomcat-8.5.40.tar.gz)
+[Tomcat8下载链接](https://mirrors.bfsu.edu.cn/apache/tomcat/tomcat-8/v8.5.55/bin/apache-tomcat-8.5.55.tar.gz)
 
-```
-mkdir -p /data/dockerfile/tomcat8 && tar xf apache-tomcat-8.5.40.tar.gz -C /data/dockerfile/tomcat
-/data/dockerfile/tomcat8 && rm -fr apache-tomcat-8.5.40/webapps/*
+```bash
+mkdir -p /data/software/dockerfile/tomcat 
+tar xf apache-tomcat-8.5.55.tar.gz -C /data/software/dockerfile/tomcat
+cd /data/software/dockerfile/tomcat
+rm -fr apache-tomcat-8.5.55/webapps/*
+mkdir -p apache-tomcat-8.5.55/webapps/ROOT
 ```
 
 ### 简单配置tomcat
 
 1. 关闭AJP端口
 
-```
-/data/dockerfile/tomcat/apache-tomcat-8.5.40/conf/server.xml
+```bash
+vim apache-tomcat-8.5.55/conf/server.xml
 <!-- <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" /> -->
 ```
 
@@ -31,15 +32,15 @@ mkdir -p /data/dockerfile/tomcat8 && tar xf apache-tomcat-8.5.40.tar.gz -C /data
 
 - 删除3manager，4host-manager的handlers
 
-```
-/data/dockerfile/tomcat/apache-tomcat-8.5.40/conf/logging.properties
+```bash
+vim apache-tomcat-8.5.55/conf/logging.properties
 handlers = 1catalina.org.apache.juli.AsyncFileHandler, 2localhost.org.apache.juli.AsyncFileHandler,java.util.logging.ConsoleHandler
 ```
 
 - 日志级别改为INFO
 
-```
-/data/dockerfile/tomcat/apache-tomcat-8.5.40/conf/logging.properties
+```bash
+vim apache-tomcat-8.5.55/conf/logging.properties
 1catalina.org.apache.juli.AsyncFileHandler.level = INFO
 2localhost.org.apache.juli.AsyncFileHandler.level = INFO
 java.util.logging.ConsoleHandler.level = INFO
@@ -47,8 +48,8 @@ java.util.logging.ConsoleHandler.level = INFO
 
 - 注释掉所有关于3manager，4host-manager日志的配置
 
-```
-/data/dockerfile/tomcat/apache-tomcat-8.5.40/conf/logging.properties
+```bash
+apache-tomcat-8.5.55/conf/logging.properties
 #3manager.org.apache.juli.AsyncFileHandler.level = FINE
 #3manager.org.apache.juli.AsyncFileHandler.directory = ${catalina.base}/logs
 #3manager.org.apache.juli.AsyncFileHandler.prefix = manager.
@@ -62,38 +63,61 @@ java.util.logging.ConsoleHandler.level = INFO
 
 ### 准备Dockerfile
 
-```
-/data/dockerfile/tomcat/Dockerfile
+```bash
+cat << 'EOF' >Dockerfile
 From stanleyws/jre8:8u112
 RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\ 
     echo 'Asia/Shanghai' >/etc/timezone
 ENV CATALINA_HOME /opt/tomcat
 ENV LANG zh_CN.UTF-8
-ADD apache-tomcat-8.5.40/ /opt/tomcat
+ADD apache-tomcat-8.5.55/ /opt/tomcat
 ADD config.yml /opt/prom/config.yml
 ADD jmx_javaagent-0.3.1.jar /opt/prom/jmx_javaagent-0.3.1.jar
 WORKDIR /opt/tomcat
 ADD entrypoint.sh /entrypoint.sh
 CMD ["/entrypoint.sh"]
+EOF
 ```
 
-- [config.yml](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#tomcat-dockerfile-1)
-- [jmx_javaagent-0.3.1.jar](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#tomcat-dockerfile-2)
-- [entrypoint.sh](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#tomcat-dockerfile-3)
+config.yml
 
-vi config.yml
-
-```
+```bash
+cat << 'EOF' >config.yml
 —
 rules:
   - pattern: '.*'
+EOF
+```
+
+jmx_javaagent-0.3.1.jar
+
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar
+```
+
+entrypoint.sh (不要忘了给执行权限)
+
+```bash
+cat << 'EOF' >entrypoint.sh
+#!/bin/bash
+M_OPTS="-Duser.timezone=Asia/Shanghai -javaagent:/opt/prom/jmx_javaagent-0.3.1.jar=$(hostname -i):${M_PORT:-"12346"}:/opt/prom/config.yml"
+C_OPTS=${C_OPTS}
+MIN_HEAP=${MIN_HEAP:-"128m"}
+MAX_HEAP=${MAX_HEAP:-"128m"}
+JAVA_OPTS=${JAVA_OPTS:-"-Xmn384m -Xss256k -Duser.timezone=GMT+08  -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=0 -XX:+CMSClassUnloadingEnabled -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=80 -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+PrintClassHistogram  -Dfile.encoding=UTF8 -Dsun.jnu.encoding=UTF8"}
+CATALINA_OPTS="${CATALINA_OPTS}"
+JAVA_OPTS="${M_OPTS} ${C_OPTS} -Xms${MIN_HEAP} -Xmx${MAX_HEAP} ${JAVA_OPTS}"
+sed -i -e "1a\JAVA_OPTS=\"$JAVA_OPTS\"" -e "1a\CATALINA_OPTS=\"$CATALINA_OPTS\"" /opt/tomcat/bin/catalina.sh
+cd /opt/tomcat && /opt/tomcat/bin/catalina.sh run
+EOF
+chmod +x entrypoint.sh
 ```
 
 ### 制作镜像并推送
 
-```
-docker build . -t harbor.od.com/base/tomcat:v8.5.40
-docker push harbor.od.com/base/tomcat:v8.5.40
+```bash
+docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.55
+docker push harbor.wzxmt.com/base/tomcat:v8.5.55
 ```
 
 ## 改造dubbo-demo-web项目
@@ -194,7 +218,7 @@ public class ServletInitializer extends SpringBootServletInitializer {
 
    > Name : git_repo
    > Default Value :
-   > Description : project git repository. e.g: [git@gitee.com](mailto:git@gitee.com):stanleywang/dubbo-demo-web.git
+   > Description : project git repository. e.g: [git@gitee.com](https://gitee.com/wzxmt/dubbo-demo-web.git)
 
 4. Add Parameter -> String Parameter
 
@@ -206,7 +230,7 @@ public class ServletInitializer extends SpringBootServletInitializer {
 
    > Name : add_tag
    > Default Value :
-   > Description : project docker image tag, date_timestamp recommended. e.g: 190117_1920
+   > Description : project docker image tag, date_timestamp recommended. e.g: 200607_0930
 
 6. Add Parameter -> String Parameter
 
@@ -231,7 +255,7 @@ public class ServletInitializer extends SpringBootServletInitializer {
    > Name : base_image
    > Default Value :
    >
-   > - base/tomcat:v7.0.94
+   > - k/tomcat:v7.0.94
    > - base/tomcat:v8.5.40
    > - base/tomcat:v9.0.17
    >   Description : project base image list in harbor.od.com.
@@ -241,7 +265,7 @@ public class ServletInitializer extends SpringBootServletInitializer {
     > Name : maven
     > Default Value :
     >
-    > - 3.6.0-8u181
+    > - 3.6.3-8u222
     > - 3.2.5-6u025
     > - 2.2.1-6u025
     >   Description : different maven edition.
@@ -252,11 +276,9 @@ public class ServletInitializer extends SpringBootServletInitializer {
     > Default Value : ROOT
     > Description : webapp dir.
 
-![jenkins新增流水线](https://blog.stanley.wang/images/jenkins-2projects.png)
-
 ### Pipeline Script
 
-```
+```bash
 pipeline {
   agent any 
     stages {
@@ -277,9 +299,12 @@ pipeline {
     }
     stage('image') { //build image and push to registry
       steps {
-        writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.od.com/${params.base_image}
+        writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
 ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
-        sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.od.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.od.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+        sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
+        docker build -t harbor.wzxmt.com/${params.app_name}:${params.git_ver}_${params.add_tag} . && \
+        docker push harbor.wzxmt.com/${params.app_name}:${params.git_ver}_${params.add_tag} && \
+        docker rmi harbor.wzxmt.com/${params.app_name}:${params.git_ver}_${params.add_tag}"
       }
     }
   }
@@ -289,8 +314,53 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 ## 构建应用镜像
 
 使用Jenkins进行CI，并查看harbor仓库
-![jenkins构建](https://blog.stanley.wang/images/jenkins-tomcat.png)
-![harbor仓库](https://blog.stanley.wang/images/harbor-tomcat.png)
+![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200607232943333.png)
+
+依次填入/选择：
+
+- app_name
+
+  > app/dubbo-demo-web
+
+- image_name
+
+  > dubbo-demo-web
+
+- git_repo
+
+  > https://gitee.com/wzxmt/dubbo-demo-web.git
+
+- git_ver
+
+  > tomcat
+
+- add_tag
+
+  > 200607_2250
+
+- mvn_dir
+
+  > ./
+
+- target_dir
+
+  > ./dubbo-client/target
+
+- mvn_cmd
+
+  > mvn clean package -Dmaven.test.skip=true
+
+- base_image
+
+  > base/jre8:8u112
+
+- maven
+
+  > 3.6.3-8u222
+
+- root_url
+  >ROOT
+  
 
 ## 准备k8s的资源配置清单
 
@@ -299,22 +369,21 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 ## 应用资源配置清单
 
 k8s的dashboard上直接修改image的值为jenkins打包出来的镜像
-文档里的例子是：`harbor.od.com/app/dubbo-demo-web:tomcat_190119_1920`
+文档里的例子是：`harbor.wzxmt.com/app/dubbo-demo-web:tomcat_200607_2250`
 
 ## 浏览器访问
 
-[http://demo.od.com?hello=wangdao](http://demo.od.com/?hello=wangdao)
+[http://demo.wzxmt.com?hello=wangdao](http://demo.wzxmt.com/?hello=wzxmt)
 
 ## 检查tomcat运行情况
 
 任意一台运算节点主机上：
 
 ```
-[root@hdss7-22 ~]# kubectl get pods -n app
+#kubectl get pods -n app
 NAME                                                    READY     STATUS    RESTARTS   AGE
 dubbo-demo-consumer-v025-htfx8                          2/2       Running   0          1h
-[root@hdss7-22 ~]# kubectl exec -ti dubbo-demo-consumer-v025-htfx8 -n app bash
-dubbo-demo-consumer-v025-htfx8:/opt/tomcat#  ls -lsr logs/
+# kubectl exec -ti dubbo-demo-consumer-v025-htfx8 -n app ls -lsr logs
 total 16
 -rw-r----- 1 root root 7435 Jan 19 19:26 catalina.2019-01-19.log
 -rw-r----- 1 root root  629 Jan 19 19:26 localhost.2019-01-19.log
@@ -824,6 +893,7 @@ metadata:
   namespace: monitoring
   labels:
     app: blackbox-exporter
+    k8s-app: blackbox-exporter
 spec:
   replicas: 1
   selector:
@@ -1172,6 +1242,7 @@ scrape_configs:
     - '10.0.0.31:2379'
     - '10.0.0.32:2379'
     - '10.0.0.33:2379'
+
 - job_name: 'kubernetes-apiservers'
   kubernetes_sd_configs:
   - role: endpoints
@@ -1183,6 +1254,7 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
     action: keep
     regex: default;kubernetes;https
+
 - job_name: 'kubernetes-pods'
   kubernetes_sd_configs:
   - role: pod
@@ -1207,6 +1279,7 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_pod_name]
     action: replace
     target_label: kubernetes_pod_name
+
 - job_name: 'kubernetes-kubelet'
   kubernetes_sd_configs:
   - role: node
@@ -1217,6 +1290,7 @@ scrape_configs:
     regex: (.+)
     target_label: __address__
     replacement: ${1}:10255
+
 - job_name: 'kubernetes-cadvisor'
   kubernetes_sd_configs:
   - role: node
@@ -1226,7 +1300,8 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_node_name]
     regex: (.+)
     target_label: __address__
-    replacement: ${1}:4194
+    replacement: ${1}.wzxmt.com:4194 #添加解析.wzxmt.com
+
 - job_name: 'kubernetes-kube-state'
   kubernetes_sd_configs:
   - role: pod
@@ -1246,6 +1321,7 @@ scrape_configs:
     regex: 'node-exporter;(.*)'
     action: replace
     target_label: nodename
+
 - job_name: 'blackbox_http_pod_probe'
   metrics_path: /probe
   kubernetes_sd_configs:
@@ -1256,7 +1332,7 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_pod_annotation_blackbox_scheme]
     action: keep
     regex: http
-  - source_labels: [__address__, __meta_kubernetes_pod_annotation_blackbox_port,__meta_kubernetes_pod_annotation_blackbox_path]
+  - source_labels: [__address__, __meta_kubernetes_pod_annotation_blackbox_port,  __meta_kubernetes_pod_annotation_blackbox_path]
     action: replace
     regex: ([^:]+)(?::\d+)?;(\d+);(.+)
     replacement: $1:$2$3
@@ -1274,6 +1350,7 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_pod_name]
     action: replace
     target_label: kubernetes_pod_name
+
 - job_name: 'blackbox_tcp_pod_probe'
   metrics_path: /probe
   kubernetes_sd_configs:
@@ -1302,6 +1379,7 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_pod_name]
     action: replace
     target_label: kubernetes_pod_name
+
 - job_name: 'traefik'
   kubernetes_sd_configs:
   - role: pod
@@ -1460,8 +1538,6 @@ Targets（jobs）
 **注意：在pod控制器上加annotations，并重启pod，监控生效**
 配置范例：
 
-复制
-
 ```
 "annotations": {
   "blackbox_path": "/",
@@ -1495,8 +1571,6 @@ Targets（jobs）
 
 **注意：在pod控制器上加annotations，并重启pod，监控生效**
 配置范例：
-
-复制
 
 ```
 "annotations": {
@@ -1687,35 +1761,23 @@ EOF
 
 任意运算节点上：
 
-复制
-
 ```
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/grafana/deployment.yaml 
-deployment.extensions/grafana created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/grafana/service.yaml 
-service/grafana created
-[root@hdss7-21 ~]# kubectl apply -f http://k8s-yaml.od.com/grafana/ingress.yaml 
-ingress.extensions/grafana created
+kubectl apply -f http://www.wzxmt.com/yaml/grafana/dp.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/grafana/svc.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/grafana/ingress.yaml
 ```
-
-
 
 ### 解析域名
 
 `HDSS7-11.host.com`上
 
-复制
-
 ```
-/var/named/od.com.zone
-grafana	60 IN A 10.4.7.10
+grafana	60 IN A 10.0.0.50
 ```
-
-
 
 ### 浏览器访问
 
-[http://grafana.od.com](http://grafana.od.com/)
+[http://grafana.wzxmt.com](http://grafana.wzxmt.com/)
 
 - 用户名：admin
 - 密 码：admin
@@ -1751,53 +1813,20 @@ Configuration -> Plugins
 
 安装方法一：
 
-复制
-
 ```
 grafana-cli plugins install grafana-kubernetes-app
 ```
 
-
-
 安装方法二：
 [下载地址](https://grafana.com/api/plugins/grafana-kubernetes-app/versions/1.0.1/download)
-
-复制
-
-```
-/data/nfs-volume/grafana/plugins
-[root@hdss7-21 plugins]# wget https://grafana.com/api/plugins/grafana-kubernetes-app/versions/1.0.1/download -O grafana-kubernetes-app.zip
---2019-04-28 16:15:33--  https://grafana.com/api/plugins/grafana-kubernetes-app/versions/1.0.1/download
-Resolving grafana.com (grafana.com)... 35.241.23.245
-Connecting to grafana.com (grafana.com)|35.241.23.245|:443... connected.
-HTTP request sent, awaiting response... 302 Found
-Location: https://codeload.github.com/grafana/kubernetes-app/legacy.zip/31da38addc1d0ce5dfb154737c9da56e3b6692fc [following]
---2019-04-28 16:15:37--  https://codeload.github.com/grafana/kubernetes-app/legacy.zip/31da38addc1d0ce5dfb154737c9da56e3b6692fc
-Resolving codeload.github.com (codeload.github.com)... 13.229.189.0, 13.250.162.133, 54.251.140.56
-Connecting to codeload.github.com (codeload.github.com)|13.229.189.0|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 3084524 (2.9M) [application/zip]
-Saving to: ‘grafana-kubernetes-app.zip’
-
-100%[===================================================================================================================>] 3,084,524    116KB/s   in 12s    
-
-2019-04-28 16:15:51 (250 KB/s) - ‘grafana-kubernetes-app.zip’ saved [3084524/3084524]
-[root@hdss7-200 plugins]# unzip grafana-kubernetes-app.zip
-```
-
-
 
 - Clock Pannel
 
 安装方法一：
 
-复制
-
 ```
 grafana-cli plugins install grafana-clock-panel
 ```
-
-
 
 安装方法二：
 [下载地址](https://grafana.com/api/plugins/grafana-clock-panel/versions/1.0.2/download)
@@ -1806,13 +1835,9 @@ grafana-cli plugins install grafana-clock-panel
 
 安装方法一：
 
-复制
-
 ```
 grafana-cli plugins install grafana-piechart-panel
 ```
-
-
 
 安装方法二：
 [下载地址](https://grafana.com/api/plugins/grafana-piechart-panel/versions/1.3.6/download)
@@ -1821,13 +1846,9 @@ grafana-cli plugins install grafana-piechart-panel
 
 安装方法一：
 
-复制
-
 ```
 grafana-cli plugins install briangann-gauge-panel
 ```
-
-
 
 安装方法二：
 [下载地址](https://grafana.com/api/plugins/briangann-gauge-panel/versions/0.0.6/download)
@@ -1836,13 +1857,9 @@ grafana-cli plugins install briangann-gauge-panel
 
 安装方法一：
 
-复制
-
 ```
 grafana-cli plugins install natel-discrete-panel
 ```
-
-
 
 安装方法二：
 [下载地址](https://grafana.com/api/plugins/natel-discrete-panel/versions/0.0.9/download)
@@ -1857,10 +1874,10 @@ Configuration -> Data Sources
 
 - HTTP
 
-| key    | value                                                 |
-| :----- | :---------------------------------------------------- |
-| URL    | [http://prometheus.od.com](http://prometheus.od.com/) |
-| Access | Server(Default)                                       |
+| key    | value                                                       |
+| :----- | :---------------------------------------------------------- |
+| URL    | [http://prometheus.wzxmt.com](http://prometheus.wzxmt.com/) |
+| Access | Server(Default)                                             |
 
 - Save & Test
 
@@ -1878,10 +1895,10 @@ kubernetes -> +New Cluster
 
 - HTTP
 
-| key    | value                                             |
-| :----- | :------------------------------------------------ |
-| URL    | [https://10.4.7.10:7443](https://10.4.7.10:7443/) |
-| Access | Server(Default)                                   |
+| key    | value                                               |
+| :----- | :-------------------------------------------------- |
+| URL    | [https://10.0.0.150:7443](https://10.0.0.150:8443/) |
+| Access | Server(Default)                                     |
 
 - Auth
 
@@ -1906,12 +1923,6 @@ kubernetes -> +New Cluster
 
   > pod_name -> container_label_io_kubernetes_pod_name
 
-- [K8S-Cluster](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#k8s-dashboard-1)
-- [K8S-Node](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#k8s-dashboard-2)
-- [K8S-Deployment](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#k8s-dashboard-3)
-- [K8S-Container](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#k8s-dashboard-4)
-
-见附件
 
 ### 配置自定义dashboard
 
@@ -1923,13 +1934,6 @@ kubernetes -> +New Cluster
 - JMX dashboard
 - blackbox dashboard
 
-- [ETCD](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-dashboard-1)
-- [TRAEFIK](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-dashboard-2)
-- [GENERIC](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-dashboard-3)
-- [JMX](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-dashboard-4)
-- [BlackBox](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#grafana-dashboard-5)
-
-见附件
 
 # 使用ELK Stack收集kubernetes集群内的应用日志
 
@@ -1937,101 +1941,84 @@ kubernetes -> +New Cluster
 
 [官网](https://www.elastic.co/)
 [官方github地址](https://github.com/elastic/elasticsearch)
-[下载地址](https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.15.tar.gz)
-`HDSS7-12.host.com`上：
+[下载地址](https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.7.1-linux-x86_64.tar.gz)
 
-### 安装
+### 安装依赖与软件
 
-复制
-
-```
-/opt/src
-[root@hdss7-12 src]# ls -l|grep elasticsearch-5.6.15.tar.gz
--rw-r--r-- 1 root root  72262257 Jan 30 15:18 elasticsearch-5.6.15.tar.gz
-[root@hdss7-12 src]# tar xf elasticsearch-5.6.15.tar.gz -C /opt
-[root@hdss7-12 src]# ln -s /opt/elasticsearch-5.6.15/ /opt/elasticsearch
+```bash
+yum install java -y
+tar xf elasticsearch-7.7.1-linux-x86_64.tar.gz -C /usr/local/src
+ln -s /usr/local/src/elasticsearch-7.7.1 /usr/local/elasticsearch
+cd /usr/local/elasticsearch
 ```
 
 ### 配置
 
 #### elasticsearch.yml
 
-复制
-
-```
-[root@hdss7-12 src]# mkdir -p /data/elasticsearch/{data,logs}
-[root@hdss7-12 elasticsearch]# vi config/elasticsearch.yml
-cluster.name: es.od.com
-node.name: hdss7-12.host.com
-path.data: /data/elasticsearch/data
-path.logs: /data/elasticsearch/logs
-bootstrap.memory_lock: true
-network.host: 10.4.7.12
-http.port: 9200
+```bash
+cp config/elasticsearch.yml{,.bak}
+cat << 'EOF' >config/elasticsearch.yml
+path.data: /data/elasticsearch/data #数据
+path.logs: /data/elasticsearch/logs #日志
+cluster.name: elasticsearch # 集群中的名称
+node.name: es # 该节点名称，与前面配置hosts保持一致
+node.master: true # 意思是该节点是否可选举为主节点
+node.data: true # 表示这不是数据节点
+network.host: 0.0.0.0 # 监听全部ip，在实际环境中应为一个安全的ip
+http.port: 9200 # es服务的端口号
+cluster.initial_master_nodes: es
+EOF
 ```
 
 #### jvm.options
 
-复制
-
-```
-[root@hdss7-12 elasticsearch]# vi config/jvm.options
+```bash
+vi config/jvm.options
 -Xms512m
 -Xmx512m
 ```
 
 #### 创建普通用户
 
-复制
-
-```
-[root@hdss7-12 elasticsearch]# useradd -s /bin/bash -M es
-[root@hdss7-12 elasticsearch]# chown -R es.es /opt/elasticsearch-5.6.15
-[root@hdss7-12 elasticsearch]# chown -R es.es /data/elasticsearch
+```bash
+groupadd es
+useradd es -g es
+mkdir -p /data/elasticsearch/{data,logs}
+chown -R es. /data/elasticsearch/
+chown -R es. /usr/local/elasticsearch/
 ```
 
 #### 文件描述符
 
-复制
-
-```
-/etc/security/limits.d/es.conf
+```bash
+cat << 'EOF' >>/etc/security/limits.conf
 es hard nofile 65536
 es soft fsize unlimited
 es hard memlock unlimited
 es soft memlock unlimited
+EOF
 ```
 
 #### 调整内核参数
 
-复制
-
-```
-[root@hdss7-12 elasticsearch]# sysctl -w vm.max_map_count=262144
-or
-[root@hdss7-12 elasticsearch]# echo "vm.max_map_count=262144" > /etc/sysctl.conf
-[root@hdss7-12 elasticsearch]# sysctl -p
+```bash
+echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+sysctl -p
 ```
 
 ### 启动
 
-复制
-
-```
-[root@hdss7-12 elasticsearch]# su - es
-su: warning: cannot change directory to /home/es: No such file or directory
--bash-4.2$ /opt/elasticsearch/bin/elasticsearch &
-[1] 8714
-[root@hdss7-12 elasticsearch]# ps -ef|grep elastic|grep -v grep
-es        8714     1 58 10:29 pts/0    00:00:19 /usr/java/jdk/bin/java -Xms512m -Xmx512m -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -XX:+AlwaysPreTouch -server -Xss1m -Djava.awt.headless=true -Dfile.encoding=UTF-8 -Djna.nosys=true -Djdk.io.permissionsUseCanonicalPath=true -Dio.netty.noUnsafe=true -Dio.netty.noKeySetOptimization=true -Dio.netty.recycler.maxCapacityPerThread=0 -Dlog4j.shutdownHookEnabled=false -Dlog4j2.disable.jmx=true -Dlog4j.skipJansi=true -XX:+HeapDumpOnOutOfMemoryError -Des.path.home=/opt/elasticsearch -cp /opt/elasticsearch/lib/* org.elasticsearch.bootstrap.Elasticsearch
+```bash
+su - es
+cd /usr/local/elasticsearch/bin/
+./elasticsearch -d
 ```
 
 ### 调整ES日志模板
 
-复制
-
-```
-[root@hdss7-12 elasticsearch]# curl -XPUT http://10.4.7.12:9200/_template/k8s -d '{
+```bash
+curl -XPUT 'http://127.0.0.1:9200/_template/k8s' -H 'content-Type:application/json' -d '{
   "template" : "k8s*",
   "index_patterns": ["k8s*"],  
   "settings": {
@@ -2045,12 +2032,9 @@ es        8714     1 58 10:29 pts/0    00:00:19 /usr/java/jdk/bin/java -Xms512m 
 
 [官网](http://kafka.apache.org/)
 [官方github地址](https://github.com/apache/kafka)
-[下载地址](http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.12-2.1.1.tgz)
-`HDSS7-11.host.com`上：
+[下载地址](http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.12-2.1.1.tgz)：
 
 ### 安装
-
-复制
 
 ```
 /opt/src
@@ -2061,8 +2045,6 @@ es        8714     1 58 10:29 pts/0    00:00:19 /usr/java/jdk/bin/java -Xms512m 
 ```
 
 ### 配置
-
-复制
 
 ```
 /opt/kafka/config/server.properties
@@ -2075,8 +2057,6 @@ host.name=hdss7-11.host.com
 ```
 
 ### 启动
-
-复制
 
 ```
 /opt/kafka
@@ -2092,8 +2072,6 @@ tcp6       0      0 10.4.7.12:9092         :::*                    LISTEN      1
 运维主机`HDSS7-200.host.com`上：
 
 ### 方法一：1、准备Dockerfile
-
-复制
 
 ```
 /data/dockerfile/kafka-manager/Dockerfile
@@ -2119,8 +2097,6 @@ ENTRYPOINT ["./bin/kafka-manager","-Dconfig.file=conf/application.conf"]
 
 ### 方法一：2、制作docker镜像
 
-复制
-
 ```
 /data/dockerfile/kafka-manager
 [root@hdss7-200 kafka-manager]# docker build . -t harbor.od.com/infra/kafka-manager:v2.0.0.2
@@ -2131,31 +2107,11 @@ ENTRYPOINT ["./bin/kafka-manager","-Dconfig.file=conf/application.conf"]
 
 [镜像下载地址](https://hub.docker.com/r/sheepkiller/kafka-manager/tags)
 
-复制
-
 ```
 [root@hdss7-200 ~]# docker pull sheepkiller/kafka-manager:stable
 [root@hdss7-200 ~]# docker tag 34627743836f harbor.od.com/infra/kafka-manager:stable
 [root@hdss7-200 ~]# docker push harbor.od.com/infra/kafka-manager:stable
-docker push harbor.od.com/infra/kafka-manager:stable
-The push refers to a repository [harbor.od.com/infra/kafka]
-ef97dbc2670b: Pushed 
-ec01aa005e59: Pushed 
-de05a1bdf878: Pushed 
-9c553f3feafd: Pushed 
-581533427a4f: Pushed 
-f6b229974fdd: Pushed 
-ae150883d6e2: Pushed 
-3df7be729841: Pushed 
-f231cc200afe: Pushed 
-9752c15164a8: Pushed 
-9ab7eda5c826: Pushed 
-402964b3d72e: Pushed 
-6b3f8ebf864c: Pushed 
-stable: digest: sha256:57fd46a3751284818f1bc6c0fdf097250bc0feed03e77135fb8b0a93aa8c6cc7 size: 3056
 ```
-
-
 
 ### 准备资源配置清单
 
@@ -2164,8 +2120,6 @@ stable: digest: sha256:57fd46a3751284818f1bc6c0fdf097250bc0feed03e77135fb8b0a93a
 - [Ingress](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kafka-manager-3)
 
 vi /data/k8s-yaml/kafka-manager/deployment.yaml
-
-复制
 
 ```
 kind: Deployment
@@ -2218,8 +2172,6 @@ spec:
 
 任意一台运算节点上：
 
-复制
-
 ```
 [root@hdss7-21 kafka-manager]# kubectl apply -f http://k8s-yaml.od.com/kafka-manager/deployment.yaml 
 deployment.extensions/kafka-manager created
@@ -2229,20 +2181,14 @@ service/kafka-manager created
 ingress.extensions/kafka-manager created
 ```
 
-
-
 ### 解析域名
 
 `HDSS7-11.host.com`上
-
-复制
 
 ```
 /var/named/od.com.zone
 km	60 IN A 10.4.7.10
 ```
-
-
 
 ### 浏览器访问
 
@@ -2263,8 +2209,6 @@ km	60 IN A 10.4.7.10
 - [Entrypoint](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#filebeat-dockerfile-2)
 
 vi /data/dockerfile/filebeat/Dockerfile
-
-复制
 
 ```
 FROM debian:jessie
@@ -2293,56 +2237,16 @@ ENTRYPOINT ["/docker-entrypoint.sh"]
 
 #### 制作镜像
 
-复制
-
 ```
 /data/dockerfile/filebeat
 [root@hdss7-200 filebeat]# docker build . -t harbor.od.com/infra/filebeat:v7.0.1
-...
-+ apt-get autoremove -y
-Reading package lists...
-Building dependency tree...
-Reading state information...
-The following packages will be REMOVED:
-  ca-certificates libicu52 libidn11 libpsl0 libssl1.0.0 openssl
-0 upgraded, 0 newly installed, 6 to remove and 6 not upgraded.
-After this operation, 33.6 MB disk space will be freed.
-(Reading database ... 7962 files and directories currently installed.)
-Removing ca-certificates (20141019+deb8u4) ...
-Removing dangling symlinks from /etc/ssl/certs... done.
-Removing libpsl0:amd64 (0.5.1-1) ...
-Removing libicu52:amd64 (52.1-8+deb8u7) ...
-Removing libidn11:amd64 (1.29-1+deb8u3) ...
-Removing openssl (1.0.1t-1+deb8u11) ...
-Removing libssl1.0.0:amd64 (1.0.1t-1+deb8u11) ...
-Processing triggers for libc-bin (2.19-18+deb8u10) ...
-+ apt-get clean
-+ rm -rf /var/lib/apt/lists/deb.debian.org_debian_dists_jessie_Release /var/lib/apt/lists/deb.debian.org_debian_dists_jessie_Release.gpg /var/lib/apt/lists/deb.debian.org_debian_dists_jessie_main_binary-amd64_Packages.gz /var/lib/apt/lists/lock /var/lib/apt/lists/partial /var/lib/apt/lists/security.debian.org_debian-security_dists_jessie_updates_InRelease /var/lib/apt/lists/security.debian.org_debian-security_dists_jessie_updates_main_binary-amd64_Packages.gz /tmp/* /var/tmp/*
- ---> a78678659f2c
-Removing intermediate container 2cfff130c15c
-Step 4 : COPY docker-entrypoint.sh /
- ---> 62dc7fe5a98f
-Removing intermediate container 87e271482593
-Step 5 : ENTRYPOINT /docker-entrypoint.sh
- ---> Running in d367b6e3bb5a
- ---> 23c8fbdc088a
-Removing intermediate container d367b6e3bb5a
-Successfully built 23c8fbdc088a
 [root@hdss7-200 filebeat]# docker tag 23c8fbdc088a harbor.od.com/infra/filebeat:v7.0.1
 [root@hdss7-200 filebeat]# docker push !$
-docker push harbor.od.com/infra/filebeat:v7.0.1
-The push refers to a repository [harbor.od.com/infra/filebeat]
-6a765e653161: Pushed 
-8e89ae5c6fc2: Pushed 
-9abb3997a540: Pushed 
-v7.0.1: digest: sha256:c35d7cdba29d8555388ad41ac2fc1b063ed9ec488082e33b5d0e91864b3bb35c size: 948
 ```
 
 ### 修改资源配置清单
 
 **使用dubbo-demo-consumer的Tomcat版镜像**
-
-复制
 
 ```
 /data/k8s-yaml/dubbo-demo-consumer/deployment.yaml
@@ -2407,16 +2311,12 @@ spec:
   progressDeadlineSeconds: 600
 ```
 
-
-
 ### 浏览器访问[http://km.od.com](http://km.od.com/)
 
 看到kafaka-manager里，topic打进来，即为成功。
 ![kafka-topic](https://blog.stanley.wang/images/kafka-topic.png)
 
 ### 验证数据
-
-复制
 
 ```
 /opt/kafka/bin
@@ -2425,53 +2325,14 @@ spec:
 
 ## 部署logstash
 
-运维主机`HDSS7-200.host.com`上：
-
-### 选版本
-
-[logstash选型](https://www.elastic.co/support/matrix)
-![compatibility](https://blog.stanley.wang/images/es-logstash.png)
-
 ### 准备docker镜像
 
 - 下载官方镜像
 
-复制
-
 ```
-[root@hdss7-200 ~]# docker pull logstash:6.7.2
-6.7.2: Pulling from library/logstash
-8ba884070f61: Pull complete 
-063405b57b96: Pull complete 
-0a0115b8825c: Pull complete 
-825b124900cb: Pull complete 
-ed736d9e3c41: Pull complete 
-6efb3934697a: Pull complete 
-c0a3a0c8ebc2: Pull complete 
-f55d8adfbc3d: Pull complete 
-3a6c56fbbef8: Pull complete 
-ca45dc8946a2: Pull complete 
-8b852a079ea9: Pull complete 
-Digest: sha256:46eaff19af5e14edd9b78e1d5bf16f6abcd9ad50e0338cbaf3024f2aadb2903b
-Status: Downloaded newer image for logstash:6.7.2
-
-[root@hdss7-200 ~]# docker tag 857d9a1f8221 harbor.od.com/public/logstash:v6.7.2
-
-[root@hdss7-200 ~]# docker push harbor.od.com/public/logstash:v6.7.2
+docker pull logstash:6.7.2
+docker tag 857d9a1f8221 harbor.od.com/public/logstash:v6.7.2
 docker push harbor.od.com/public/logstash:v6.7.2
-The push refers to a repository [harbor.od.com/public/logstash]
-c2b00f70cade: Mounted from public/filebeat 
-9a2c2851596d: Mounted from public/filebeat 
-86564f3ca0e2: Mounted from public/filebeat 
-e9bc8faf823a: Mounted from public/filebeat 
-3f3bcfa85067: Mounted from public/filebeat 
-65d3b56913bd: Mounted from public/filebeat 
-9b48a60607ee: Mounted from public/filebeat 
-df859db41dd0: Mounted from public/filebeat 
-1cbe912d7c00: Mounted from public/filebeat 
-ab5fbaca7e70: Mounted from public/filebeat 
-d69483a6face: Mounted from public/filebeat 
-v6.7.2: digest: sha256:6aacf97dfbcc5c64c2f1a12f43ee48a8dadb98657b9b8d4149d0fee0ec18be81 size: 2823
 ```
 
 - 自定义Dockerfile
@@ -2487,8 +2348,6 @@ ADD logstash.yml /usr/share/logstash/config
 ```
 
 - 创建自定义镜像
-
-复制
 
 ```
 /data/dockerfile/logstash
@@ -2521,8 +2380,6 @@ Successfully built 2ad32d3f5fef
 
 - 创建配置
 
-复制
-
 ```
 /etc/logstash/logstash-test.conf
 input {
@@ -2551,8 +2408,6 @@ output {
 
 - 启动logstash镜像
 
-复制
-
 ```
 [root@hdss7-200 ~]# docker run -d --name logstash-test -v /etc/logstash:/etc/logstash harbor.od.com/infra/logstash:v6.7.2 -f /etc/logstash/logstash-test.conf
 [root@hdss7-200 ~]# docker ps -a|grep logstash
@@ -2561,66 +2416,31 @@ a5dcf56faa9a        harbor.od.com/infra/logstash:v6.7.2                         
 
 - 验证ElasticSearch里的索引
 
-复制
-
 ```
-[root@hdss7-200 ~]# curl http://10.4.7.12:9200/_cat/indices?v
+curl http://10.4.7.12:9200/_cat/indices?v
 health status index            uuid                   pri rep docs.count docs.deleted store.size pri.store.size
 green  open   k8s-test-2019.04 H3MY9d8WSbqQ6uL0DFhenQ   5   0         55            0    249.9kb        249.9kb
 ```
 
 ## 部署Kibana
 
-运维主机`HDSS7-200.host.com`上：
+运维主机上：
 
 ### 准备docker镜像
 
 [kibana官方镜像下载地址](https://hub.docker.com/_/kibana?tab=tags)
 
-复制
-
 ```
-[root@hdss7-200 ~]# docker pull kibana:5.6.16
-5.6.16: Pulling from library/kibana
-
-8014725ed6f5: Pull complete 
-19b590251e94: Pull complete 
-7fa3e54c0b5a: Pull complete 
-60ee9811b356: Pull complete 
-d18bafa420f4: Pull complete 
-8cee55751899: Pull complete 
-c395be470eb2: Pull complete 
-Digest: sha256:71f776596244877597fd679b2fa6fb0f1fa9c5b11388199997781d1ce77b73b1
-Status: Downloaded newer image for kibana:5.6.16
-[root@hdss7-200 ~]# docker tag 62079cf74c23 harbor.od.com/infra/kibana:v5.6.16
-[root@hdss7-200 ~]# docker push harbor.od.com/infra/kibana:v5.6.16
+docker pull kibana:5.6.16
+docker tag 62079cf74c23 harbor.od.com/infra/kibana:v5.6.16
 docker push harbor.od.com/infra/kibana:v5.6.16
-The push refers to a repository [harbor.od.com/infra/kibana]
-be94745c5390: Pushed 
-652dcbd52cdd: Pushed 
-a3508a095ca7: Pushed 
-56d52080e2fe: Pushed 
-dbce28d91bf0: Pushed 
-dcddc432ebdf: Pushed 
-3e466685bf43: Pushed 
-d69483a6face: Mounted from infra/logstash 
-v5.6.16: digest: sha256:17dd243d6cc4e572f74f3de83eafc981e54c1710f8fe2d0bf74357b28bddaf08 size: 1991
 ```
-
-
 
 ### 解析域名
 
-`HDSS7-11.host.com`上
-
-复制
-
 ```
-/var/named/od.com.zone
 kibana	60 IN A 10.4.7.10
 ```
-
-
 
 ### 准备资源配置清单
 
@@ -2629,8 +2449,6 @@ kibana	60 IN A 10.4.7.10
 - [Ingress](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kibana-3)
 
 vi /data/k8s-yaml/kibana/deployment.yaml
-
-复制
 
 ```
 kind: Deployment
@@ -2681,18 +2499,11 @@ spec:
 
 任意运算节点上：
 
-复制
-
 ```
-[root@hdss7-21 ~]# kubectl apply -f deployment.yaml 
-deployment.extensions/kibana created
-[root@hdss7-21 ~]# kubectl apply -f svc.yaml 
-service/kibana created
-[root@hdss7-21 ~]# kubectl apply -f ingress.yaml 
-ingress.extensions/kibana created
+kubectl apply -f deployment.yaml 
+kubectl apply -f svc.yaml 
+kubectl apply -f ingress.yaml 
 ```
-
-
 
 ### 浏览器访问
 
@@ -2747,26 +2558,3 @@ ingress.extensions/kibana created
 
 - exception
 - error
-
-坚持原创技术分享，您的支持将鼓励我继续创作！
-
-打赏
-
-[ 实验文档5：企业级kubernetes容器云自动化运维平台](https://blog.stanley.wang/2019/01/18/实验文档5：企业级Kubernetes容器云自动化运维平台/)
-
-
-
-[实验文档3：在kubernetes集群里集成Apollo配置中心 ](https://blog.stanley.wang/2019/01/18/实验文档3：在kubernetes集群里集成Apollo配置中心/)
-
- 
-
-- 文章目录
--  
-
-- 站点概览
-
-1. [1. 改造dubbo-demo-web项目为Tomcat启动项目](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#改造dubbo-demo-web项目为Tomcat启动项目)
-2. [2. 使用Prometheus和Grafana监控kubernetes集群](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#使用Prometheus和Grafana监控kubernetes集群)
-3. [3. 使用ELK Stack收集kubernetes集群内的应用日志](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#使用ELK-Stack收集kubernetes集群内的应用日志)
-
-© 2019 Stanley Wang | 388k | 5:53
