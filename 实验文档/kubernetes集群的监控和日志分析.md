@@ -9,14 +9,14 @@
 ### 准备tomcat二进制包
 
 运维主机上：
-[Tomcat8下载链接](https://mirrors.bfsu.edu.cn/apache/tomcat/tomcat-8/v8.5.55/bin/apache-tomcat-8.5.55.tar.gz)
+[Tomcat8下载链接](https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.40/bin/apache-tomcat-8.5.40.tar.gz)
 
 ```bash
 mkdir -p /data/software/dockerfile/tomcat 
-tar xf apache-tomcat-8.5.55.tar.gz -C /data/software/dockerfile/tomcat
+tar xf apache-tomcat-8.5.40.tar.gz -C /data/software/dockerfile/tomcat
 cd /data/software/dockerfile/tomcat
-rm -fr apache-tomcat-8.5.55/webapps/*
-mkdir -p apache-tomcat-8.5.55/webapps/ROOT
+rm -fr apache-tomcat-8.5.40/webapps/*
+mkdir -p apache-tomcat-8.5.40/webapps/ROOT
 ```
 
 ### 简单配置tomcat
@@ -24,7 +24,7 @@ mkdir -p apache-tomcat-8.5.55/webapps/ROOT
 1. 关闭AJP端口
 
 ```bash
-vim apache-tomcat-8.5.55/conf/server.xml
+vim apache-tomcat-8.5.40/conf/server.xml
 <!-- <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" /> -->
 ```
 
@@ -33,14 +33,14 @@ vim apache-tomcat-8.5.55/conf/server.xml
 - 删除3manager，4host-manager的handlers
 
 ```bash
-vim apache-tomcat-8.5.55/conf/logging.properties
+vim apache-tomcat-8.5.40/conf/logging.properties
 handlers = 1catalina.org.apache.juli.AsyncFileHandler, 2localhost.org.apache.juli.AsyncFileHandler,java.util.logging.ConsoleHandler
 ```
 
 - 日志级别改为INFO
 
 ```bash
-vim apache-tomcat-8.5.55/conf/logging.properties
+vim apache-tomcat-8.5.40/conf/logging.properties
 1catalina.org.apache.juli.AsyncFileHandler.level = INFO
 2localhost.org.apache.juli.AsyncFileHandler.level = INFO
 java.util.logging.ConsoleHandler.level = INFO
@@ -49,7 +49,7 @@ java.util.logging.ConsoleHandler.level = INFO
 - 注释掉所有关于3manager，4host-manager日志的配置
 
 ```bash
-apache-tomcat-8.5.55/conf/logging.properties
+vim apache-tomcat-8.5.40/conf/logging.properties
 #3manager.org.apache.juli.AsyncFileHandler.level = FINE
 #3manager.org.apache.juli.AsyncFileHandler.directory = ${catalina.base}/logs
 #3manager.org.apache.juli.AsyncFileHandler.prefix = manager.
@@ -70,7 +70,7 @@ RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
     echo 'Asia/Shanghai' >/etc/timezone
 ENV CATALINA_HOME /opt/tomcat
 ENV LANG zh_CN.UTF-8
-ADD apache-tomcat-8.5.55/ /opt/tomcat
+ADD apache-tomcat-8.5.40/ /opt/tomcat
 ADD config.yml /opt/prom/config.yml
 ADD jmx_javaagent-0.3.1.jar /opt/prom/jmx_javaagent-0.3.1.jar
 WORKDIR /opt/tomcat
@@ -83,7 +83,7 @@ config.yml
 
 ```bash
 cat << 'EOF' >config.yml
-—
+---
 rules:
   - pattern: '.*'
 EOF
@@ -107,8 +107,9 @@ MAX_HEAP=${MAX_HEAP:-"128m"}
 JAVA_OPTS=${JAVA_OPTS:-"-Xmn384m -Xss256k -Duser.timezone=GMT+08  -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=0 -XX:+CMSClassUnloadingEnabled -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=80 -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+PrintClassHistogram  -Dfile.encoding=UTF8 -Dsun.jnu.encoding=UTF8"}
 CATALINA_OPTS="${CATALINA_OPTS}"
 JAVA_OPTS="${M_OPTS} ${C_OPTS} -Xms${MIN_HEAP} -Xmx${MAX_HEAP} ${JAVA_OPTS}"
-sed -i -e "1a\JAVA_OPTS=\"$JAVA_OPTS\"" -e "1a\CATALINA_OPTS=\"$CATALINA_OPTS\"" /opt/tomcat/bin/catalina.sh
-cd /opt/tomcat && /opt/tomcat/bin/catalina.sh run
+sed -i "2c JAVA_OPTS=\"${JAVA_OPTS}\"" /opt/tomcat/bin/catalina.sh
+sed -i "3c CATALINA_OPTS=\"${CATALINA_OPTS}\"" /opt/tomcat/bin/catalina.sh
+/opt/tomcat/bin/catalina.sh run
 EOF
 chmod +x entrypoint.sh
 ```
@@ -116,8 +117,8 @@ chmod +x entrypoint.sh
 ### 制作镜像并推送
 
 ```bash
-docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.55
-docker push harbor.wzxmt.com/base/tomcat:v8.5.55
+docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.40
+docker push harbor.wzxmt.com/base/tomcat:v8.5.40
 ```
 
 ## 改造dubbo-demo-web项目
@@ -302,9 +303,9 @@ pipeline {
         writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
 ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
         sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
-        docker build -t harbor.wzxmt.com/${params.app_name}:${params.git_ver}_${params.add_tag} . && \
-        docker push harbor.wzxmt.com/${params.app_name}:${params.git_ver}_${params.add_tag} && \
-        docker rmi harbor.wzxmt.com/${params.app_name}:${params.git_ver}_${params.add_tag}"
+        docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
+        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} && \
+        docker rmi harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
       }
     }
   }
@@ -320,11 +321,11 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 - app_name
 
-  > app/dubbo-demo-web
+  > dubbo-demo-web
 
 - image_name
 
-  > dubbo-demo-web
+  > app/dubbo-demo-web
 
 - git_repo
 
@@ -336,7 +337,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 - add_tag
 
-  > 200607_2250
+  > 200608_2350
 
 - mvn_dir
 
@@ -352,7 +353,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 - base_image
 
-  > base/jre8:8u112
+  > base/tomcat:v8.5.40
 
 - maven
 
@@ -369,7 +370,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 ## 应用资源配置清单
 
 k8s的dashboard上直接修改image的值为jenkins打包出来的镜像
-文档里的例子是：`harbor.wzxmt.com/app/dubbo-demo-web:tomcat_200607_2250`
+文档里的例子是：`harbor.wzxmt.com/app/dubbo-demo-web:tomcat_200608_2250`
 
 ## 浏览器访问
 
