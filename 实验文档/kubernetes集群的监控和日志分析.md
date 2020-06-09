@@ -13,10 +13,10 @@
 
 ```bash
 mkdir -p /data/software/dockerfile/tomcat 
-tar xf apache-tomcat-8.5.40.tar.gz -C /data/software/dockerfile/tomcat
+tar xf apache-tomcat-8.5.55.tar.gz -C /data/software/dockerfile/tomcat
 cd /data/software/dockerfile/tomcat
-rm -fr apache-tomcat-8.5.40/webapps/*
-mkdir -p apache-tomcat-8.5.40/webapps/ROOT
+rm -fr apache-tomcat-8.5.55/webapps/*
+mkdir -p apache-tomcat-8.5.55/webapps/ROOT
 ```
 
 ### 简单配置tomcat
@@ -24,7 +24,7 @@ mkdir -p apache-tomcat-8.5.40/webapps/ROOT
 1. 关闭AJP端口
 
 ```bash
-vim apache-tomcat-8.5.40/conf/server.xml
+vim apache-tomcat-8.5.55/conf/server.xml
 <!-- <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" /> -->
 ```
 
@@ -33,14 +33,14 @@ vim apache-tomcat-8.5.40/conf/server.xml
 - 删除3manager，4host-manager的handlers
 
 ```bash
-vim apache-tomcat-8.5.40/conf/logging.properties
+vim apache-tomcat-8.5.55/conf/logging.properties
 handlers = 1catalina.org.apache.juli.AsyncFileHandler, 2localhost.org.apache.juli.AsyncFileHandler,java.util.logging.ConsoleHandler
 ```
 
 - 日志级别改为INFO
 
 ```bash
-vim apache-tomcat-8.5.40/conf/logging.properties
+vim apache-tomcat-8.5.55/conf/logging.properties
 1catalina.org.apache.juli.AsyncFileHandler.level = INFO
 2localhost.org.apache.juli.AsyncFileHandler.level = INFO
 java.util.logging.ConsoleHandler.level = INFO
@@ -49,7 +49,7 @@ java.util.logging.ConsoleHandler.level = INFO
 - 注释掉所有关于3manager，4host-manager日志的配置
 
 ```bash
-vim apache-tomcat-8.5.40/conf/logging.properties
+vim apache-tomcat-8.5.55/conf/logging.properties
 #3manager.org.apache.juli.AsyncFileHandler.level = FINE
 #3manager.org.apache.juli.AsyncFileHandler.directory = ${catalina.base}/logs
 #3manager.org.apache.juli.AsyncFileHandler.prefix = manager.
@@ -70,7 +70,7 @@ RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
     echo 'Asia/Shanghai' >/etc/timezone
 ENV CATALINA_HOME /opt/tomcat
 ENV LANG zh_CN.UTF-8
-ADD apache-tomcat-8.5.40/ /opt/tomcat
+ADD apache-tomcat-8.5.55/ /opt/tomcat
 ADD config.yml /opt/prom/config.yml
 ADD jmx_javaagent-0.3.1.jar /opt/prom/jmx_javaagent-0.3.1.jar
 WORKDIR /opt/tomcat
@@ -117,8 +117,8 @@ chmod +x entrypoint.sh
 ### 制作镜像并推送
 
 ```bash
-docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.40
-docker push harbor.wzxmt.com/base/tomcat:v8.5.40
+docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.55
+docker push harbor.wzxmt.com/base/tomcat:v8.5.55
 ```
 
 ## 改造dubbo-demo-web项目
@@ -257,7 +257,7 @@ public class ServletInitializer extends SpringBootServletInitializer {
    > Default Value :
    >
    > - k/tomcat:v7.0.94
-   > - base/tomcat:v8.5.40
+   > - base/tomcat:v8.5.55
    > - base/tomcat:v9.0.17
    >   Description : project base image list in harbor.od.com.
 
@@ -353,7 +353,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 - base_image
 
-  > base/tomcat:v8.5.40
+  > base/tomcat:v8.5.55
 
 - maven
 
@@ -374,7 +374,7 @@ k8s的dashboard上直接修改image的值为jenkins打包出来的镜像
 
 ## 浏览器访问
 
-[http://demo.wzxmt.com?hello=wangdao](http://demo.wzxmt.com/?hello=wzxmt)
+[http://demo-test.wzxmt.com?hello=wangdao](http://demo-test.wzxmt.com/?hello=wzxmt)
 
 ## 检查tomcat运行情况
 
@@ -2033,98 +2033,84 @@ curl -XPUT 'http://127.0.0.1:9200/_template/k8s' -H 'content-Type:application/js
 
 [官网](http://kafka.apache.org/)
 [官方github地址](https://github.com/apache/kafka)
-[下载地址](http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.1.1/kafka_2.12-2.1.1.tgz)：
+[下载地址](https://archive.apache.org/dist/kafka/2.2.1/kafka_2.11-2.2.1.tgz)：
 
 ### 安装
 
-```
-/opt/src
-[root@hdss7-11 src]# ls -l|grep kafka
--rw-r--r-- 1 root root  57028557 Mar 23 08:57 kafka_2.12-2.2.0.tgz
-[root@hdss7-11 src]# tar xf kafka_2.12-2.1.1.tgz -C /opt
-[root@hdss7-11 src]# ln -s /opt/kafka_2.12-2.1.1/ /opt/kafka
+```bash
+wget https://archive.apache.org/dist/kafka/2.2.1/kafka_2.12-2.2.1.tgz
+tar xf kafka_2.12-2.2.1.tgz -C /opt
+ln -s /opt/kafka_2.12-2.2.1/ /opt/kafka
 ```
 
 ### 配置
 
-```
-/opt/kafka/config/server.properties
+```bash
+cat << 'EOF' >/opt/kafka/config/server.properties
+broker.id=0 
+port=9092
 log.dirs=/data/kafka/logs
-zookeeper.connect=localhost:2181
+zookeeper.connect=zk-test.wzxmt.com:2181
 log.flush.interval.messages=10000
 log.flush.interval.ms=1000
 delete.topic.enable=true
-host.name=hdss7-11.host.com
+EOF
 ```
 
 ### 启动
 
-```
-/opt/kafka
-[root@hdss7-11 kafka]# bin/kafka-server-start.sh -daemon config/server.properties
-[root@hdss7-11 kafka]# netstat -luntp|grep 9092
-tcp6       0      0 10.4.7.12:9092         :::*                    LISTEN      17543/java
+```bash
+cd /opt/kafka
+bin/kafka-server-start.sh -daemon config/server.properties
+netstat -luntp|grep 9092
 ```
 
 ## 部署kafka-manager
 
-[官方github地址](https://github.com/yahoo/kafka-manager)
-[源码下载地址](https://github.com/yahoo/kafka-manager/archive/2.0.0.2.tar.gz)
-运维主机`HDSS7-200.host.com`上：
+新版kafka-manager已经更名为MCMAK [官方github地址](https://github.com/yahoo/kafka-manager)
+运维主机上：
 
-### 方法一：1、准备Dockerfile
+#### 下载MCMAK
 
 ```
-/data/dockerfile/kafka-manager/Dockerfile
-FROM hseeberger/scala-sbt
+mkdir /data/dockerfile/kafka-manager
+cd /data/dockerfile/kafka-manager
+wget https://github.com/yahoo/CMAK/releases/download/3.0.0.4/cmak-3.0.0.4.zip
+unzip cmak-3.0.0.4.zip
+rm -f cmak-3.0.0.4/bin/*.bat
+```
 
-ENV ZK_HOSTS=10.4.7.11:2181 \
-     KM_VERSION=2.0.0.2
+#### 准备Dockerfile
 
-RUN mkdir -p /tmp && \
-    cd /tmp && \
-    wget https://github.com/yahoo/kafka-manager/archive/${KM_VERSION}.tar.gz && \
-    tar xxf ${KM_VERSION}.tar.gz && \
-    cd /tmp/kafka-manager-${KM_VERSION} && \
-    sbt clean dist && \
-    unzip  -d / ./target/universal/kafka-manager-${KM_VERSION}.zip && \
-    rm -fr /tmp/${KM_VERSION} /tmp/kafka-manager-${KM_VERSION}
-
-WORKDIR /kafka-manager-${KM_VERSION}
-
+```bash
+cat << 'EOF' >Dockerfile
+FROM openjdk:11.0-jre
+ENV ZK_HOSTS=localhost:2181 \
+    CMAK_VERSION=3.0.0.4
+ADD cmak-${CMAK_VERSION}/ /opt/cmak
+WORKDIR /opt/cmak
 EXPOSE 9000
-ENTRYPOINT ["./bin/kafka-manager","-Dconfig.file=conf/application.conf"]
+ENTRYPOINT ["bin/cmak"]
+EOF
 ```
 
-### 方法一：2、制作docker镜像
+#### 制作镜像
 
-```
-/data/dockerfile/kafka-manager
-[root@hdss7-200 kafka-manager]# docker build . -t harbor.od.com/infra/kafka-manager:v2.0.0.2
-(漫长的过程)
-```
-
-### 方法二：直接下载docker镜像
-
-[镜像下载地址](https://hub.docker.com/r/sheepkiller/kafka-manager/tags)
-
-```
-[root@hdss7-200 ~]# docker pull sheepkiller/kafka-manager:stable
-[root@hdss7-200 ~]# docker tag 34627743836f harbor.od.com/infra/kafka-manager:stable
-[root@hdss7-200 ~]# docker push harbor.od.com/infra/kafka-manager:stable
+```bash
+docker build . -t harbor.wzxmt.com/infra/cmak:v3.0.0.4
+docker push harbor.wzxmt.com/infra/cmak:v3.0.0.4
 ```
 
 ### 准备资源配置清单
 
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kafka-manager-1)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kafka-manager-2)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kafka-manager-3)
+Deployment
 
-vi /data/k8s-yaml/kafka-manager/deployment.yaml
-
-```
+```yaml
+mkdir -p /data/software/kafka-manager/yaml
+cd /data/software/kafka-manager/yaml
+cat<< 'EOF' >dp.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: kafka-manager
   namespace: infra
@@ -2143,18 +2129,18 @@ spec:
     spec:
       containers:
       - name: kafka-manager
-        image: harbor.od.com/infra/kafka-manager:stable
+        image: harbor.wzxmt.com/infra/cmak:v3.0.0.4
         ports:
         - containerPort: 9000
           protocol: TCP
         env:
         - name: ZK_HOSTS
-          value: zk1.od.com:2181
+          value: zk-test.wzxmt.com:2181
         - name: APPLICATION_SECRET
           value: letmein
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -2167,35 +2153,75 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
+```
+
+Service
+
+```yaml
+cat<< 'EOF' >svc.yaml
+kind: Service
+apiVersion: v1
+metadata: 
+  name: kafka-manager
+  namespace: infra
+spec:
+  ports:
+  - protocol: TCP
+    port: 9000
+    targetPort: 9000
+  selector: 
+    app: kafka-manager
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+EOF
+```
+
+Ingress
+
+```yaml
+cat<< 'EOF' >ingress.yaml
+kind: Ingress
+apiVersion: extensions/v1beta1
+metadata: 
+  name: kafka-manager
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: km.wzxmt.com
+    http:
+      paths:
+      - path: /
+        backend: 
+          serviceName: kafka-manager
+          servicePort: 9000
+EOF
 ```
 
 ### 应用资源配置清单
 
 任意一台运算节点上：
 
-```
-[root@hdss7-21 kafka-manager]# kubectl apply -f http://k8s-yaml.od.com/kafka-manager/deployment.yaml 
-deployment.extensions/kafka-manager created
-[root@hdss7-21 kafka-manager]# kubectl apply -f http://k8s-yaml.od.com/kafka-manager/svc.yaml 
-service/kafka-manager created
-[root@hdss7-21 kafka-manager]# kubectl apply -f http://k8s-yaml.od.com/kafka-manager/ingress.yaml 
-ingress.extensions/kafka-manager created
+```bash
+kubectl apply -f http://www.wzxmt.com/yaml/kafka-manager/dp.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/kafka-manager/svc.yaml
+kubectl apply -f http://www.wzxmt.com/yaml/kafka-manager/ingress.yaml
 ```
 
 ### 解析域名
 
-`HDSS7-11.host.com`上
-
-```
-/var/named/od.com.zone
-km	60 IN A 10.4.7.10
+```bash
+km	60 IN A 10.0.0.50
 ```
 
 ### 浏览器访问
 
-[http://km.od.com](http://km.od.com/)
+[http://km.wzxmt.com](http://km.wzxmt.com/)
 
-![kafka-manager](https://blog.stanley.wang/images/kafka-manager.png)
+![image-20200609153312857](upload/image-20200609153312857.png)
 
 ## 部署filebeat
 
