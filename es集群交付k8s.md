@@ -291,6 +291,6 @@ curl 10.96.191.46:9200/_cat/health?v
 ```
 
 
-![image-20200610015440688](../../AppData/Roaming/Typora/typora-user-images/image-20200610015440688.png)
+![image-20200610015440688](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200610015440688.png)
 
 到此，es集群搭建成功！
