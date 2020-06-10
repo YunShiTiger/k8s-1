@@ -2065,6 +2065,12 @@ bin/kafka-server-start.sh -daemon config/server.properties
 netstat -luntp|grep 9092
 ```
 
+### DNS解析
+
+```bash
+kafka	60 IN A 10.0.0.12
+```
+
 ## 部署kafka-manager
 
 新版kafka-manager已经更名为MCMAK [官方github地址](https://github.com/yahoo/kafka-manager)
@@ -2226,22 +2232,21 @@ km	60 IN A 10.0.0.50
 ## 部署filebeat
 
 [官方下载地址](https://www.elastic.co/downloads/beats/filebeat)
-运维主机`HDSS7-200.host.com`上：
+运维主机上：
 
 ### 制作docker镜像
 
 #### 准备Dockerfile
 
-- [Dockerfile](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#filebeat-dockerfile-1)
-- [Entrypoint](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#filebeat-dockerfile-2)
+Dockerfile
 
-vi /data/dockerfile/filebeat/Dockerfile
-
-```
+```bash
+mkdir -p /data/software/dockerfile/filebeat
+cd /data/software/dockerfile/filebeat
+cat << 'EOF' >Dockerfile
 FROM debian:jessie
-
-ENV FILEBEAT_VERSION=7.0.1 \
-    FILEBEAT_SHA1=fdddfa32a7d9db5ac4504b34499e6259e09b86205bac842f78fddd45e8ee00c3cb76419af2313659fd23db4fcbcc29f7568a3663c5d3c52ac0fc9e641d0ae8b1
+ENV FILEBEAT_VERSION=7.7.1 \
+    FILEBEAT_SHA1=bf155ccbf439b65d3a8cb316b048d1fa390eec9d35ef8d86c3da97a7fde4672f239574a89b82cca80e1b2e4a9640f9bf7a22b054c2ce883a38554d7fe8d52087
 
 RUN set -x && \
   apt-get update && \
@@ -2260,28 +2265,77 @@ RUN set -x && \
 
 COPY docker-entrypoint.sh /
 ENTRYPOINT ["/docker-entrypoint.sh"]
+EOF
+```
+
+docker-entrypoint.sh
+
+```bash
+cat << 'EOF' >docker-entrypoint.sh
+#!/bin/bash
+ENV=${ENV:-"test"}
+PROJ_NAME=${PROJ_NAME:-"no-define"}
+MULTILINE=${MULTILINE:-"^\d{2}"}
+cat > /etc/filebeat.yaml << AOF
+filebeat.inputs:
+- type: log
+  fields_under_root: true
+  fields:
+    topic: logm-${PROJ_NAME}
+  paths:
+    - /logm/*.log
+    - /logm/**/*.log
+  scan_frequency: 120s
+  max_bytes: 10485760
+  multiline.pattern: '$MULTILINE'
+  multiline.negate: true
+  multiline.match: after
+  multiline.max_lines: 100
+- type: log
+  fields_under_root: true
+  fields:
+    topic: logu-${PROJ_NAME}
+  paths:
+    - /logu/*.log
+    - /logu/**/*.log
+output.kafka:
+  hosts: ["kafka.wzxmt.com:9092"]
+  topic: k8s-fb-$ENV-%{[topic]}
+  version: 2.0.0
+  required_acks: 0
+  max_message_bytes: 10485760
+AOF
+set -xe
+# If user don't provide any command
+# Run filebeat
+if [[ "$1" == "" ]]; then
+     exec filebeat  -c /etc/filebeat.yaml 
+else
+     # Else allow the user to run arbitrarily commands like bash
+    exec "$@"
+fi
+EOF
+chmod +x docker-entrypoint.sh
 ```
 
 #### 制作镜像
 
-```
-/data/dockerfile/filebeat
-[root@hdss7-200 filebeat]# docker build . -t harbor.od.com/infra/filebeat:v7.0.1
-[root@hdss7-200 filebeat]# docker tag 23c8fbdc088a harbor.od.com/infra/filebeat:v7.0.1
-[root@hdss7-200 filebeat]# docker push !$
+```bash
+docker build . -t harbor.wzxmt.com/infra/filebeat:v7.7.1
+docker push harbor.wzxmt.com/infra/filebeat:v7.7.1
 ```
 
 ### 修改资源配置清单
 
 **使用dubbo-demo-consumer的Tomcat版镜像**
 
-```
-/data/k8s-yaml/dubbo-demo-consumer/deployment.yaml
+```yaml
+cat<< 'EOF' >/data/software/yaml/t/dubbo-demo-consumer/dp-f.yaml
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dubbo-demo-consumer
-  namespace: app
+  namespace: test
   labels: 
     name: dubbo-demo-consumer
 spec:
@@ -2297,19 +2351,19 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-consumer
-        image: harbor.od.com/app/dubbo-demo-web:tomcat
+        image: harbor.wzxmt.com/app/dubbo-demo-web:tomcat_020609_0140
         ports:
         - containerPort: 8080
           protocol: TCP
         env:
         - name: C_OPTS
-          value: -Denv=dev -Dapollo.meta=config.od.com
+          value: -Denv=fat -Dapollo.meta=http://apollo-configservice:8080
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - mountPath: /opt/tomcat/logs
           name: logm
       - name: filebeat
-        image: harbor.od.com/infra/filebeat:v7.0.1
+        image: harbor.wzxmt.com/infra/filebeat:v7.7.1
         env:
         - name: ENV
           value: test
@@ -2323,7 +2377,7 @@ spec:
       - emptyDir: {}
         name: logm
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -2336,17 +2390,19 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+EOF
 ```
 
-### 浏览器访问[http://km.od.com](http://km.od.com/)
+### 浏览器访问[http://km.wzxmt.com](http://km.wzxmt.com/)
 
 看到kafaka-manager里，topic打进来，即为成功。
-![kafka-topic](https://blog.stanley.wang/images/kafka-topic.png)
+
+![kafka-topic](../upload/image-20200609212651972.png)
 
 ### 验证数据
 
 ```
-/opt/kafka/bin
+cd /opt/kafka/bin
 ./kafka-console-consumer.sh --bootstrap-server 10.9.6.200:9092 --topic k8s-fb-test-logm-dubbo-demo-web --from-beginning
 ```
 
@@ -2366,8 +2422,6 @@ docker push harbor.od.com/public/logstash:v6.7.2
 
 - [Dockerfile](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#logstash-1)
 - [logstash.yml](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#logstash-2)
-
-复制
 
 ```
 From harbor.od.com/public/logstash:v6.7.2
