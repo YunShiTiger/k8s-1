@@ -86,7 +86,7 @@ spec:
       - name: harborlogin
       containers:
         - name: elasticsearch-master
-          image: harbor.wzxmt.com/infra/elasticsearch:7.1.0
+          image: harbor.wzxmt.com/infra/elasticsearch:7.7.1
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
@@ -106,7 +106,7 @@ spec:
             - name: node.data
               value: "false"
             - name: discovery.seed_hosts 
-              value: "elasticsearch-discovery" 
+              value: "elasticsearch" 
             - name: cluster.initial_master_nodes 
               value: "elasticsearch-master-0,elasticsearch-master-1" 
             - name: node.ingest
@@ -153,7 +153,7 @@ spec:
       - name: harborlogin
       containers:
         - name: elasticsearch-data
-          image: harbor.wzxmt.com/infra/elasticsearch:7.1.0
+          image: harbor.wzxmt.com/infra/elasticsearch:7.7.1
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
@@ -173,7 +173,7 @@ spec:
             - name: node.data
               value: "true"
             - name: discovery.seed_hosts
-              value: "elasticsearch-discovery" 
+              value: "elasticsearch" 
             - name: cluster.initial_master_nodes 
               value: "elasticsearch-master-0,elasticsearch-master-1" 
             - name: node.ingest
@@ -192,7 +192,7 @@ apiVersion: v1
 metadata:
  labels:
    app: elasticsearch
- name: elasticsearch-discovery
+ name: elasticsearch
  namespace: es
 spec:
  ports:

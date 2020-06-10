@@ -20,8 +20,6 @@ cat << 'EOF' >dp.yaml
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  labels:
-    es-app: kibana
   name: kibana
   namespace: es
 spec:
@@ -44,10 +42,12 @@ spec:
             - containerPort: 5601
               protocol: TCP
           env:
-            - name: "ELASTICSEARCH_URL"
-              value: "http://elasticsearch-discovery:9200"
+            #- name: "ELASTICSEARCH_URL"
+            #  value: "http://elasticsearch-discovery:9200"
             - name: "I18N.LOCALE"
               value: "zh-CN"
+            - name: "elasticsearch.requestTimeout"
+              value: "600000"
 EOF
 ```
 
@@ -58,9 +58,7 @@ cat << 'EOF' >svc.yaml
 kind: Service
 apiVersion: v1
 metadata:
-  labels:
-   es-app: kibana
-  name: kibana-service
+  name: kibana
   namespace: es
 spec:
   selector:

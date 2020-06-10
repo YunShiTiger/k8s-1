@@ -60,8 +60,8 @@ spec:
             - containerPort: 8080
               protocol: TCP
           env:
-            - name: "XPACK_MONITORING_ELASTICSEARCH_URL"
-              value: "http://elasticsearch-discovery:9200"
+            #- name: "XPACK_MONITORING_ELASTICSEARCH_URL"
+            #  value: "http://elasticsearch-discovery:9200"
             - name: "XPACK_MONITORING_ENABLED"
               value: "true"
           securityContext:
@@ -85,7 +85,7 @@ apiVersion: v1
 metadata:
   labels:
     es-app: logstash
-  name: logstash-service
+  name: logstash
   namespace: es
 spec:
   selector:
