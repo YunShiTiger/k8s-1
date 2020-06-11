@@ -7,6 +7,11 @@ dockers tag logstash:7.7.1 harbor.wzxmt.com/infra/logstash:7.7.1
 
 编写资源清单
 
+```
+mkdir /data/software/yaml/logstash -p
+cd /data/software/yaml/logstash
+```
+
  ConfigMap
 
 ```yaml
@@ -14,12 +19,16 @@ cat << 'EOF' >cm.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: logstash-pipeline-volume
+  name: logstash-config-ConfigMap
   namespace: es
 data:
   pipelines.yml: |
-     - pipeline.id: main
-       path.config: "/usr/share/logstash/pipeline"
+     - pipeline.id: test
+       path.config: "/usr/share/logstash/pipeline/logstash-test.conf"
+  logstash.yml: |
+     http.host: "0.0.0.0"
+     xpack.monitoring.elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+     xpack.monitoring.enabled: true
 EOF
 ```
 
@@ -54,25 +63,23 @@ spec:
             - mountPath: /usr/share/logstash/pipeline
               name: logstash-conf-volume
             - mountPath: /usr/share/logstash/config/pipelines.yml
-              name: pipeline-conf-volume
+              name: logstash-config-volume
               subPath: pipelines.yml
+            - mountPath: /usr/share/logstash/config/logstash.yml
+              name: logstash-config-volume
+              subPath: logstash.yml
           ports:
             - containerPort: 8080
               protocol: TCP
-          env:
-            #- name: "XPACK_MONITORING_ELASTICSEARCH_URL"
-            #  value: "http://elasticsearch-discovery:9200"
-            - name: "XPACK_MONITORING_ENABLED"
-              value: "true"
           securityContext:
             privileged: true
       volumes:
         - name: logstash-conf-volume
           persistentVolumeClaim:
             claimName: logstash-conf-pvc
-        - name: pipeline-conf-volume
+        - name: logstash-config-volume
           configMap:
-            name: logstash-pipeline-volume
+            name: logstash-config-ConfigMap
 EOF
 ```
 
@@ -133,16 +140,31 @@ EOF
 nfs主机上添加logstash配置文件
 
 ```json
-cat << 'EOF' >/data/nfs-volume/logstash/logstash.conf
+cat << 'EOF' >/data/nfs-volume/logstash/logstash-test.conf
 input {
-  beats {
-    port => 5044
+  kafka {
+    bootstrap_servers => "kafka.wzxmt.com:9092"
+    client_id => "test"
+    consumer_threads => 4
+    group_id => "k8s_test"
+    topics_pattern => "k8s-fb-test-.*"
   }
 }
-output {
-  stdout {
-    codec => rubydebug
+
+filter {
+  json {
+    source => "message"
   }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "k8s_test-%{+YYYY.MM.dd}"
+   }
+#　　stdout {       
+#　　　　 codec => rubydebug    
+#　　}
 }
 EOF
 ```
@@ -155,4 +177,8 @@ kubectl apply -f cm.yaml
 kubectl apply -f dp.yaml 
 kubectl apply -f svc.yaml 
 ```
+
+
+
+
 

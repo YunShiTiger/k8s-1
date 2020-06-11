@@ -13,6 +13,26 @@ mkdir /data/software/yaml/kibana -p
 cd /data/software/yaml/kibana
 ```
 
+ConfigMap
+
+```yaml
+cat << 'EOF' >cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-conf
+  namesppace: es
+data:
+  kibana.yml: |
+    server.name: kibana
+    server.host: "0"
+    i18n.locale: "zh-CN"
+    elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+    elasticsearch.requestTimeout: 600000
+    monitoring.ui.container.elasticsearch.enabled: true
+EOF
+```
+
 Deployment
 
 ```yaml
@@ -41,13 +61,13 @@ spec:
           ports:
             - containerPort: 5601
               protocol: TCP
-          env:
-            #- name: "ELASTICSEARCH_URL"
-            #  value: "http://elasticsearch-discovery:9200"
-            - name: "I18N.LOCALE"
-              value: "zh-CN"
-            - name: "elasticsearch.requestTimeout"
-              value: "600000"
+          volumeMounts:
+            - mountPath: /usr/share/kibana/config
+              name: kibana-conf-volume
+      volumes:
+        - name: kibana-conf-volume
+          configMap:
+            name: kibana-conf
 EOF
 ```
 

@@ -2038,9 +2038,9 @@ curl -XPUT 'http://127.0.0.1:9200/_template/k8s' -H 'content-Type:application/js
 ### 安装
 
 ```bash
-wget https://archive.apache.org/dist/kafka/2.2.1/kafka_2.12-2.2.1.tgz
-tar xf kafka_2.12-2.2.1.tgz -C /opt
-ln -s /opt/kafka_2.12-2.2.1/ /opt/kafka
+wget https://mirrors.tuna.tsinghua.edu.cn/apache/kafka/2.5.0/kafka_2.12-2.5.0.tgz
+tar xf kafka_2.12-2.5.0.tgz -C /opt
+ln -s /opt/kafka_2.12-2.5.0 /opt/kafka
 ```
 
 ### 配置

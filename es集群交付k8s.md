@@ -14,6 +14,13 @@ kubectl create secret docker-registry harborlogin \
 --docker-password=admin
 ```
 
+创建资源清单
+
+```bash
+mkdir /data/software/yaml/es -p
+cd /data/software/yaml/es
+```
+
 RBAC授权
 
 ```yaml
@@ -265,6 +272,12 @@ echo "vm.max_map_count=262144" >>/etc/sysctl.conf
 ```
 
 加载sysctl配置，执行命令：sysctl -p
+
+部署：
+
+```bash
+kubectl apply -f ./
+```
 
 查看es的service的IP：
 
