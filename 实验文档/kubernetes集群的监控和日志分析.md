@@ -259,7 +259,7 @@ public class ServletInitializer extends SpringBootServletInitializer {
    > - k/tomcat:v7.0.94
    > - base/tomcat:v8.5.55
    > - base/tomcat:v9.0.17
-   >   Description : project base image list in harbor.od.com.
+   >   Description : project base image list in harbor.wzxmt.com.
 
 10. Add Parameter -> Choice Parameter
 
@@ -2079,8 +2079,8 @@ kafka	60 IN A 10.0.0.12
 #### 下载MCMAK
 
 ```
-mkdir /data/dockerfile/kafka-manager
-cd /data/dockerfile/kafka-manager
+mkdir /data/software/dockerfile/kafka-manager
+cd /data/software/dockerfile/kafka-manager
 wget https://github.com/yahoo/CMAK/releases/download/3.0.0.4/cmak-3.0.0.4.zip
 unzip cmak-3.0.0.4.zip
 rm -f cmak-3.0.0.4/bin/*.bat
@@ -2414,47 +2414,36 @@ cd /opt/kafka/bin
 
 ```
 docker pull logstash:6.7.2
-docker tag 857d9a1f8221 harbor.od.com/public/logstash:v6.7.2
-docker push harbor.od.com/public/logstash:v6.7.2
+docker tag 857d9a1f8221 harbor.wzxmt.com/public/logstash:v6.7.2
+docker push harbor.wzxmt.com/public/logstash:v6.7.2
+cd /data/software/dockerfile/logstash
 ```
 
 - 自定义Dockerfile
 
-- [Dockerfile](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#logstash-1)
-- [logstash.yml](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#logstash-2)
 
 ```
-From harbor.od.com/public/logstash:v6.7.2
+cat << EOF >Dockerfile
+From harbor.wzxmt.com/public/logstash:v6.7.2
 ADD logstash.yml /usr/share/logstash/config
+EOF
+```
+
+logstash.yml
+
+```
+cat << EOF >logstash.yml
+http.host: "0.0.0.0"
+path.config: /etc/logstash
+xpack.monitoring.enabled: false
+EOF
 ```
 
 - 创建自定义镜像
 
 ```
-/data/dockerfile/logstash
-[root@hdss7-200 logstash]# docker build . -t harbor.od.com/infra/logstash:v6.7.2
-Sending build context to Docker daemon 249.3 MB
-Step 1 : FROM harbor.od.com/public/logstash:v6.7.2
-v6.7.2: Pulling from public/logstash
-e60be144a6a5: Pull complete 
-6292c2b22d35: Pull complete 
-1bb4586d90e7: Pull complete 
-3f11f6d21132: Pull complete 
-f0aaeeafebd3: Pull complete 
-38c751a91f0f: Pull complete 
-b80e2bad9681: Pull complete 
-e3c97754ddde: Pull complete 
-840f2d82a9fb: Pull complete 
-32063a9aaefb: Pull complete 
-e87b22bf50f5: Pull complete 
-Digest: sha256:6aacf97dfbcc5c64c2f1a12f43ee48a8dadb98657b9b8d4149d0fee0ec18be81
-Status: Downloaded newer image for harbor.od.com/public/logstash:v6.7.2
- ---> 857d9a1f8221
-Step 2 : ADD logstash.yml /usr/share/logstash/config
- ---> 2ad32d3f5fef
-Removing intermediate container 1d3a1488c1b7
-Successfully built 2ad32d3f5fef
-[root@hdss7-200 logstash]# docker push harbor.od.com/infra/logstash:v6.7.2
+docker build . -t harbor.wzxmt.com/infra/logstash:v6.7.2
+docker push harbor.wzxmt.com/infra/logstash:v6.7.2
 ```
 
 ### 启动docker镜像
@@ -2462,7 +2451,7 @@ Successfully built 2ad32d3f5fef
 - 创建配置
 
 ```
-/etc/logstash/logstash-test.conf
+cat << 'EOF' >/etc/logstash/logstash-test.conf
 input {
   kafka {
     bootstrap_servers => "10.4.7.11:9092"
@@ -2485,22 +2474,20 @@ output {
     index => "k8s-test-%{+YYYY.MM}"
   }
 }
+EOF
 ```
 
 - 启动logstash镜像
 
 ```
-[root@hdss7-200 ~]# docker run -d --name logstash-test -v /etc/logstash:/etc/logstash harbor.od.com/infra/logstash:v6.7.2 -f /etc/logstash/logstash-test.conf
-[root@hdss7-200 ~]# docker ps -a|grep logstash
-a5dcf56faa9a        harbor.od.com/infra/logstash:v6.7.2                                                                                "/usr/local/bin/docke"   8 seconds ago       Up 6 seconds                5044/tcp, 9600/tcp           jovial_swanson
+docker run -d --name logstash-test -v /etc/logstash:/etc/logstash 
+docker ps -a|grep logstash
 ```
 
 - 验证ElasticSearch里的索引
 
 ```
-curl http://10.4.7.12:9200/_cat/indices?v
-health status index            uuid                   pri rep docs.count docs.deleted store.size pri.store.size
-green  open   k8s-test-2019.04 H3MY9d8WSbqQ6uL0DFhenQ   5   0         55            0    249.9kb        249.9kb
+curl http://172.17.0.12:9200/_cat/indices?v
 ```
 
 ## 部署Kibana
@@ -2513,8 +2500,8 @@ green  open   k8s-test-2019.04 H3MY9d8WSbqQ6uL0DFhenQ   5   0         55        
 
 ```
 docker pull kibana:5.6.16
-docker tag 62079cf74c23 harbor.od.com/infra/kibana:v5.6.16
-docker push harbor.od.com/infra/kibana:v5.6.16
+docker tag 62079cf74c23 harbor.wzxmt.com/infra/kibana:v5.6.16
+docker push harbor.wzxmt.com/infra/kibana:v5.6.16
 ```
 
 ### 解析域名
@@ -2525,13 +2512,11 @@ kibana	60 IN A 10.4.7.10
 
 ### 准备资源配置清单
 
-- [Deployment](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kibana-1)
-- [Service](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kibana-2)
-- [Ingress](https://blog.stanley.wang/2019/01/18/实验文档4：kubernetes集群的监控和日志分析/#kibana-3)
-
-vi /data/k8s-yaml/kibana/deployment.yaml
+Deployment
 
 ```
+cd /data/software/yamlkibana
+cat << 'EOF' >dp.yaml
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
@@ -2552,16 +2537,16 @@ spec:
     spec:
       containers:
       - name: kibana
-        image: harbor.od.com/infra/kibana:v5.6.16
+        image: harbor.wzxmt.com/infra/kibana:v5.6.16
         ports:
         - containerPort: 5601
           protocol: TCP
         env:
         - name: ELASTICSEARCH_URL
-          value: http://10.4.7.12:9200
+          value: http://172.17.0.12:9200
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
       securityContext: 
@@ -2574,21 +2559,63 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+  EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+kind: Service
+apiVersion: v1
+metadata: 
+  name: kibana
+  namespace: infra
+spec:
+  ports:
+  - protocol: TCP
+    port: 5601
+    targetPort: 5601
+  selector: 
+    app: kibana
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+EOF
+```
+
+ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+kind: Ingress
+apiVersion: extensions/v1beta1
+metadata: 
+  name: kibana
+  namespace: infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: kibana.wzxmt.com
+    http:
+      paths:
+      - path: /
+        backend: 
+          serviceName: kibana
+          servicePort: 5601
+EOF
 ```
 
 ### 应用资源配置清单
 
-任意运算节点上：
-
 ```
-kubectl apply -f deployment.yaml 
-kubectl apply -f svc.yaml 
-kubectl apply -f ingress.yaml 
+kubectl apply -f ./
 ```
 
 ### 浏览器访问
 
-[http://kibana.od.com](http://kibana.od.com/)
+[http://kibana.wzxmt.com](http://kibana.wzxmt.com/)
 ![kibana页面](https://blog.stanley.wang/images/kibana.png)
 
 ## kibana的使用
