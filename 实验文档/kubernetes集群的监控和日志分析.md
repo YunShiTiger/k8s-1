@@ -1935,6 +1935,330 @@ kubernetes -> +New Cluster
 - JMX dashboard
 - blackbox dashboard
 
+## 部署alertmanager
+
+运维主机上：
+
+### 准备alertmanager镜像
+[alertmanager官方github地址](https://github.com/alertmanager/alert_manager)
+[alertmanager官网](https://prometheus.io)
+
+```
+docker pull docker.io/prom/alertmanager:v0.14.0
+docker tag 30594e96cbe8 harbor.wzxmt.com/infra/alertmanager:v0.14.0
+docker push harbor.wzxmt.com/infra/alertmanager:v0.14.0
+```
+
+资源配置清单：
+
+```
+mkdir -p /data/software/yaml/alertmanager
+cd /data/software/yaml/alertmanager
+```
+
+ConfigMap
+
+```yaml
+cat << EOF >cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: infra
+data:
+  config.yml: |-
+    global:
+      # 在没有报警的情况下声明为已解决的时间
+      resolve_timeout: 5m
+      # 配置邮件发送信息
+      smtp_smarthost: 'smtp.163.com:25'
+      smtp_from: 'xxx@163.com'
+      smtp_auth_username: 'xxx@163.com'
+      smtp_auth_password: 'xxxxxx'
+      smtp_require_tls: false
+    # 所有报警信息进入后的根路由，用来设置报警的分发策略
+    route:
+      # 这里的标签列表是接收到报警信息后的重新分组标签，例如，接收到的报警信息里面有许多具有 cluster=A 和 alertname=LatncyHigh 这样的标签的报警信息将会批量被聚合到一个分组里面
+      group_by: ['alertname', 'cluster']
+      # 当一个新的报警分组被创建后，需要等待至少group_wait时间来初始化通知，这种方式可以确保您能有足够的时间为同一分组来获取多个警报，然后一起触发这个报警信息。
+      group_wait: 30s
+
+      # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
+      group_interval: 5m
+
+      # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
+      repeat_interval: 5m
+
+      # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
+      receiver: default
+
+    receivers:
+    - name: 'default'
+      email_configs:
+      - to: 'xxxx@qq.com'
+        send_resolved: true
+EO
+```
+
+Deployment
+
+```yaml
+cat << EOF >dp.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+      - name: alertmanager
+        image: harbor.wzxmt.com/infra/alertmanager:v0.14.0
+        args:
+          - "--config.file=/etc/alertmanager/config.yml"
+          - "--storage.path=/alertmanager"
+        ports:
+        - name: alertmanager
+          containerPort: 9093
+        volumeMounts:
+        - name: alertmanager-cm
+          mountPath: /etc/alertmanager
+      volumes:
+      - name: alertmanager-cm
+        configMap:
+          name: alertmanager-config
+      imagePullSecrets:
+      - name: harborlogin
+EOF
+```
+
+Service
+
+```
+cat << EOF >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: infra
+spec:
+  selector: 
+    app: alertmanager
+  ports:
+    - port: 80
+      targetPort: 9093
+EOF
+```
+
+基础报警规则(nfs)：
+
+```bash
+cat << 'EOF' >/data/nfs-volume/prometheus/etc/rules.yml
+groups:
+- name: hostStatsAlert
+  rules:
+  - alert: hostCpuUsageAlert
+    expr: sum(avg without (cpu)(irate(node_cpu{mode!='idle'}[5m]))) by (instance) > 0.85
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }} CPU usage above 85% (current value: {{ $value }}%)"
+  - alert: hostMemUsageAlert
+    expr: (node_memory_MemTotal - node_memory_MemAvailable)/node_memory_MemTotal > 0.85
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }} MEM usage above 85% (current value: {{ $value }}%)"
+  - alert: OutOfInodes
+    expr: node_filesystem_free{fstype="overlay",mountpoint ="/"} / node_filesystem_size{fstype="overlay",mountpoint ="/"} * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Out of inodes (instance {{ $labels.instance }})"
+      description: "Disk is almost running out of available inodes (< 10% left) (current value: {{ $value }})"
+  - alert: OutOfDiskSpace
+    expr: node_filesystem_free{fstype="overlay",mountpoint ="/rootfs"} / node_filesystem_size{fstype="overlay",mountpoint ="/rootfs"} * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Out of disk space (instance {{ $labels.instance }})"
+      description: "Disk is almost full (< 10% left) (current value: {{ $value }})"
+  - alert: UnusualNetworkThroughputIn
+    expr: sum by (instance) (irate(node_network_receive_bytes[2m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual network throughput in (instance {{ $labels.instance }})"
+      description: "Host network interfaces are probably receiving too much data (> 100 MB/s) (current value: {{ $value }})"
+  - alert: UnusualNetworkThroughputOut
+    expr: sum by (instance) (irate(node_network_transmit_bytes[2m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual network throughput out (instance {{ $labels.instance }})"
+      description: "Host network interfaces are probably sending too much data (> 100 MB/s) (current value: {{ $value }})"
+  - alert: UnusualDiskReadRate
+    expr: sum by (instance) (irate(node_disk_bytes_read[2m])) / 1024 / 1024 > 50
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk read rate (instance {{ $labels.instance }})"
+      description: "Disk is probably reading too much data (> 50 MB/s) (current value: {{ $value }})"
+  - alert: UnusualDiskWriteRate
+    expr: sum by (instance) (irate(node_disk_bytes_written[2m])) / 1024 / 1024 > 50
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk write rate (instance {{ $labels.instance }})"
+      description: "Disk is probably writing too much data (> 50 MB/s) (current value: {{ $value }})"
+  - alert: UnusualDiskReadLatency
+    expr: rate(node_disk_read_time_ms[1m]) / rate(node_disk_reads_completed[1m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk read latency (instance {{ $labels.instance }})"
+      description: "Disk latency is growing (read operations > 100ms) (current value: {{ $value }})"
+  - alert: UnusualDiskWriteLatency
+    expr: rate(node_disk_write_time_ms[1m]) / rate(node_disk_writes_completedl[1m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk write latency (instance {{ $labels.instance }})"
+      description: "Disk latency is growing (write operations > 100ms) (current value: {{ $value }})"
+- name: http_status
+  rules:
+  - alert: ProbeFailed
+    expr: probe_success == 0
+    for: 1m
+    labels:
+      severity: error
+    annotations:
+      summary: "Probe failed (instance {{ $labels.instance }})"
+      description: "Probe failed (current value: {{ $value }})"
+  - alert: StatusCode
+    expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
+    for: 1m
+    labels:
+      severity: error
+    annotations:
+      summary: "Status Code (instance {{ $labels.instance }})"
+      description: "HTTP status code is not 200-399 (current value: {{ $value }})"
+  - alert: SslCertificateWillExpireSoon
+    expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "SSL certificate will expire soon (instance {{ $labels.instance }})"
+      description: "SSL certificate expires in 30 days (current value: {{ $value }})"
+  - alert: SslCertificateHasExpired
+    expr: probe_ssl_earliest_cert_expiry - time()  <= 0
+    for: 5m
+    labels:
+      severity: error
+    annotations:
+      summary: "SSL certificate has expired (instance {{ $labels.instance }})"
+      description: "SSL certificate has expired already (current value: {{ $value }})"
+  - alert: BlackboxSlowPing
+    expr: probe_icmp_duration_seconds > 2
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Blackbox slow ping (instance {{ $labels.instance }})"
+      description: "Blackbox ping took more than 2s (current value: {{ $value }})"
+  - alert: BlackboxSlowRequests
+    expr: probe_http_duration_seconds > 2 
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Blackbox slow requests (instance {{ $labels.instance }})"
+      description: "Blackbox request took more than 2s (current value: {{ $value }})"
+  - alert: PodCpuUsagePercent
+    expr: sum(sum(label_replace(irate(container_cpu_usage_seconds_total[1m]),"pod","$1","container_label_io_kubernetes_pod_name", "(.*)"))by(pod) / on(pod) group_right kube_pod_container_resource_limits_cpu_cores *100 )by(container,namespace,node,pod,severity) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Pod cpu usage percent has exceeded 80% (current value: {{ $value }}%)"
+EOF
+```
+
+在prometheus.yml中添加配置：
+
+```
+# vi prometheus.yml
+....
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager"]
+rule_files:
+ - "/data/etc/rules.yml"
+```
+
+重载配置：
+
+```
+# curl -X POST http://prometheus.wzxmt.com/-/reload
+```
+
+![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218173411675-688635972.png)
+
+ 
+
+ 以上这些就是我们的告警规则
+
+测试告警：
+
+把app命名空间里的dubbo-demo-service给停掉：
+
+![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218173935193-1795591117.png)
+
+ 
+
+ 看下blackbox里的信息：
+
+![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174004624-1646255779.png)
+
+ 
+
+看下alert：
+
+![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174052248-183200263.png)
+
+ 
+
+ 红色的时候就开会发邮件告警：
+
+![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174118507-915764907.png)
+
+ 
+
+ 已经收到告警了，后续上生产，还会更新如何添加微信、钉钉、短信告警
+
+![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174253105-950989449.png)
+
+ 如果需要自己定制告警规则和告警内容，需要研究一下promql，自己修改配置文件。
 
 # 使用ELK Stack收集kubernetes集群内的应用日志
 

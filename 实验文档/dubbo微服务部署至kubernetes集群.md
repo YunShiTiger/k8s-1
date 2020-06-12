@@ -1,4 +1,4 @@
-# 实验文档2：实战交付一套dubbo微服务到kubernetes集群
+实战交付一套dubbo微服务到kubernetes集群
 
 ------
 
