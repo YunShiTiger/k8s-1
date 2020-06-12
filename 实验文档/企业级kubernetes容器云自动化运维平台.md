@@ -1,4 +1,4 @@
-### 自动化运维平台spinaker部署与应用
+自动化运维平台spinaker部署与应用
 
 > 从本章节开始，很多事情我不再截图而是一笔带过，以便你更好的动手操作，不过，一笔带过的地方我一定不会留大坑，这个你可以完全放心
 
@@ -53,28 +53,28 @@
 
 ### 部署对象式存储minio
 
-#### 准备镜像
+#### 创建镜像仓库与准备镜像
 
 ```bash
 docker pull minio/minio:latest
-docker images|grep minio
-docker tag 7ea4a619ecfc harbor.wzxmt.com/armory/minio:latest
+docker tag minio/minio:latest harbor.wzxmt.com/armory/minio:latest
+docker push harbor.wzxmt.com/armory/minio:latest
 ```
 
 #### 创建名称空间
 
 ```bash
-kubecctl creste ns armory
+kubectl create ns armory
 ```
 
 #### 创建docker-registry认证
 
 ```bash
-kubectl create secret docker-registry harbor \
+kubectl create secret docker-registry harborlogin \
 --namespace=armory  \
 --docker-server=https://harbor.wzxmt.com \
 --docker-username=admin \
---docker-password=dmin
+--docker-password=admin
 ```
 
 #### 资源清单
@@ -141,7 +141,7 @@ spec:
       - name: harborlogin
       volumes:
       - nfs:
-          server: hdss7-200
+          server: nfs.wzxmt.com
           path: /data/nfs-volume/minio
         name: data
 EOF
@@ -149,7 +149,7 @@ EOF
 
 Service
 
-```
+```yaml
 cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
@@ -168,13 +168,15 @@ EOF
 
 Ingress
 
-```
+```yaml
 cat << 'EOF' >ingress.yaml
 kind: Ingress
 apiVersion: extensions/v1beta1
 metadata: 
   name: minio
   namespace: armory
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
   - host: minio.wzxmt.com
@@ -196,7 +198,7 @@ mkdir /data/nfs-volume/minio
 #### DNS解析域名：
 
 ~~~
-minio              A    10.4.7.10
+minio              A    10.0.0.50
 ~~~
 
 > 为什么每次每次都不用些 wzxmt.com，是因为第一行有$ORIGIN  wzxmt.com. 的宏指令，会自动补
@@ -209,7 +211,7 @@ kubectl apply -f http://www.wzxmt.com/yaml/armory/minio/svc.yaml
 kubectl apply -f http://www.wzxmt.com/yaml/armory/minio/ingress.yaml
 ~~~
 
-[minio. wzxmt.com](minio. wzxmt.com)
+http://minio.wzxmt.com
 
 账户：admin
 
@@ -224,7 +226,7 @@ kubectl apply -f http://www.wzxmt.com/yaml/armory/minio/ingress.yaml
 ```bash
 docker pull redis:4.0.14
 docker tag redis:4.0.14 harbor.wzxmt.com/armory/redis:v4.0.14
-docker push !$
+docker push harbor.wzxmt.com/armory/redis:v4.0.14
 ```
 
 #### 资源清单
@@ -266,7 +268,7 @@ spec:
         - containerPort: 6379
           protocol: TCP
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
 EOF
 ~~~
 
@@ -301,17 +303,17 @@ kubectl apply -f http://www.wzxmt.com/yaml/armory/redis/svc.yaml
 #### 准备镜像
 
 ```bash
-docker pull docker.io/armory/spinnaker-clouddriver-slim:release-1.8.x-14c9664
+docker pull armory/spinnaker-clouddriver-slim:release-1.11.x-bee52673a
 docker images|grep clouddriver
-docker tag edb2507fdb62 harbor.wzxmt.com/armory/clouddriver:v1.8.x
-docker push harbor.wzxmt.com/armory/clouddriver:v1.8.x
+docker tag edb2507fdb62 harbor.wzxmt.com/armory/clouddriver:v1.11.x
+docker push harbor.wzxmt.com/armory/clouddriver:v1.11.x
 ```
 
-#### 资源清单
+#### 创建目录
 
 ```bash
-mkdir /data/software/yaml/armory/redis
-cd /data/software/yaml/armory/redis
+mkdir /data/software/yaml/armory/clouddriver
+cd /data/software/yaml/armory/clouddriver
 ```
 
 添加配置文件
@@ -334,71 +336,64 @@ EOF
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare admin
 ```
 
+生成admin用户kube.config
+
+~~~bash
+kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_DIR}/admin.kubeconfig
+
+kubectl config set-credentials admin --client-certificate=apiserver-kubelet-client.pem --client-key=apiserver-kubelet-client-key.pem --embed-certs=true --kubeconfig=${K8S_DIR}/admin.kubeconfig
+
+kubectl config set-context admin@kubernetes --cluster=kubernetes --user=admin --kubeconfig=${K8S_DIR}/admin.kubeconfig
+
+kubectl config use-context admin@kubernetes --kubeconfig=${K8S_DIR}/admin.kubeconfig
+~~~
+
+拷贝admin.kubeconfig到mannage上
+
+```bash
+scp admin.kubeconfig scp mannage:/root/
+scp kubectl mannage:/usr/local/bin/
+```
+
+mannage主机
+
+~~~
+mkdir -p /root/.kube
+mv /root/admin.kubeconfig /root/.kube/config
+kubectl config view
+kubectl get pods -n infra
+~~~
+
+![image-20200612212941354](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200612212941354.png)
+
 添加credentials
 
-```
-wget http://www.wzxmt.com/yaml/armory/clouddriver/credentials
+```bash
 kubectl create secret generic credentials --from-file=./credentials -n armory
 ```
 
-生成admin用户kubeconfig
+创建default-config 
 
-~~~
-kubectl config set-cluster myk8s --certificate-authority=ca.pem --embed-certs=true --server=https://10.0.0.150:8443 --kubeconfig=config
-
-kubectl config set-credentials cluster-admin --client-certificate=admin.pem --client-key=admin-key.pem --embed-certs=true --kubeconfig=config
-
-kubectl config set-context myk8s-context --cluster=myk8s --user=cluster-admin --kubeconfig=config
-
-kubectl config use-context myk8s-context --kubeconfig=config
+~~~yaml
+cp /root/.kube/config default-config
+kubectl create configmap default-kubeconfig --from-file=default-config -n armory
 ~~~
 
-绑定cluster-admin
+![1584014708599](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200612214348291.png)
 
-```bash
-kubectl create clusterrolebinding myk8s-admin --clusterrole=cluster-admin --user=cluster-admin
+#### 资源清单
 
-~]# cd /root/.kube/
-.kube]# cp /root/config .
-.kube]# kubectl config view
-.kube]# kubectl get pods -n armory
-```
+ConfigMap
 
-
-
-~~~
-# 200机器：
-~]# mkdir /root/.kube
-~]# cd /root/.kube
-.kube]# scp hdss7-21:/root/config .
-.kube]# cd 
-~]# scp hdss7-21:/opt/kubernetes/server/bin/kubectl .
-~]# mv kubectl /usr/bin/
-~]# kubectl config view
-~]# kubectl get pods -n infra
-~~~
-
-![158400616005](../upload/1584006160054.png)
-
-~~~
-# 21机器，给权限：
-.kube]# mv config default-kubeconfig
-.kube]# kubectl create configmap default-kubeconfig --from-file=./default-kubeconfig -n armory
-~~~
-
-![1584014708599](../upload/1584014708599.png)
-
-~~~shell
-# 200机器：
-~]# cd /data/software/yaml/armory/clouddriver/
-clouddriver]# vi init-env.yaml
+```yaml
+cat << 'EOF' >init-env.yaml
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: init-env
   namespace: armory
 data:
-  API_HOST: http://spinnaker. wzxmt.com/api
+  API_HOST: http://spinnaker.wzxmt.com/api
   ARMORY_ID: c02f0781-92f5-4e80-86db-0ba8fe7b8544
   ARMORYSPINNAKER_CONF_STORE_BUCKET: armory-platform
   ARMORYSPINNAKER_CONF_STORE_PREFIX: front50
@@ -409,7 +404,7 @@ data:
   BASE_IP: 127.0.0.1
   CLOUDDRIVER_OPTS: -Dspring.profiles.active=armory,configurator,local
   CONFIGURATOR_ENABLED: "false"
-  DECK_HOST: http://spinnaker. wzxmt.com
+  DECK_HOST: http://spinnaker.wzxmt.com
   ECHO_OPTS: -Dspring.profiles.active=armory,configurator,local
   GATE_OPTS: -Dspring.profiles.active=armory,configurator,local
   IGOR_OPTS: -Dspring.profiles.active=armory,configurator,local
@@ -422,11 +417,15 @@ data:
   SPINNAKER_GOOGLE_PROJECT_CREDENTIALS_PATH: ""
   SPINNAKER_HOME: /home/spinnaker
   SPRING_PROFILES_ACTIVE: armory,configurator,local
+EOF
+```
 
-clouddriver]# vi default-config.yaml
-# 这里的内容在另外放的default-config.yaml里，因为实在太大，所以没办法复制进来
+default-config.yaml #default-config.yaml里，因为实在太大，所以没办法复制进来
 
-clouddriver]# vi custom-config.yaml
+ConfigMap
+
+~~~yaml
+cat << 'EOF' >custom-config.yaml
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -437,27 +436,27 @@ data:
     kubernetes:
       enabled: true
       accounts:
-        - name: cluster-admin
+        - name: admin
           serviceAccount: false
           dockerRegistries:
-            - accountName: harbor
+            - accountName: harborlogin
               namespace: []
           namespaces:
             - test
             - prod
           kubeconfigFile: /opt/spinnaker/credentials/custom/default-kubeconfig
-      primaryAccount: cluster-admin
+      primaryAccount: admin
     dockerRegistry:
       enabled: true
       accounts:
-        - name: harbor
+        - name: harborlogin
           requiredGroupMembership: []
           providerVersion: V1
           insecureRegistry: true
           address: http://harbor.wzxmt.com
           username: admin
-          password: harbor12345
-      primaryAccount: harbor
+          password: admin
+      primaryAccount: harborlogin
     artifacts:
       s3:
         enabled: true
@@ -482,7 +481,7 @@ data:
       enabled: true
       masters:
         - name: jenkins-admin
-          address: http://jenkins. wzxmt.com
+          address: http://jenkins.wzxmt.com
           username: admin
           password: admin123
       primaryAccount: jenkins-admin
@@ -508,9 +507,14 @@ data:
     services:
       igor:
         enabled: true
+EOF
+~~~
 
-clouddriver]# vi dp.yaml
-apiVersion: extensions/v1beta1
+Deployment
+
+```yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -536,7 +540,7 @@ spec:
     spec:
       containers:
       - name: armory-clouddriver
-        image: harbor.wzxmt.com/armory/clouddriver:v1.8.x
+        image: harbor.wzxmt.com/armory/clouddriver:v1.11.x
         imagePullPolicy: IfNotPresent
         command:
         - bash
@@ -581,13 +585,13 @@ spec:
         - mountPath: /home/spinnaker/.aws
           name: credentials
         - mountPath: /opt/spinnaker/credentials/custom
-          name: default-kubeconfig
+          name: custom-config
         - mountPath: /opt/spinnaker/config/default
           name: default-config
         - mountPath: /opt/spinnaker/config/custom
-          name: custom-config
+          name: default-kubeconfig 
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       volumes:
       - configMap:
           defaultMode: 420
@@ -617,8 +621,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+```
 
-clouddriver]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -631,45 +640,54 @@ spec:
     targetPort: 7002
   selector:
     app: armory-clouddriver
+EOF
+```
 
-clouddriver]# kubectl apply -f ./init-env.yaml
-clouddriver]# kubectl apply -f ./default-config.yaml
-clouddriver]# kubectl apply -f ./custom-config.yaml
-clouddriver]# kubectl apply -f ./dp.yaml
-clouddriver]# kubectl apply -f ./svc.yaml
+应用资源清单
+
+```bash
+kubectl apply -f init-env.yaml
+kubectl apply -f default-config.yaml
+kubectl apply -f custom-config.yaml
+kubectl apply -f dp.yaml
+kubectl apply -f svc.yaml
+```
+
+![1584015398060](../upload/image-20200612225419378.png)
+
+检查armory-clouddriver状态，在前面部署的ninio执行以下命令：
+
+~~~bash
+ curl armory-clouddriver:7002/health
 ~~~
 
-![1584014649148](../upload/1584014649148.png)
+![image-20200612224126701](../upload/image-20200612224126701.png)
 
-![1584015398060](../upload/1584015398060.png)
+表示部署成功
 
-~~~
-# 21机器(因为我的minio在21机器)：
-.kube]# docker ps -a|grep minio
-.kube]# docker exec -it 9f5592fb2950 /bin/sh
-/ # curl armory-clouddriver:7002/health
-~~~
+### 部署数据持久化组件——Front50
 
-![1584015549913](../upload/1584015549913.png)
+#### 准备镜像
 
-完成
+```
+docker pull armory/spinnaker-front50-slim:release-1.8.x-93febf2
+docker images|grep front50
+docker tag 0d353788f4f2 harbor.wzxmt.com/armory/front50:1.8.x
+docker push harbor.wzxmt.com/armory/front50:1.8.x
+```
 
+#### 资源清单
 
+```bash
+mkdir /data/software/yaml/armory/front50
+cd /data/software/yaml/armory/front50
+```
 
-### 安装部署spinnaker其余组件
+Deployment
 
-部署数据持久化组件——Front50
-
-~~~
-# 200机器：
-~]# docker pull docker.io/armory/spinnaker-front50-slim:release-1.8.x-93febf2
-~]# docker images|grep front50
-~]# docker tag 0d353788f4f2 harbor.wzxmt.com/armory/front50:v1.8.x
-~]# docker push harbor.wzxmt.com/armory/front50:v1.8.x
-~]# mkdir /data/software/yaml/armory/front50
-~]# cd /data/software/yaml/armory/front50/
-front50]# vi dp.yaml
-apiVersion: extensions/v1beta1
+~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -695,7 +713,7 @@ spec:
     spec:
       containers:
       - name: armory-front50
-        image: harbor.wzxmt.com/armory/front50:v1.8.x
+        image: harbor.wzxmt.com/armory/front50:1.8.x
         imagePullPolicy: IfNotPresent
         command:
         - bash
@@ -742,7 +760,7 @@ spec:
         - mountPath: /opt/spinnaker/config/custom
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       volumes:
       - configMap:
           defaultMode: 420
@@ -768,8 +786,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+~~~
 
-front50]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -782,29 +805,43 @@ spec:
     targetPort: 8080
   selector:
     app: armory-front50
+EOF
+```
 
-front50]# kubectl apply -f ./dp.yaml
-front50]# kubectl apply -f ./svc.yaml
-~~~
+#### 应用资源清单
 
-![1584023207016](../upload/1584023207016.png)
+```bash
+kubectl apply -f dp.yaml
+kubectl apply -f svc.yaml
+```
 
-[minio. wzxmt.com](minio. wzxmt.com)
+http://minio.wzxmt.com
 
-![1584023230603](../upload/1584023230603.png)
+![1584023230603](../upload/image-20200612233710072.png)
 
-#### 部署任务编排组件——Orca
+### 部署任务编排组件——Orca
 
-~~~
-# 200机器：
-~]# docker pull docker.io/armory/spinnaker-orca-slim:release-1.8.x-de4ab55
-~]# docker images|grep orca
-~]# docker tag 5103b1f73e04 harbor.wzxmt.com/armory/orca:v1.8.x
-~]# docker push harbor.wzxmt.com/armory/orca:v1.8.x
-~]# mkdir /data/software/yaml/orca
-~]# cd /data/software/yaml/orca/
-orca]# vi dp.yaml
-apiVersion: extensions/v1beta1
+#### 准备镜像
+
+```bash
+docker pull armory/spinnaker-orca-slim:release-1.8.x-de4ab55
+docker images|grep orca
+docker tag 5103b1f73e04 harbor.wzxmt.com/armory/orca:v1.8.x
+docker push harbor.wzxmt.com/armory/orca:v1.8.x
+```
+
+#### 资源清单
+
+```bash
+mkdir /data/software/yaml/armory/orca
+cd /data/software/yaml/armory/orca
+```
+
+Deployment
+
+~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -875,7 +912,7 @@ spec:
         - mountPath: /opt/spinnaker/config/custom
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       volumes:
       - configMap:
           defaultMode: 420
@@ -897,8 +934,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+~~~
 
-orca]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -911,25 +953,39 @@ spec:
     targetPort: 8083
   selector:
     app: armory-orca
+EOF
+```
 
-orca]# kubectl apply -f ./dp.yaml
-orca]# kubectl apply -f ./svc.yaml
-~~~
+#### 应用资源清单
 
+```bash
+kubectl apply -f dp.yaml
+kubectl apply -f svc.yaml
+```
 
+### 部署消息总线组件——Echo
 
-#### 部署消息总线组件——Echo
+#### 准备镜像
 
-~~~
-# 200机器：
-~]# docker pull docker.io/armory/echo-armory:c36d576-release-1.8.x-617c567
-~]# docker images|grep echo
-~]# docker tag 415efd46f474 harbor.wzxmt.com/armory/echo:v1.8.x
-~]# docker push harbor.wzxmt.com/armory/echo:v1.8.x
-~]# mkdir /data/software/yaml/echo
-~]# cd /data/software/yaml/echo/
-echo]# vi dp.yaml
-apiVersion: extensions/v1beta1
+```bash
+docker pull armory/echo-armory:c36d576-release-1.8.x-617c567
+docker images|grep echo
+docker tag 415efd46f474 harbor.wzxmt.com/armory/echo:v1.8.x
+docker push harbor.wzxmt.com/armory/echo:v1.8.x
+```
+
+#### 资源清单
+
+```bash
+mkdir /data/software/yaml/armory/echo
+cd /data/software/yaml/armory/echo
+```
+
+Deployment
+
+~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -1000,7 +1056,7 @@ spec:
         - mountPath: /opt/spinnaker/config/custom
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       volumes:
       - configMap:
           defaultMode: 420
@@ -1022,8 +1078,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+~~~
 
-echo]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1036,23 +1097,39 @@ spec:
     targetPort: 8089
   selector:
     app: armory-echo
+EOF
+```
 
-echo]# kubectl apply -f ./dp.yaml
-echo]# kubectl apply -f ./svc.yaml
-~~~
+#### 应用资源清单
 
-#### 部署流水线交互组件——Igor
+```bash
+kubectl apply -f dp.yaml
+kubectl apply -f svc.yaml
+```
 
-~~~~
-# 200机器：
-~]# docker pull docker.io/armory/spinnaker-igor-slim:release-1.8-x-new-install-healthy-ae2b329
-~]# docker images|grep igor
-~]# docker tag 23984f5b43f6 harbor.wzxmt.com/armory/igor:v1.8.x
-~]# docker push harbor.wzxmt.com/armory/igor:v1.8.x
-~]# mkdir /data/software/yaml/igor
-~]# cd /data/software/yaml/igor/
-igor]# vi dp.yaml
-apiVersion: extensions/v1beta1
+### 部署流水线交互组件——Igor
+
+#### 准备镜像
+
+```bash
+docker pull armory/spinnaker-igor-slim:release-1.8-x-new-install-healthy-ae2b329
+docker images|grep igor
+docker tag 23984f5b43f6 harbor.wzxmt.com/armory/igor:v1.8.x
+docker push harbor.wzxmt.com/armory/igor:v1.8.x
+```
+
+#### 资源清单
+
+```bash
+mkdir /data/software/yaml/armory/igor
+cd /data/software/yaml/armory/igor
+```
+
+Deployment
+
+~~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -1125,7 +1202,7 @@ spec:
         - mountPath: /opt/spinnaker/config/custom
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       securityContext:
         runAsUser: 0
       volumes:
@@ -1149,8 +1226,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+~~~~
 
-igor]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1163,25 +1245,39 @@ spec:
     targetPort: 8088
   selector:
     app: armory-igor
+EOF
+```
 
-igor]# kubectl apply -f ./dp.yaml
-igor]# kubectl apply -f ./svc.yaml
-~~~~
+#### 应用资源清单
 
+```
+kubectl apply -f ./dp.yaml
+kubectl apply -f ./svc.yaml
+```
 
+### 部署API提供组件——Gate
 
-#### 部署API提供组件——Gate
+#### 准备镜像
 
-~~~
-# 200机器：
-~]# docker pull docker.io/armory/gate-armory:dfafe73-release-1.8.x-5d505ca
-~]# docker images|grep gate
-~]# docker tag b092d4665301 harbor.wzxmt.com/armory/gate:v1.8.x
-~]# docker push harbor.wzxmt.com/armory/gate:v1.8.x
-~]# mkdir /data/software/yaml/gate
-~]# cd /data/software/yaml/gate/
-gate]# vi dp.yaml
-apiVersion: extensions/v1beta1
+```bash
+docker pull armory/gate-armory:dfafe73-release-1.8.x-5d505ca
+docker images|grep gate
+docker tag b092d4665301 harbor.wzxmt.com/armory/gate:v1.8.x
+docker push harbor.wzxmt.com/armory/gate:v1.8.x
+```
+
+#### 资源清单
+
+```bash
+mkdir /data/software/yaml/armory/gate
+cd /data/software/yaml/armory/gate
+```
+
+Deployment
+
+~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -1263,7 +1359,7 @@ spec:
         - mountPath: /opt/spinnaker/config/custom
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       securityContext:
         runAsUser: 0
       volumes:
@@ -1287,8 +1383,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+~~~
 
-gate]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1306,27 +1407,39 @@ spec:
     targetPort: 8085
   selector:
     app: armory-gate
+EOF
+```
 
-gate]# kubectl apply -f ./dp.yaml
-gate]# kubectl apply -f ./svc.yaml
-~~~
+应用资源清单
 
-![1584023952250](../upload/1584023952250.png)
+```bash
+kubectl apply -f ./dp.yaml
+kubectl apply -f ./svc.yaml
+```
 
-5个
+### 部署前端网页项目——Deck
 
-#### 部署前端网页项目——Deck
+#### 准备镜像
 
-~~~
-# 200机器：
-~]# docker pull docker.io/armory/deck-armory:d4bf0cf-release-1.8.x-0a33f94
-~]# docker images|grep deck
-~]# docker tag 9a87ba3b319f harbor.wzxmt.com/armory/deck:v1.8.x
-~]# docker push harbor.wzxmt.com/armory/deck:v1.8.x
-~]# mkdir /data/software/yaml/deck
-~]# cd /data/software/yaml/deck/
-deck]# vi dp.yaml
-apiVersion: extensions/v1beta1
+```bash
+docker pull docker.io/armory/deck-armory:d4bf0cf-release-1.8.x-0a33f94
+docker images|grep deck
+docker tag 9a87ba3b319f harbor.wzxmt.com/armory/deck:v1.8.x
+docker push harbor.wzxmt.com/armory/deck:v1.8.x
+```
+
+#### 资源清单
+
+```bash
+mkdir /data/software/yaml/armory/deck
+cd /data/software/yaml/armory/deck
+```
+
+Deployment
+
+~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -1393,7 +1506,7 @@ spec:
         - mountPath: /opt/spinnaker/config/custom
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       volumes:
       - configMap:
           defaultMode: 420
@@ -1415,8 +1528,13 @@ spec:
               fieldPath: metadata.annotations
             path: annotations
         name: podinfo
+EOF
+~~~
 
-deck]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1429,23 +1547,38 @@ spec:
     targetPort: 9000
   selector:
     app: armory-deck
+EOF
+```
 
-deck]# kubectl apply -f ./dp.yaml
-deck]# kubectl apply -f ./svc.yaml
-~~~
+应用资源清单
 
-#### 部署前端代理——Nginx
+```bash
+kubectl apply -f dp.yaml
+kubectl apply -f svc.yaml
+```
 
-~~~
-# 200机器：
-~]# docker pull nginx:1.12.2
-~]# docker images|grep nginx
-~]# docker tag 4037a5562b03 harbor.wzxmt.com/armory/nginx:v1.12.2
-~]# docker push harbor.wzxmt.com/armory/nginx:v1.12.2
-~]# mkdir /data/software/yaml/nginx
-~]# cd /data/software/yaml/nginx/
-nginx]# vi dp.yaml
-apiVersion: extensions/v1beta1
+### 部署前端代理——Nginx
+
+#### 准备镜像
+
+```bash
+docker pull nginx:1.12.2
+docker tag nginx:1.12.2 harbor.wzxmt.com/armory/nginx:1.12.2
+docker push harbor.wzxmt.com/armory/nginx:1.12.2
+```
+
+#### 资源清单
+
+```bash
+mkdir /data/software/yaml/armory/nginx
+cd /data/software/yaml/armory/nginx
+```
+
+Deployment
+
+~~~yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -1471,7 +1604,7 @@ spec:
     spec:
       containers:
       - name: armory-nginx
-        image: harbor.wzxmt.com/armory/nginx:v1.12.2
+        image: harbor.wzxmt.com/armory/nginx:1.12.2
         imagePullPolicy: Always
         command:
         - bash
@@ -1514,7 +1647,7 @@ spec:
         - mountPath: /etc/nginx/conf.d
           name: custom-config
       imagePullSecrets:
-      - name: harbor
+      - name: harborlogin
       volumes:
       - configMap:
           defaultMode: 420
@@ -1524,8 +1657,13 @@ spec:
           defaultMode: 420
           name: default-config
         name: default-config
+EOF
+~~~
 
-nginx]# vi svc.yaml
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -1547,57 +1685,53 @@ spec:
     targetPort: 8085
   selector:
     app: armory-nginx
+EOF
+```
 
-nginx]# vi ingress.yaml
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   labels:
     app: spinnaker
-    web: spinnaker. wzxmt.com
+    web: spinnaker.wzxmt.com
   name: armory-nginx
   namespace: armory
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-  - host: spinnaker. wzxmt.com
+  - host: spinnaker.wzxmt.com
     http:
       paths:
       - backend:
           serviceName: armory-nginx
           servicePort: 80
-~~~
+EOF
+```
 
+#### 应用资源清单
 
+```
+kubectl apply -f dp.yaml
+kubectl apply -f svc.yaml
+kubectl apply -f ingress.yaml
+```
 
-~~~
-# 11机器，解析域名：
-~]# vi /var/named/ wzxmt.com.zone
-serial 前滚一位
-spinnaker          A    10.4.7.10
-
-~]# systemctl restart named
-~]# dig -t A spinnaker. wzxmt.com +short
-#out: 10.4.7.10 
-~~~
-
-![1581925138470](../upload/1581925138470.png)
+#### DNS解析
 
 ~~~
-# 200机器，应用资源清单：
-nginx]# kubectl apply -f ./dp.yaml
-nginx]# kubectl apply -f ./svc.yaml
-nginx]# kubectl apply -f ./ingress.yaml
+spinnaker          A    10.0.0.50
 ~~~
 
-![1584024475469](../upload/1584024475469.png)
+http://spinnaker.wzxmt.com
 
-[spinnaker. wzxmt.com](spinnaker. wzxmt.com)
+![1584024561816](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200613005516075.png)
 
-![1584024561816](../upload/1584024561816.png)
-
-完成
-
-
+到此spinnaker部署完成完成
 
 ### 使用spinnaker结合Jenkins构建镜像
 
