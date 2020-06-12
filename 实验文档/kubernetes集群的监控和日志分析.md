@@ -2551,7 +2551,7 @@ km	60 IN A 10.0.0.50
 
 [http://km.wzxmt.com](http://km.wzxmt.com/)
 
-![image-20200609153312857](upload/image-20200609153312857.png)
+![image-20200609153312857](../upload/image-20200609153312857.png)
 
 ## 部署filebeat
 
