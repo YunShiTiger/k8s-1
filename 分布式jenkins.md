@@ -1,4 +1,25 @@
-# k8s部署jenkins
+# 简介
+
+我们知道持续构建与发布是我们日常工作中必不可少的一个步骤，目前大多公司都采用 Jenkins 集群来搭建符合需求的 CI/CD 流程，然而传统的 Jenkins Slave 一主多从方式会存在一些痛点，比如：
+
+- 主 Master 发生单点故障时，整个流程都不可用了
+- 每个 Slave 的配置环境不一样，来完成不同语言的编译打包等操作，但是这些差异化的配置导致管理起来非常不方便，维护起来也是比较费劲
+- 资源分配不均衡，有的 Slave 要运行的 job 出现排队等待，而有的 Slave 处于空闲状态
+- 资源有浪费，每台 Slave 可能是物理机或者虚拟机，当 Slave 处于空闲状态时，也不会完全释放掉资源。
+
+正因为上面的这些种种痛点，我们渴望一种更高效更可靠的方式来完成这个 CI/CD 流程，而 Docker 虚拟化容器技术能很好的解决这个痛点，又特别是在 Kubernetes 集群环境下面能够更好来解决上面的问题，下图是基于 Kubernetes 搭建 Jenkins 集群的简单示意图：![k8s-jenkins](https://raw.githubusercontent.com/wzxmt/images/master/img/k8s-jenkins-slave.png)
+
+从图上可以看到 Jenkins Master 和 Jenkins Slave 以 Pod 形式运行在 Kubernetes 集群的 Node 上，Master 运行在其中一个节点，并且将其配置数据存储到一个 Volume 上去，Slave 运行在各个节点上，并且它不是一直处于运行状态，它会按照需求动态的创建并自动删除。
+
+这种方式的工作流程大致为：当 Jenkins Master 接受到 Build 请求时，会根据配置的 Label 动态创建一个运行在 Pod 中的 Jenkins Slave 并注册到 Master 上，当运行完 Job 后，这个 Slave 会被注销并且这个 Pod 也会自动删除，恢复到最初状态。
+
+那么我们使用这种方式带来了哪些好处呢？
+
+- **服务高可用**，当 Jenkins Master 出现故障时，Kubernetes 会自动创建一个新的 Jenkins Master 容器，并且将 Volume 分配给新创建的容器，保证数据不丢失，从而达到集群服务高可用。
+- **动态伸缩**，合理使用资源，每次运行 Job 时，会自动创建一个 Jenkins Slave，Job 完成后，Slave 自动注销并删除容器，资源自动释放，而且 Kubernetes 会根据每个资源的使用情况，动态分配 Slave 到空闲的节点上创建，降低出现因某节点资源利用率高，还排队等待在该节点的情况。
+- **扩展性好**，当 Kubernetes 集群的资源严重不足而导致 Job 排队等待时，可以很容易的添加一个 Kubernetes Node 到集群中，从而实现扩展。
+
+是不是以前我们面临的种种问题在 Kubernetes 集群环境下面是不是都没有了啊？看上去非常完美。
 
 ## 部署jenkins-master
 
@@ -78,7 +99,6 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get"]
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -266,36 +286,15 @@ $ cat /data/k8s/jenkins2/secrets/initAdminPassword
 
 安装完成后添加管理员帐号即可进入到 jenkins 主界面：![jenkins home](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622075706388.png)
 
-我们知道持续构建与发布是我们日常工作中必不可少的一个步骤，目前大多公司都采用 Jenkins 集群来搭建符合需求的 CI/CD 流程，然而传统的 Jenkins Slave 一主多从方式会存在一些痛点，比如：
-
-- 主 Master 发生单点故障时，整个流程都不可用了
-- 每个 Slave 的配置环境不一样，来完成不同语言的编译打包等操作，但是这些差异化的配置导致管理起来非常不方便，维护起来也是比较费劲
-- 资源分配不均衡，有的 Slave 要运行的 job 出现排队等待，而有的 Slave 处于空闲状态
-- 资源有浪费，每台 Slave 可能是物理机或者虚拟机，当 Slave 处于空闲状态时，也不会完全释放掉资源。
-
-正因为上面的这些种种痛点，我们渴望一种更高效更可靠的方式来完成这个 CI/CD 流程，而 Docker 虚拟化容器技术能很好的解决这个痛点，又特别是在 Kubernetes 集群环境下面能够更好来解决上面的问题，下图是基于 Kubernetes 搭建 Jenkins 集群的简单示意图：![k8s-jenkins](https://www.qikqiak.com/img/posts/k8s-jenkins-slave.png)
-
-从图上可以看到 Jenkins Master 和 Jenkins Slave 以 Pod 形式运行在 Kubernetes 集群的 Node 上，Master 运行在其中一个节点，并且将其配置数据存储到一个 Volume 上去，Slave 运行在各个节点上，并且它不是一直处于运行状态，它会按照需求动态的创建并自动删除。
-
-这种方式的工作流程大致为：当 Jenkins Master 接受到 Build 请求时，会根据配置的 Label 动态创建一个运行在 Pod 中的 Jenkins Slave 并注册到 Master 上，当运行完 Job 后，这个 Slave 会被注销并且这个 Pod 也会自动删除，恢复到最初状态。
-
-那么我们使用这种方式带来了哪些好处呢？
-
-- **服务高可用**，当 Jenkins Master 出现故障时，Kubernetes 会自动创建一个新的 Jenkins Master 容器，并且将 Volume 分配给新创建的容器，保证数据不丢失，从而达到集群服务高可用。
-- **动态伸缩**，合理使用资源，每次运行 Job 时，会自动创建一个 Jenkins Slave，Job 完成后，Slave 自动注销并删除容器，资源自动释放，而且 Kubernetes 会根据每个资源的使用情况，动态分配 Slave 到空闲的节点上创建，降低出现因某节点资源利用率高，还排队等待在该节点的情况。
-- **扩展性好**，当 Kubernetes 集群的资源严重不足而导致 Job 排队等待时，可以很容易的添加一个 Kubernetes Node 到集群中，从而实现扩展。
-
-是不是以前我们面临的种种问题在 Kubernetes 集群环境下面是不是都没有了啊？看上去非常完美。
-
 #### 配置
 
 接下来我们就需要来配置 Jenkins，让他能够动态的生成 Slave 的 Pod。
 
 **第1步.** 我们需要安装**kubernetes plugin (新版本就叫 Kubernetes)**， 点击 Manage Jenkins -> Manage Plugins -> Available -> Kubernetes plugin 勾选安装即可。
 
-![image-20200622080449136](upload/image-20200622080449136.png)
+![image-2020062](https://raw.githubusercontent.com/wzxmt/images/master/img/image-2020062208044.png)
 
-**第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622094452898.png)
+**第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200627224756024.png)
 
 ## 部署jenkins-slave
 
@@ -305,8 +304,21 @@ $ cat /data/k8s/jenkins2/secrets/initAdminPassword
 ├── Dockerfile（见下面）
 ├── settings.xml（maven配置文件）
 ├── helm（helm包管理器）
+├── apache-maven-3.6.3-bin.tar.gz
 ├── config（连接api-serviservice信息）
 └── id_rsa （使用git拉代码时要用到，配对的公钥应配置在gitlab中）
+```
+
+#### 下载maven
+
+```
+wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+```
+
+#### 下载helm
+
+```
+wget https://github.com/helm/helm/archive/v3.2.4.tar.gz
 ```
 
 #### 生成ssh密钥对：
@@ -323,10 +335,11 @@ ARG version=4.3-4-jdk11
 FROM jenkins/inbound-agent:$version
 USER root
 COPY * /root/
-RUN apt-get update && apt-get install -y maven unzip && mkdir /root/.kube &&  mkdir -p /root/.ssh && \
+RUN mkdir /root/.kube &&  mkdir -p /root/.ssh && \
 cd /root/ && chown -R root. /root/ && mv id_rsa /root/.ssh/id_rsa && mv config /root/.kube/config && \
-mv kubectl /bin/kubectl && \mv settings.xml /etc/maven/settings.xml && apt-get autoremove -y && \
-  apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+mv kubectl /usr/local/bin/kubectl && tar xf apache-maven-3.6.3-bin.tar.gz && \
+mv apache-maven-3.6.3 /home/jenkins/maven-3.6.3 && \mv settings.xml /home/jenkins/maven-3.6.3/conf/settings.xml && \
+tar xf helm-v3.2.4-linux-amd64.tar.gz && mv linux-amd64/helm /usr/local/bin/ && rm -f *.gz
 ENTRYPOINT ["jenkins-agent"]
 EOF
 ```
@@ -396,7 +409,7 @@ spec:
       }
       stage('maven') {
          steps {
-            sh 'mvn --version'
+            sh '/home/jenkins/maven-3.6.3/bin/mvn -version'
          }
       }
       stage('docker') {
@@ -409,7 +422,7 @@ spec:
             sh 'date'
          }
       }
-       stage('pwd') {
+       stage('helm') {
          steps {
             sh 'pwd'
          }
