@@ -211,8 +211,6 @@ spec:
 EOF
 ```
 
-#### 应用资源配置清单
-
 创建docker-registry
 
 ```bash
@@ -295,7 +293,7 @@ $ cat /data/k8s/jenkins2/secrets/initAdminPassword
 
 **第1步.** 我们需要安装**kubernetes plugin (新版本就叫 Kubernetes)**， 点击 Manage Jenkins -> Manage Plugins -> Available -> Kubernetes plugin 勾选安装即可。
 
-![image-20200622080449136](../AppData/Roaming/Typora/typora-user-images/image-20200622080449136.png)
+![image-20200622080449136](upload/image-20200622080449136.png)
 
 **第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622094452898.png)
 
@@ -325,7 +323,7 @@ ARG version=4.3-4-jdk11
 FROM jenkins/inbound-agent:$version
 USER root
 COPY * /root/
-RUN apt-get update && apt-get install -y maven && mkdir /root/.kube &&  mkdir -p /root/.ssh && \
+RUN apt-get update && apt-get install -y maven unzip && mkdir /root/.kube &&  mkdir -p /root/.ssh && \
 cd /root/ && chown -R root. /root/ && mv id_rsa /root/.ssh/id_rsa && mv config /root/.kube/config && \
 mv kubectl /bin/kubectl && \mv settings.xml /etc/maven/settings.xml && apt-get autoremove -y && \
   apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -337,6 +335,7 @@ EOF
 
 ```bash
 docker build . -t harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
+docker push harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
 ```
 
 pipline
