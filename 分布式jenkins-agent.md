@@ -312,13 +312,13 @@ $ cat /data/k8s/jenkins2/secrets/initAdminPassword
 
 #### 下载maven
 
-```
+```bash
 wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
 ```
 
 #### 下载helm
 
-```
+```bash
 wget https://github.com/helm/helm/archive/v3.2.4.tar.gz
 ```
 
@@ -434,7 +434,7 @@ spec:
 
 ## test
 
-## 新建Jenkins的pipeline
+### 新建Jenkins的pipeline
 
 ### 配置New job
 
@@ -609,7 +609,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 }
 ```
 
-## 构建应用镜像
+### 构建应用镜像
 
 使用Jenkins进行CI，并查看harbor仓库
 ![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628020151780.png)
@@ -660,3 +660,6 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
   >ROOT
 
+### 开始构建
+
+![image-20200628021513893](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628021513893.png)
