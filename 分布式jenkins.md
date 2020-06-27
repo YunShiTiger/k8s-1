@@ -304,9 +304,10 @@ $ cat /data/k8s/jenkins2/secrets/initAdminPassword
 ├── Dockerfile（见下面）
 ├── settings.xml（maven配置文件）
 ├── helm（helm包管理器）
-├── apache-maven-3.6.3-bin.tar.gz
+├── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ├── config（连接api-serviservice信息）
-└── id_rsa （使用git拉代码时要用到，配对的公钥应配置在gitlab中）
+├── config.json（连接harbor信息）
+└── id_rsa （连接git）
 ```
 
 #### 下载maven
@@ -331,14 +332,14 @@ ssh-keygen -t rsa -b 2048 -C "wzxmt.com@qq.com" -N "" -f /root/.ssh/id_rsa
 
 ```bash
 cat << 'EOF' >Dockerfile
-ARG version=4.3-4-jdk11
+ARG version=4.3-4
 FROM jenkins/inbound-agent:$version
 USER root
 COPY * /root/
-RUN mkdir /root/.kube &&  mkdir -p /root/.ssh && \
-cd /root/ && chown -R root. /root/ && mv id_rsa /root/.ssh/id_rsa && mv config /root/.kube/config && \
+RUN mkdir /root/.kube &&  mkdir -p /root/.ssh && mkdir /root/.docker && cd /root/ && chown -R root. /root/ && \
+mv id_rsa /root/.ssh/id_rsa && mv config /root/.kube/config && mv config.json /root/.docker/config.json && \
 mv kubectl /usr/local/bin/kubectl && tar xf apache-maven-3.6.3-bin.tar.gz && \
-mv apache-maven-3.6.3 /home/jenkins/maven-3.6.3 && \mv settings.xml /home/jenkins/maven-3.6.3/conf/settings.xml && \
+mv apache-maven-3.6.3 /opt/maven-3.6.3 && \cp settings.xml /opt/maven-3.6.3/conf/settings.xml && \
 tar xf helm-v3.2.4-linux-amd64.tar.gz && mv linux-amd64/helm /usr/local/bin/ && rm -f *.gz
 ENTRYPOINT ["jenkins-agent"]
 EOF
@@ -430,4 +431,232 @@ spec:
    }
 }
 ```
+
+## test
+
+## 新建Jenkins的pipeline
+
+### 配置New job
+
+- 使用admin登录
+
+- New Item
+
+- create new jobs
+
+- Enter an item name
+
+  > tomcat-demo
+
+- Pipeline -> OK
+
+- Discard old builds
+
+  > Days to keep builds : 3
+  > Max # of builds to keep : 30
+
+- This project is parameterized
+
+1. Add Parameter -> String Parameter
+
+   > Name : app_name
+   > Default Value :
+   > Description : project name. e.g: dubbo-demo-web
+
+2. Add Parameter -> String Parameter
+
+   > Name : image_name
+   > Default Value :
+   > Description : project docker image name. e.g: app/dubbo-demo-web
+
+3. Add Parameter -> String Parameter
+
+   > Name : git_repo
+   > Default Value :
+   > Description : project git repository. e.g: [git@gitee.com](https://gitee.com/wzxmt/dubbo-demo-web.git)
+
+4. Add Parameter -> String Parameter
+
+   > Name : git_ver
+   > Default Value : tomcat
+   > Description : git commit id of the project.
+
+5. Add Parameter -> String Parameter
+
+   > Name : add_tag
+   > Default Value :
+   > Description : project docker image tag, date_timestamp recommended. e.g: 200607_0930
+
+6. Add Parameter -> String Parameter
+
+   > Name : mvn_dir
+   > Default Value :  /opt
+   > Description : project maven directory. e.g: /opt
+
+7. Add Parameter -> String Parameter
+
+   > Name : target_dir
+   > Default Value : ./dubbo-client/target
+   > Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-client/target
+
+8. Add Parameter -> String Parameter
+
+   > Name : mvn_cmd
+   > Default Value : mvn clean package -Dmaven.test.skip=true
+   > Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true
+
+9. Add Parameter -> Choice Parameter
+
+   > Name : base_image
+   > Default Value :
+   >
+   > - k/tomcat:v7.0.94
+   > - base/tomcat:v8.5.55
+   > - base/tomcat:v9.0.17
+   >   Description : project base image list in harbor.wzxmt.com.
+
+10. Add Parameter -> Choice Parameter
+
+    > Name : maven
+    > Default Value :
+    >
+    > - maven-3.6.0
+    > - maven-3.6.3
+    >   Description : different maven edition.
+
+11. Add Parameter -> String Parameter
+
+    > Name : root_url
+    > Default Value : ROOT
+    > Description : webapp dir.
+
+### Pipeline Script
+
+```yaml
+pipeline {
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-slave
+spec:
+  nodeName: n2
+  containers:
+  - name: jnlp
+    image: harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
+    tty: true
+    imagePullPolicy: Always
+    volumeMounts:
+      - name: docker-cmd
+        mountPath: /usr/bin/docker
+      - name: docker-socker
+        mountPath: /run/docker.sock
+      - name: date
+        mountPath: /etc/localtime
+      - name: maven-cache
+        mountPath: /root/.m2
+  restartPolicy: Never
+  imagePullSecrets:
+    - name: harborlogin
+  volumes:
+    - name: date
+      hostPath: 
+        path: /etc/localtime
+        type: ''
+    - name: docker-cmd
+      hostPath: 
+        path: /usr/bin/docker
+        type: ''
+    - name: docker-socker
+      hostPath: 
+        path: /run/docker.sock
+        type: ''
+    - name: maven-cache
+      nfs: 
+        server: 10.0.0.20
+        path: /data/nfs-volume/maven-cache
+"""
+   }
+} 
+    stages {
+    stage('pull') { //get project code from repo 
+      steps {
+        sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
+        }
+    }
+    stage('build') { //exec mvn cmd
+      steps {
+        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
+      }
+    }
+    stage('unzip') { //unzip  target/*.war -c target/project_dir
+      steps {
+        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && unzip *.war -d ./project_dir"
+      }
+    }
+    stage('image') { //build image and push to registry
+      steps {
+        writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
+ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
+        sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
+        docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
+        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+      }
+    }
+  }
+}
+```
+
+## 构建应用镜像
+
+使用Jenkins进行CI，并查看harbor仓库
+![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628020151780.png)
+
+依次填入/选择：
+
+- app_name
+
+  > dubbo-demo-web
+
+- image_name
+
+  > app/dubbo-demo-web
+
+- git_repo
+
+  > https://gitee.com/wzxmt/dubbo-demo-web.git
+
+- git_ver
+
+  > tomcat
+
+- add_tag
+
+  > 200628_0140
+
+- mvn_dir
+
+  > /home/jenkins
+
+- target_dir
+
+  > ./dubbo-client/target
+
+- mvn_cmd
+
+  > mvn clean package -Dmaven.test.skip=true
+
+- base_image
+
+  > base/tomcat:v8.5.40
+
+- maven
+
+  > maven-3.6.3
+
+- root_url
+
+  >ROOT
 
