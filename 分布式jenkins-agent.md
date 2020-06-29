@@ -348,8 +348,8 @@ EOF
 #### 构建镜像
 
 ```bash
-docker build . -t harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
-docker push harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
+docker build . -t harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+docker push harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
 ```
 
 pipline
@@ -367,7 +367,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -545,7 +545,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-agent:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
     tty: true
     imagePullPolicy: Always
     volumeMounts:
