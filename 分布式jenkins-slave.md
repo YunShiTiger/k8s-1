@@ -602,7 +602,8 @@ spec:
 ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
         sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
         docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
-        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} && \
+        docker rmi harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
       }
     }
   }
