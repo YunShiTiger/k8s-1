@@ -1,0 +1,80 @@
+
+管理面异常排查
+
+master组件状态查询：kubectl get cs
+进程不存在：
+	确定组件管理生命周期管理方式
+	故障方法检测是否有效（livenessprobe、restartpolicy）
+	重启进程
+	分析日志
+组件功能异常:
+	分析日志、检查依赖组件是否正常
+
+节点异常原因排查
+
+节点状态查询：kubectl get node
+常见异常现象：
+	节点状态为notready
+	调度到该节点的pod显示nodelost、unkonwn、pending等状态
+常见故障：
+	kubelet进程异常
+	未安装cni插件
+	dockers异常
+	磁盘空间不足
+	。。。
+定位方式
+	kubectl describe node查看异常事件
+	services status 查看系统进程状态
+	journalctl查看系统组件日志
+	top查看系统CPU、内存
+	du、df查看磁盘使用情况
+
+应用异常原因排查
+
+应用模型异常
+	已存在的pod数超过resource-quota限制
+		kubectl describe quota -n ns
+	待创建的pod不满足admission controller限制
+		查看kube-apiserver中的enable-admission-plugins参数启用了哪些ac
+	damonset找不到符合要求的节点
+		kubectl describe ds -n ns
+		查看ds的nodeselector
+		查看taints
+	statefulset
+		podMangementPolicy
+		serviceName
+		volumeClaimTemplates
+POD实例异常
+	状态检测
+		kubectl describe/get pod
+	Pending
+		可用资源不足： describe pod可以看到调度失败event
+		不满足亲和性策略
+		节点有taints
+	Waiting
+		镜像下载失败
+		配置的imagesPullSecerts无法通过认证，查看是否存在可用的dockerconfigjson类型的secert
+		imagesPullPolicy配置是否正确
+	CrashBackoff
+		kubectl get log 查看容器日志
+		kubectl/docker exec登录容器验证功能
+		检查pod配置是否正确：command、liveness、rediness
+services访问异常原因排查
+	通过域名访问service
+		nslookup 判断域名解析是否正常
+	有Endpoint
+		kubectl -n ns get ep service-name
+		kubectl -n ns get pod --selector=service-selector
+		查看pod status是否为ready状态
+		查看service pod定义与pod定义是否匹配
+	Endpoint访问不通
+		检查kube-proxy是否运行正常，依赖的conntrack是否安装
+		查看kube-proxy配置参数，确认mode类型，查看转发规则是否正确
+			userspace：
+				iptables-save|grep servicename
+				KUBE_PORTALS_CONTAINER、KUBE-PORTALS-HOST
+			iptables:
+				iptables-save|grep servicename
+				KUBE-SVC-XXX、KUBE-SEP-XXX
+			ipvs:
+				ipvsadm -ln

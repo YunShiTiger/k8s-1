@@ -1,0 +1,279 @@
+iptables操作
+一：企业防火墙安全优化配置原则
+	1.尽量不给内部服务器 配置外网IP  ，通过转发 或 防火墙映射 上网访问
+	2.大并发，关闭防火墙    使用硬件防火墙
+	3.小并发，使用iptables 或 firewall
+
+二：实际应用：	
+	1.局域网共享上网  （net表 postrouting链）
+	2.IP映射         （net表  prerouting链 ）
+iptables主要工作在 OSI 七层模型中  二 三 四层
+
+三：iptables容器概念
+	表（tables）  
+	链（chains）
+	规则（policy）
+
+四:iptables工作流程（规则）：
+	1.通过过滤的规则   从上到下  从前到后
+	2.如果没有明确阻止还是通过，就没有匹配规则，向下匹配，直到匹配到明确的 阻止还是通过
+	3.防火墙默认规则是所有规则执行完才执行
+
+五：四表五链
+******	Filter:(过滤)     ---默认表
+		1.INPUT      过滤  进入防火墙  的数据包		
+		2.FORWARD    过滤  转发经过防火墙  的数据包		
+		3.OUTPUT     过滤  从防火墙发出   的数据包
+******	NET:（共享上网， ip映射）			
+		1.OUTPUT	 从防火墙发出的数据包	(改变发出数据包的目的地)
+		2.PREROUTING     进入防火墙前 （改变数据包的目的地址，目标端口）  改收件人信息
+		（ip 映射）			
+		3.POSTROUTING    出防火墙后   （改变数据包的源地址，源端口） 改发件人信息
+		（局域网共享上网）	
+	Mangle:（主要负责修改数据包中特殊的路由标记，如TTL,TOS,MARK等，这个表定义了5个链(chains).）
+		1.INPUT
+		2.OUTPUT		
+		3.FORWORD
+		4.PREROUTING
+		5.POSTROUTING
+	Raw:		
+		1.PREROUTING
+		2.OUTPUT
+
+六.iptables操作
+参数：
+	-n             以数字方式显示地址或端口信息
+	-L             列出一个链中所有规则信息
+	-list-rules  
+	--line-number  列出规则信息是，打印规则行号
+	-v             显示详细过程
+	-h             显示帮助信息 
+初始化参数：
+	iptables -F    清除所有规则，不会处理默认规则
+	iptables -X    删除用户自定义的链
+	iptables -Z    链的计数器清零
+配置常用参数
+	-t  表名       		指定配置表名称
+	--append/-A 链名称	默认将规则配置插入最后一条  （大写！！！！！）
+	--check/-C   	        检查规则存在
+	--insert/-I 链名称      默认将规则插入第一条（可以按规则序号插入）
+	--delete/-D 链名称      删除指定规则（更具规则序号进行删除）
+	--replace/-R            指定替换（连后面指定要替换的序号）
+	--dport                 目标端口信息
+	--sport                 源端口信息	
+-j动作
+	ACCEPT                  允许
+	DROP  			丢弃（推荐使用）
+	REJECT       		拒绝（回应请求者名明确的拒绝）
+	MASQUERADE		伪装上网时使用
+	SEAT			共享地址上网
+	DNAT			目的地址改写
+
+-i      进			从哪一个网卡接口进入流量 	（INPUT链上）  
+-o      出                      从哪一个网卡接口出去的流量 （OUPT链上）   
+-s      source                  源IP地址或源网段信息
+-d      destination		指定目标ip地址或目标网段信息
+
+七：匹配前配置：      注意：先备份防火墙配置文件
+清除iptables所有规则：
+	iptables -Z    #清空iptables计数器  
+	（作用：清零后，用户在访问，就可排除哪条规则起作用了）
+	iptables -X    #清空iptables自定义链配置	
+	iptables -F    #清空所有规则，保留默认规则	
+查看iptables的规则：
+	方法一：/etc/init.d/iptables status	
+	方法二：iptables –L
+查看配置规则的顺序号：
+	iptables -nvL --number-list	
+	--line-number # 显示规则的序号
+
+八：iptables 防火墙实践
+1.阻止用户22端口访问
+	iptables -t filter -A INPUT -p tcp --dport 22 -j DROP 
+2.阻止源端口3268,访问数据库服务
+	iptables -t filter -A INPUT -p tcp --sport 3268 --dport 3306 -j DROP
+(filter为默认表  可以不写)
+	iptables -A INPUT -sport 3268 -dport 3306 -j DROP
+	考点：
+		--sport  源端口
+		--dport  目标端口
+	
+3.只允许eth0进来的流量可以访问22端口，其他网口eth1进来流量不能访问22
+	iptables -t filter -A INPUT -i eth1 -p tcp --dport 22 -j DROP 
+
+4.阻止用户从eth1接口进入，访问备份服务器873？
+	iptables -t filter -A INPUT -i eth1 -p tcp --dport 873 -j DROP
+	考点：
+		-i   哪一个网卡进入   只能INPUT		
+		-o   哪一个网卡出     只能OUTPUT
+
+5.10.0.0.0/24网段可以访问22端口， 172.16.1.0/24不能访问22端口
+	iptables -t filter -A INPUT -s 172.16.1.0/24 -p tcp  --dprot 22 -j DROP
+        考点： 
+		-s    源ip 或 源网段
+	    -d    目标ip 或 目标网段
+
+6.允许172.16.1.9主机可以访问172.16.1.8主机上的22端口
+方法一：	iptables -t filter -A INPUT -s 172.16.1.9 -d 172.16.1.8 -p tcp --dport 22 -j ACCPET 
+方法二：	iptables -t filter -I INPUT -s 172.16.1.9 -d 172.16.1.8 -p tcp --dport 22 -j ACCPET 
+	考点：
+		-A   追加 默认已有规则之后
+		-I   插入 默认插入所有规则最前面
+		-D   删除 指定规则
+		-R   替换 指定规则
+
+7.允许10.0.0.1主机可以通过 eth0接口访问 10.0.0.8 22端口  ， 10.0.0.0/24网段主机不能访问22端口
+方法一：	iptables -A INPUT -i eth0  -s 10.0.0.1 -d 10.0.0.8 -p tcp --dprot 22 -j ACCEPT
+	允许 10.0.0.1访问 10.0.0.8	
+	iptables -A INPUT -i eth0  -s 10.0.0.0/24  -d 10.0.0.8 -p tcp --dport 22 -j DROP
+	拒绝 10.0.0.0/24访问	
+方法二：iptables -A INPUT -i eth0  ! -s 10.0.0.1 -d 10.0.0.8 -p tcp --dport 22 -j DROP
+	除 10.0.0.1以外全部拒绝
+	考点： 
+		!   取反 ，排除
+
+8.禁止23到80端口，都不允许10.0.0.1主机进行访问
+	iptables -A INPUT -i eth0 -s 10.0.0.1 -p tcp --dport 23:80 -j DROP 
+
+9.禁止23,25,30，都不允许10.0.0.1主机进行访问
+	iptables -A INPUT -i eth0 -s 10.0.0.1 -p tcp --dport 23,25,30 -j DORP
+报错！
+	iptables v1.4.7: invalid port/service `23,25,30' specified
+	Try `iptables -h' or 'iptables --help' for more information.
+正确书写
+	iptables -A INPUT -i eth0 -s 10.0.0.1 -p tcp -m multiport --dport 23,25,30 -j DROP
+	考点
+		连续端口    用“：”冒号连接
+		不连续端口  用“，”连接   用 -m multiport 表示
+
+九：禁ping策略
+	禁ping策略原则：  
+		iptables服务器是ping的   发起者  还是 接受者
+	原因：	
+		黑客可以通过ping的方式来查看服务器是否运行 为了安全起见 所以禁ping
+	icmp类型
+		icmp type8    ping请求   发出信息
+		icmp type0    ping响应   接收信息
+	策略部署：（从接受者 和 请求者 两个方面考虑）
+	请求方：
+		iptables -A OUTPUT -o eth0 -p icmp --icmp-type 8 -j DROP
+		iptables -A OUTPUT -i eth8 -p icmp --icmp-type 0 -j DROP
+	接收方：
+		iptables -A INPUT -i eth0 -p icmp --icmp-type 8 -j DROP
+		iptables -A INPUT -o eth0 -p icmp --icmp-type 0 -j DROP
+
+iptables -A FORWARD -s 192.168.1.0/24 -p icmp -m icmp --icmp-type any -j ACCEPT
+说明：只有类型8是真正会影响ping，或者也可以采用any；了解很多icmp类型iptables -p icmp -h
+
+十：对数据包进行限速处理
+作用：防止ping值无休止进行，限制指定时间包的允许通过数量及并发数
+实现策略命令：先接受在禁止
+   iptables -A INPUT -s 10.0.0.9 -p icmp --icmp-type 8 -m limit --limit 6/min --limit-burst 5 -j ACCEPT
+  （允许10.0.0.9请求  ）   
+   iptables -A INPUT -s 10.0.0.9 -j DROP
+-m limit 
+   --limit n/{second/minute/hour}:  --limit 6/min （每分钟ping6次）
+   解释：指定时间内的请求速率”n”为速率，后面为时间分别为：秒 分 时 
+--limit-burst [n]
+   解释：在同一时间内允许通过的请求”n”为数字，不指定默认为5
+十一：企业级iptables设置
+	1.第一个里程：将主机上原有防火墙配置备份
+		cp /etc/sysconfig/iptables{,.bak}
+		ll /etc/sysconfig/iptables*
+
+	2.第二个里程：防火墙配置初始化
+		iptables -F
+		iptables -X
+		iptables –Z
+		#强调在配置默认规则前，要给自己留好后门,设置自己能够进入的后门
+		iptables -A INPUT -s 10.0.0.1 -p tcp --dport 22 -j ACCEPT
+		iptables -A INPUT -s 10.0.0.0/24 -p tcp --dport 22 -j ACCEPT
+
+	3.第三个里程：设置默认规则
+		(如同设置白名单黑名单)	
+		iptables -P INPUT DROP
+		iptables -P FORWARD DROP
+		iptables -P OUTPUT ACCEPT
+		注释说明：为什么OUTPUT为ACCEPT
+		因为之前已经允许一些用户进入了，还设置规则让用户出去，多此一举，所以默认设置循序，限制部分用户不能出去
+    	(如同设置白名单黑名单),默认表“filter”,禁止数据进入，允许数据发出
+
+    4.第四个里程：允许iptables服务端ping自己的网卡地址
+    	iptables -A INPUT -i lo -p icmp --icmp-type any -j ACCEPT
+		注释说明：
+		防火墙主机如果想ping通自己，就需要一个接口loopback（回环接口）,正常情况发一个包出去，如果没有loopback接口，就从eth0接口发出，但是公网IP地址全球唯一，如果用eth0查询，是永远无法查到自己的IP地址
+
+	5.第五个里程：指定外网可以访问的端口信息
+		iptables -A INPUT -p tcp -m multiport --dport 80,443 -j ACCEPT
+
+	6.第六个里程：企业中内网之间不要配置防火墙策略
+		iptables -A INPUT -s 172.16.1.0/24 -j ACCEPT
+
+	7.第七个里程：企业之间有合作关系的，不要将友商的网络禁止（主要经常改动）
+		iptables -A INPUT -s 10.0.1.0/24 -j ACCEPT
+		iptables -A INPUT -s 10.0.2.0/24 -j ACCEPT
+
+	8.第八个里程：如果防火墙上配置了FTP服务，需要配置网络状态机制（允许相应流量返回）
+		iptables -A INPUT  -m state --state ESTABLISHED,RELATED -j ACCEPT
+		注释说明：
+		iptables -P INPUT DROP    禁止数据进入
+		iptables -P OUTPUT ACCEPT 允许数据发出
+    	如果这里不设置网络状态的话，防火墙本地对外网访问只能够发出数据“请求”，但无法接收数据“响应”,如果加了网络状态ESTABLISHED,RELATED,主动向外网连接，外网只需要进行响应，这样才能够完成真正对外网数据数据的访问.
+		注意这里不要添加“NEW”状态，这样任何外网主机都可以主动连接防火墙服务器，之前的规则都无效，规则只允许防火墙服务器进行主动向外网主机连接.
+
+	9.第九个里程碑---保存iptables配置
+		01. 第一种方式： /etc/init.d/iptables save
+		02. 第二种方式： iptables-save >/etc/sysconfig/iptables 
+
+十二：iptables nat表配置实例
+1.共享上网：（内网---外网）	
+	#01.设置内网服务器	
+		/etc/init.d/iptables stop     关闭防火墙
+		ifdown eth0                   关闭外网网卡
+		setup                         修改内网网卡网关和DNS地址信息						
+			172.16.1.8   网关
+			223.5.5.5    DNS地址信息
+			223.6.6.6
+	#02.配置iptables服务器
+		echo "net.ipv4.ip_forward = 1" >/etc/sysctl.conf  增加路由转发功能
+		sysclt -p 
+		iptables -t nat -A POSRROUTING -s 172.16.1.0/24 -o eth0 -j MASQUERADE  伪装共享上网
+2.端口映射（外网---内网）
+	iptables -t nat -A PREROUTING -d 10.0.0.8 --dport 9000 -p tcp -i eth0 -j DANT -to-destination 172.16.1.9:22
+
+十三：修改
+修改使用-R参数
+
+先看下当前规则：
+
+[root@test ~]# iptables -nL --line-number
+Chain INPUT (policy ACCEPT)
+num  target     prot opt source               destination
+1    DROP       all  --  192.168.1.1          0.0.0.0/0
+2    DROP       all  --  192.168.1.2          0.0.0.0/0
+3    DROP       all  --  192.168.1.5          0.0.0.0/0
+
+将第三条规则改为ACCEPT：
+
+[root@test ~]# iptables -R INPUT 3 -j ACCEPT
+
+再查看下：
+
+[root@test ~]# iptables -nL --line-number
+
+十四：删除
+删除用-D参数
+删除之前添加的规则（iptables -A INPUT -s 192.168.1.5 -j DROP）：
+iptables -D INPUT -s 192.168.1.5 -j DROP
+
+有时候要删除的规则太长，删除时要写一大串，既浪费时间又容易写错，这时我们可以先使用–line-number找出该条规则的行号，再通过行号删除规则。
+
+[root@test ~]# iptables -nL --line-number
+Chain INPUT (policy ACCEPT)
+num  target     prot opt source               destination
+1    DROP       all  --  192.168.1.1          0.0.0.0/0
+2    DROP       all  --  192.168.1.2          0.0.0.0/0
+3    DROP       all  --  192.168.1.3          0.0.0.0/0
+
+删除第二行规则
+[root@test ~]# iptables -D INPUT 2
