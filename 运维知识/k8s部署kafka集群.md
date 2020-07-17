@@ -761,12 +761,18 @@ spec:
 EOF
 ```
 
-### 4.2、创建kafka-manager
+### 4.2、DNS解析
+
+```bash
+km	60 IN A 10.0.0.12
+```
+
+## 4.3、创建kafka-manager
 
 ```
 kubectl apply -f ./
 ```
 
-### 4.3、访问kafka-manager访问界面
+### 4.4、访问kafka-manager访问界面
 
 http://km.wzxmt.com
