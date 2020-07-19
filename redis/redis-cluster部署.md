@@ -276,7 +276,25 @@ root@redis:/data# redis-cli -h redis.wzxmt.com -p 6379
 redis.wzxmt.com:6379> 
 ```
 
-### 13、测试主从切换
+### 13、写入数据测试
+
+```
+# master写入数据
+[root@manage redis-cluster]# kubectl exec -ti redis-sentinel-slave-ss-1 -n infra -- redis-cli -h redis-sentinel-master-ss-0.redis-sentinel-master-ss.infra.svc.cluster.local  set test test_data
+OK
+# master获取数据
+[root@manage redis-cluster]# kubectl exec -ti redis-sentinel-slave-ss-1 -n infra -- redis-cli -h redis-sentinel-master-ss-0.redis-sentinel-master-ss.infra.svc.cluster.local -c get test
+"test_data"
+# slave获取数据
+[root@manage redis-cluster]# kubectl exec -ti redis-sentinel-slave-ss-1 -n infra -- redis-cli  -c get test
+"test_data"
+#othe
+[root@manage redis-cluster]# kubectl run  --rm -it redis --image=redis -- /bin/bash
+root@redis:/data# redis-cli -h redis.wzxmt.com -p 6379 -c get test
+"test_data"
+```
+
+### 14、测试主从切换
 
 在K8S上搭建完好Redis集群后，我们最关心的就是其原有的高可用机制是否正常。这里，我们可以任意挑选一个Master的Pod来测试集群的主从切换机制，如`redis-cluster-ss-2`：
 
@@ -329,7 +347,7 @@ redis-cluster-ss-2   1/1     Running   0          6s   172.16.42.199   n1     <n
 
 如上，`redis-cluster-ss-2`还是master，从属于它之前的从节点`172.16.90.214`即`redis-cluster-ss-3`。
 
-### 14、其他说明
+### 15、其他说明
 
 终止某一个pod虽然IP会变，但是不会影响集群完整性，会自我恢复。测试过终止所有Redis Cluster POD，此时集群无法正常恢复，使用failover.py会恢复集群，并且不会丢失已保存的数据。
 
