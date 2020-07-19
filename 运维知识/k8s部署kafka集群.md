@@ -97,6 +97,16 @@ spec:
       labels:
         app: zk
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - zk
+              topologyKey: "kubernetes.io/hostname"
       containers:
       - name: kubernetes-zookeeper
         imagePullPolicy: IfNotPresent
