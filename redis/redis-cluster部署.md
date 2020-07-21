@@ -206,7 +206,7 @@ kubectl exec -ti redis-cluster-ss-5 -n infra -- redis-trib.rb create --replicas 
 
 集群nodes
 
-````
+````bash
 [root@manage redis-cluster]# kubectl exec -ti redis-cluster-ss-0 -n infra -- redis-cli cluster nodes 
 c08c4c3cfb6dcc3f74689f7664966a233a0352c3 172.16.90.215:6379@16379 slave 8b3075d19282599302f5c9bfe36c7db2ff9e0913 0 1595172528124 6 connected
 307c81d0383caee89111da2bd53584b0ec296b0e 172.16.90.214:6379@16379 slave 51ba7e8d1d3d7cea8710d77d5322269a55cbe9e5 0 1595172529128 4 connected
@@ -218,7 +218,7 @@ b0cad4bf1277520db45a5358c8f2dc2343fbb1a7 172.16.42.198:6379@16379 slave c0b38f42
 
 集群信息
 
-```
+```bash
 [root@manage redis-cluster]# kubectl exec -ti redis-cluster-ss-0 -n infra -- redis-cli cluster info
 cluster_state:ok
 cluster_slots_assigned:16384
@@ -271,26 +271,20 @@ redis	60 IN A 10.0.0.50
 
 ```csharp
 [root@manage ~]# kubectl run  --rm -it redis --image=redis -- /bin/bash
-If you don't see a command prompt, try pressing enter.
 root@redis:/data# redis-cli -h redis.wzxmt.com -p 6379
 redis.wzxmt.com:6379> 
 ```
 
 ### 13、写入数据测试
 
-```
-# master写入数据
-[root@manage redis-cluster]# kubectl exec -ti redis-sentinel-slave-ss-1 -n infra -- redis-cli -h redis-sentinel-master-ss-0.redis-sentinel-master-ss.infra.svc.cluster.local  set test test_data
+```bash
+# 写入数据
+[root@manage ~]# kubectl exec -ti redis-cluster-ss-1 -n infra -- redis-cli -h redis-cluster-ss-0.redis-cluster-ss.infra.svc.cluster.local  set test test_data
 OK
-# master获取数据
-[root@manage redis-cluster]# kubectl exec -ti redis-sentinel-slave-ss-1 -n infra -- redis-cli -h redis-sentinel-master-ss-0.redis-sentinel-master-ss.infra.svc.cluster.local -c get test
+# 获取数据
+[root@manage ~]# kubectl exec -ti redis-cluster-ss-1 -n infra -- redis-cli -c get test
 "test_data"
-# slave获取数据
-[root@manage redis-cluster]# kubectl exec -ti redis-sentinel-slave-ss-1 -n infra -- redis-cli  -c get test
-"test_data"
-#othe
-[root@manage redis-cluster]# kubectl run  --rm -it redis --image=redis -- /bin/bash
-root@redis:/data# redis-cli -h redis.wzxmt.com -p 6379 -c get test
+[root@manage ~]# kubectl exec -ti redis -n infra -- redis-cli -h redis.wzxmt.com -p 6379 -c get test
 "test_data"
 ```
 
@@ -385,4 +379,3 @@ if __name__ == '__main__':
   change_ip()
 EOF
 ```
-
