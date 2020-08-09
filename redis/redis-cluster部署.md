@@ -261,7 +261,7 @@ EOF
 kubectl apply -f redis-cluster.yaml
 ```
 
-### 11、DNS解析Traefik 所在的节点
+### 11、添加DNS解析
 
 ```bash
 redis	60 IN A 10.0.0.50
