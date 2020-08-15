@@ -244,9 +244,10 @@ etcd的数据默认会存放在我们的命令工作目录中，我们发现数�
 - wal: 存放预写式日志,最大的作用是记录了整个数据变化的全部历程。在etcd中，所有数据的修改在提交前，都要先写入到WAL中。
 
 ```bash
-# etcdctl backup --data-dir /home/etcd/ --backup-dir /home/etcd_backup
-
-# etcd -data-dir=/home/etcd_backup/ -force-new-cluster
+#备份 
+ETCDCTL_API=2 etcdctl backup --data-dir /data/etcd/data --backup-dir etcd_backup
+#恢复
+# ETCDCTL_API=2 etcd -data-dir=etcd_backup -force-new-cluster
 ```
 
 恢复时会覆盖 snapshot 的元数据(member ID 和 cluster ID)，所以需要启动一个新的集群
