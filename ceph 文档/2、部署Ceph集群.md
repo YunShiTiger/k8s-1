@@ -1,6 +1,8 @@
 [toc]
 # 一、Ceph版本选择
+
 ## Ceph版本来源介绍
+
 Ceph 社区最新版本是 14，而 Ceph 12 是市面用的最广的稳定版本。
 第一个 Ceph 版本是 0.1 ，要回溯到 2008 年 1 月。多年来，版本号方案一直没变，直到 2015 年 4 月 0.94.1 （ Hammer 的第一个修正版）发布后，为了避免 0.99 （以及 0.100 或 1.00 ？），制定了新策略。
 
@@ -28,6 +30,7 @@ x 将从 9 算起，它代表 Infernalis （ I 是第九个字母），这样第
 | mimic | 13.2.7 | 　2018年5月 |
 | nautilus | 14.2.5 | 　2019年2月 |
 ## Luminous新版本特性
+
 - Bluestore
   * ceph-osd的新后端存储BlueStore已经稳定，是新创建的OSD的默认设置。
 BlueStore通过直接管理物理HDD或SSD而不使用诸如XFS的中间文件系统，来管理每个OSD存储的数据，这提供了更大的性能和功能。
@@ -42,64 +45,107 @@ BlueStore通过直接管理物理HDD或SSD而不使用诸如XFS的中间文件�
 
 # 二、安装前准备
 1. 安装要求 
-- 最少三台Centos7系统虚拟机用于部署Ceph集群。硬件配置：2C4G，另外每台机器最少挂载三块硬盘(每块盘5G)  
-cephnode01 10.151.30.125  
-cephnode02 10.151.30.126  
-cephnode03 10.151.30.127  
-- 内网yum源服务器，硬件配置2C4G  
-cephyumresource01 10.151.30.110
+
+最少三台Centos7系统虚拟机用于部署Ceph集群。硬件配置：2C4G，另外每台机器最少挂载三块硬盘(每块盘5G)  
+
+```
+cephnode01 10.0.0.61
+cephnode02 10.0.0.62 
+cephnode03 10.0.0.63  
+```
 
 2. 环境准备（在Ceph三台机器上操作）
-```
+
 （1）关闭防火墙：
+
+```
 systemctl stop firewalld
 systemctl disable firewalld
+```
+
 （2）关闭selinux：
+
+```
 sed -i 's/enforcing/disabled/' /etc/selinux/config
 setenforce 0
+```
+
 （3）关闭NetworkManager
+
+```
 systemctl disable NetworkManager && systemctl stop NetworkManager
+```
+
 （4）添加主机名与IP对应关系：
-vim /etc/hosts
-10.151.30.125 cephnode01
-10.151.30.126 cephnode02
-10.151.30.127 cephnode03
+
+```
+cat << EOF >>/etc/hosts
+10.0.0.61 cephnode01
+10.0.0.62 cephnode02
+10.0.0.63 cephnode03
+EOF
+```
+
 （5）设置主机名：
+
+```
 hostnamectl set-hostname cephnode01
 hostnamectl set-hostname cephnode02
 hostnamectl set-hostname cephnode03
+```
+
 （6）同步网络时间和修改时区
-systemctl restart chronyd.service && systemctl enable chronyd.service
+
+```
 cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+systemctl restart chronyd.service && systemctl enable chronyd.service
+```
+
 （7）设置文件描述符
+
+```
 echo "ulimit -SHn 102400" >> /etc/rc.local
 cat >> /etc/security/limits.conf << EOF
-* soft nofile 65535
-* hard nofile 65535
+1* soft nofile 65535
+1* hard nofile 65535
 EOF
+```
+
 （8）内核参数优化
+
+```
 cat >> /etc/sysctl.conf << EOF
 kernel.pid_max = 4194303
-echo "vm.swappiness = 0" /etc/sysctl.conf 
+vm.swappiness = 0
 EOF
 sysctl -p
+```
+
 （9）在cephnode01上配置免密登录到cephnode02、cephnode03
+
+```
 ssh-copy-id root@cephnode02
 ssh-copy-id root@cephnode03
+```
+
 (10)read_ahead,通过数据预读并且记载到随机访问内存方式提高磁盘读操作
+
+```
 echo "8192" > /sys/block/sda/queue/read_ahead_kb
+```
+
 (11) I/O Scheduler，SSD要用noop，SATA/SAS使用deadline
+
+```
 echo "deadline" >/sys/block/sd[x]/queue/scheduler
 echo "noop" >/sys/block/sd[x]/queue/scheduler
 ```
-# 三、安装内网yum源
-1、安装httpd、createrepo和epel源
+
+# 三、安装Ceph集群
+
+1、编辑yum源
 ```
-yum install httpd createrepo epel-release -y
-```
-2、编辑yum源文件
-```
-[root@cephyumresource01 ~]# more /etc/yum.repos.d/ceph.repo 
+cat << 'EOF' >/etc/yum.repos.d/ceph.repo 
 [Ceph]
 name=Ceph packages for $basearch
 baseurl=http://mirrors.163.com/ceph/rpm-nautilus/el7/$basearch
@@ -125,113 +171,103 @@ enabled=1
 gpgcheck=1
 type=rpm-md
 gpgkey=https://download.ceph.com/keys/release.asc
+EOF
 ```
-3、下载Ceph安装包
-```
-yum --downloadonly --downloaddir=/var/www/html/ceph/rpm-nautilus/el7/x86_64/ install ceph ceph-radosgw 
-```
-4、下载Ceph依赖文件
-```
-wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/ceph-14.2.4-0.el7.src.rpm 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/ceph-deploy-2.0.1-0.src.rpm
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-deploy-2.0.1-0.noarch.rpm
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-grafana-dashboards-14.2.4-0.el7.noarch.rpm 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-mgr-dashboard-14.2.4-0.el7.noarch.rpm
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-mgr-diskprediction-cloud-14.2.4-0.el7.noarch.rpm
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-mgr-diskprediction-local-14.2.4-0.el7.noarch.rpm
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-mgr-rook-14.2.4-0.el7.noarch.rpm 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-mgr-ssh-14.2.4-0.el7.noarch.rpm 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/ceph-release-1-1.el7.noarch.rpm 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/ceph-release-1-1.el7.src.rpm 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/ceph-medic-1.0.4-16.g60cf7e9.el7.src.rpm
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/repodata/repomd.xml 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/repodata/repomd.xml
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/repodata/a4bf0ee38cd4e64fae2d2c493e5b5eeeab6cf758beb7af4eec0bc4046b595faf-filelists.sqlite
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/repodata/a4bf0ee38cd4e64fae2d2c493e5b5eeeab6cf758beb7af4eec0bc4046b595faf-filelists.sqlite.bz2
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/repodata/183278bb826f5b8853656a306258643384a1547c497dd8b601ed6af73907bb22-other.sqlite.bz2 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/repodata/52bf459e39c76b2ea2cff2c5340ac1d7b5e17a105270f5f01b454d5a058adbd2-filelists.sqlite.bz2
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/repodata/4f3141aec1132a9187ff5d1b4a017685e2f83a761880884d451a288fcedb154e-primary.sqlite.bz2
- wget mirrors.163.com/ceph/rpm-nautilus/el7/SRPMS/repodata/0c554884aa5600b1311cd8f616aa40d036c1dfc0922e36bcce7fd84e297c5357-other.sqlite.bz2 
- wget mirrors.163.com/ceph/rpm-nautilus/el7/noarch/repodata/597468b64cddfc386937869f88c2930c8e5fda3dd54977c052bab068d7438fcb-primary.sqlite.bz2
-```
-5、更新yum源
-```
-createrepo --update  /var/www/html/ceph/rpm-nautilus
-```
-# 四、安装Ceph集群
-1、编辑内网yum源,将yum源同步到其它节点并提前做好yum makecache
-```
-# vim /etc/yum.repos.d/ceph.repo 
-[Ceph]
-name=Ceph packages for $basearch
-baseurl=http://10.151.30.110/ceph/rpm-nautilus/el7/$basearch
-gpgcheck=0
-priority=1
+2、安装ceph-deploy
 
-[Ceph-noarch]
-name=Ceph noarch packages
-baseurl=http://10.151.30.110/ceph/rpm-nautilus/el7/noarch
-gpgcheck=0
-priority=1
-
-[ceph-source]
-name=Ceph source packages
-baseurl=http://10.151.30.110/ceph/rpm-nautilus/el7/srpms
-gpgcheck=0
-priority=1
 ```
-2、安装ceph-deploy(确认ceph-deploy版本是否为2.0.1)
-```
-# yum install -y ceph-deploy
+yum install -y ceph-deploy
 ```
 3、创建一个my-cluster目录，所有命令在此目录下进行（文件位置和名字可以随意）
 ```
-# mkdir /my-cluster
-# cd /my-cluster
+mkdir /my-cluster
+cd /my-cluster
 ```
 4、创建一个Ceph集群
 ```
-# ceph-deploy new cephnode01 cephnode02 cephnode03 
+ceph-deploy new cephnode01 cephnode02 cephnode03 
 ```
+报错
+
+```
+[root@cephnode01 my-cluster]# ceph-deploy new cephnode01 cephnode02 cephnode03
+Traceback (most recent call last):
+  File "/usr/bin/ceph-deploy", line 18, in <module>
+    from ceph_deploy.cli import main
+  File "/usr/lib/python2.7/site-packages/ceph_deploy/cli.py", line 1, in <module>
+    import pkg_resources
+ImportError: No module named pkg_resources
+```
+
+解决
+
+```
+wget https://pypi.python.org/packages/ff/d4/209f4939c49e31f5524fa0027bf1c8ec3107abaf7c61fdaad704a648c281/setuptools-21.0.0.tar.gz#md5=81964fdb89534118707742e6d1a1ddb4
+tar vxf setuptools-21.0.0.tar.gz 
+cd setuptools-21.0.0
+python setup.py  install
+
+wget https://pypi.python.org/packages/41/27/9a8d24e1b55bd8c85e4d022da2922cb206f183e2d18fee4e320c9547e751/pip-8.1.1.tar.gz#md5=6b86f11841e89c8241d689956ba99ed7
+tar vxf pip-8.1.1.tar.gz 
+cd pip-8.1.1
+python setup.py install
+```
+
+装好了，重新创建集群
+
 5、安装Ceph软件（每个节点执行）
+
 ```
-# yum -y install epel-release
-# yum install -y ceph
+yum -y install epel-release
+yum install -y ceph
 ```
 6、生成monitor检测集群所使用的的秘钥
 ```
-# ceph-deploy mon create-initial
+ceph-deploy mon create-initial
 ```
 7、安装Ceph CLI，方便执行一些管理命令
 ```
-# ceph-deploy admin cephnode01 cephnode02 cephnode03
+ceph-deploy admin cephnode01 cephnode02 cephnode03
 ```
 8、配置mgr，用于管理集群
 ```
-# ceph-deploy mgr create cephnode01 cephnode02 cephnode03
+ceph-deploy mgr create cephnode01 cephnode02 cephnode03
 ```
 9、部署rgw
 ```
-# yum install -y ceph-radosgw
-# ceph-deploy rgw create cephnode01
+yum install -y ceph-radosgw
+ceph-deploy rgw create cephnode01
 ```
 10、部署MDS（CephFS）
 ```
-# ceph-deploy mds create cephnode01 cephnode02 cephnode03 
+ceph-deploy mds create cephnode01 cephnode02 cephnode03 
 ```
 11、添加osd
+
+cephnode01
+
 ```
 ceph-deploy osd create --data /dev/sdb cephnode01
 ceph-deploy osd create --data /dev/sdc cephnode01
 ceph-deploy osd create --data /dev/sdd cephnode01
+```
+cephnode02
+
+```
 ceph-deploy osd create --data /dev/sdb cephnode02
 ceph-deploy osd create --data /dev/sdc cephnode02
 ceph-deploy osd create --data /dev/sdd cephnode02
+```
+
+cephnode03
+
+```
 ceph-deploy osd create --data /dev/sdb cephnode03
 ceph-deploy osd create --data /dev/sdc cephnode03
 ceph-deploy osd create --data /dev/sdd cephnode03
 ```
-# 五、ceph.conf
+
+# 四、ceph.conf
 
 1、该配置文件采用init文件语法，#和;为注释，ceph集群在启动的时候会按照顺序加载所有的conf配置文件。 配置文件分为以下几大块配置。
 
