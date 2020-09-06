@@ -37,107 +37,99 @@ ceph osd pool application enable rbd rbd
 2、创建一个块设备
 
 ```
-rbd create --size 10240 test --image-feature layering
+rbd create --size 10240 test
 ```
 3、查看块设备
 ```
-# rbd ls
-# rbd info test
+rbd ls
+rbd info test
 ```
 4、将块设备映射到系统内核
 
 ```
-# rbd map test 
+rbd map test 
 ```
 5、禁用当前系统内核不支持的feature
 
 ```
-# rbd feature disable foo_image exclusive-lock, object-map, fast-diff, deep-flatten
+rbd feature disable test exclusive-lock, object-map, fast-diff, deep-flatten
 ```
+6、调整tunables格式
+
+```
+ceph osd crush tunables hammer
+```
+
 6、再次映射
+
 ```
-# rbd map test 
+rbd map test 
 ```
 7、格式化块设备镜像
+
 ```
-# mkfs.xfs /dev/rbd0
+mkfs.xfs /dev/rbd0
 ```
 8、mount到本地
 ```
-# mount /dev/rbd0 /mnt
-# umount /mnt
+mount /dev/rbd0 /mnt
+umount /mnt
 ```
 9、取消块设备和内核映射
 ```
-# rbd unmap test 
+rbd unmap test 
 ```
 10、删除RBD块设备
 ```
-# rbd rm test
+rbd rm test
 ```
 ## 快照配置
 1、创建快照
 ```
-rbd create --size 10240 image02
-rbd snap create image02@image02_snap01
+rbd create --size 10240 test01
+rbd snap create test01@test01_snap01
 ```
 2、列出创建的快照
 ```
-# rbd snap list image02
+rbd snap list test01
 或
-# rbd ls -l
+rbd ls -l
 ```
 3、查看快照详细信息
 ```
-# rbd info image02@image02_snap01
+rbd info test01@test01_snap01
 ```
 4、克隆快照（快照必须处于被保护状态才能被克隆）
 ```
-# rbd snap protect image02@image02_snap01
-# rbd clone rbd/image02@image02_snap01 kube/image02_clone01
+rbd snap protect test01@test01_snap01
+rbd clone rbd/test01@test01_snap01 test01_clone01
 ```
 5、查看快照的children
 ```
-# rbd children image02
+rbd children test01
 ```
 6、去掉快照的parent
 ```
-# rbd flatten kube/image02_clone01
+rbd flatten test01_clone01
 ```
 7、恢复快照
 ```
-# rbd snap rollback image02@image02_snap01
+rbd snap rollback test01@test01_snap01
 ```
 8、删除快照
 ```
-# rbd snap unprotect image02@image02_snap01
-# rbd snap remove image02@image02_snap01
+rbd snap unprotect test01@test01_snap01
+rbd snap remove test01@test01_snap01
 ```
 
 
 ## 导出导入RBD镜像
 1、导出RBD镜像
 ```
-# rbd export image02 /tmp/image02
+rbd export test01 /tmp/test01
 ```
 2、导出RBD镜像
-```
-# rbd import /tmp/image02 rbd/image02 --image-format 2 
-```
-
-## 报错解决
-
-将块设备映射到系统内核报错
 
 ```
-[ 3293.769690] libceph: mon3 10.0.0.62:6789 feature set mismatch, my 106b84a842a42 < server's 40106b84a842a42, missing 400000000000000
-[ 3293.769804] libceph: mon3 10.0.0.62:6789 missing required protocol features
+rbd import /tmp/test01 rbd/test01 --image-format 2 
 ```
-
-执行
-
-```
-ceph osd crush tunables hammer
-```
-
-重新将块设备映射到系统内核

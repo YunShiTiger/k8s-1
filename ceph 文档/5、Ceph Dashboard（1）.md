@@ -5,15 +5,15 @@ mimic版  (nautilus版)  dashboard 安装。如果是  (nautilus版) 需要安�
 # 配置Ceph Dashboard
 ```
 1、在每个mgr节点安装
-# yum install ceph-mgr-dashboard 
+# yum install ceph-mgr-dashboard -y 
 2、开启mgr功能
-# ceph mgr module enable dashboard
+ceph mgr module enable dashboard
 3、生成并安装自签名的证书
-# ceph dashboard create-self-signed-cert  
+ceph dashboard create-self-signed-cert  
 4、创建一个dashboard登录用户名密码
-# ceph dashboard ac-user-create guest 1q2w3e4r administrator 
+ceph dashboard ac-user-create guest 1q2w3e4r administrator 
 5、查看服务访问方式
-# ceph mgr services
+ceph mgr services
 ```
 # 修改默认配置命令
 ```

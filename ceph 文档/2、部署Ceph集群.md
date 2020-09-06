@@ -97,8 +97,9 @@ hostnamectl set-hostname cephnode03
 （6）同步网络时间和修改时区
 
 ```
-cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-systemctl restart chronyd.service && systemctl enable chronyd.service
+\cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+yum install -y chrony
+systemctl enable chronyd.service --now
 ```
 
 （7）设置文件描述符
@@ -173,6 +174,12 @@ type=rpm-md
 gpgkey=https://download.ceph.com/keys/release.asc
 EOF
 ```
+生成缓存
+
+```
+yum makecache
+```
+
 2、安装ceph-deploy
 
 ```
@@ -185,36 +192,8 @@ cd /my-cluster
 ```
 4、创建一个Ceph集群
 ```
-ceph-deploy new cephnode01 cephnode02 cephnode03 
+ceph-deploy new cephnode01 cephnode02 cephnode03
 ```
-报错
-
-```
-[root@cephnode01 my-cluster]# ceph-deploy new cephnode01 cephnode02 cephnode03
-Traceback (most recent call last):
-  File "/usr/bin/ceph-deploy", line 18, in <module>
-    from ceph_deploy.cli import main
-  File "/usr/lib/python2.7/site-packages/ceph_deploy/cli.py", line 1, in <module>
-    import pkg_resources
-ImportError: No module named pkg_resources
-```
-
-解决
-
-```
-wget https://pypi.python.org/packages/ff/d4/209f4939c49e31f5524fa0027bf1c8ec3107abaf7c61fdaad704a648c281/setuptools-21.0.0.tar.gz#md5=81964fdb89534118707742e6d1a1ddb4
-tar vxf setuptools-21.0.0.tar.gz 
-cd setuptools-21.0.0
-python setup.py  install
-
-wget https://pypi.python.org/packages/41/27/9a8d24e1b55bd8c85e4d022da2922cb206f183e2d18fee4e320c9547e751/pip-8.1.1.tar.gz#md5=6b86f11841e89c8241d689956ba99ed7
-tar vxf pip-8.1.1.tar.gz 
-cd pip-8.1.1
-python setup.py install
-```
-
-装好了，重新创建集群
-
 5、安装Ceph软件（每个节点执行）
 
 ```
@@ -233,10 +212,13 @@ ceph-deploy admin cephnode01 cephnode02 cephnode03
 ```
 ceph-deploy mgr create cephnode01 cephnode02 cephnode03
 ```
-9、部署rgw
+9、部署rgw(多个安装，负载均衡)
+
 ```
-yum install -y ceph-radosgw
+yum install -y ceph-radosgw #(每个节点执行)
 ceph-deploy rgw create cephnode01
+ceph-deploy rgw create cephnode02
+ceph-deploy rgw create cephnode03
 ```
 10、部署MDS（CephFS）
 ```
@@ -244,29 +226,17 @@ ceph-deploy mds create cephnode01 cephnode02 cephnode03
 ```
 11、添加osd
 
-cephnode01
-
 ```
 ceph-deploy osd create --data /dev/sdb cephnode01
 ceph-deploy osd create --data /dev/sdc cephnode01
 ceph-deploy osd create --data /dev/sdd cephnode01
-```
-cephnode02
-
-```
 ceph-deploy osd create --data /dev/sdb cephnode02
 ceph-deploy osd create --data /dev/sdc cephnode02
 ceph-deploy osd create --data /dev/sdd cephnode02
-```
-
-cephnode03
-
-```
 ceph-deploy osd create --data /dev/sdb cephnode03
 ceph-deploy osd create --data /dev/sdc cephnode03
 ceph-deploy osd create --data /dev/sdd cephnode03
 ```
-
 # 四、ceph.conf
 
 1、该配置文件采用init文件语法，#和;为注释，ceph集群在启动的时候会按照顺序加载所有的conf配置文件。 配置文件分为以下几大块配置。
@@ -345,4 +315,34 @@ rbd cache writethrough until flush = false #默认值true  #该选项是为了�
 rbd cache max dirty object = 2 #默认值0              #最大的Object对象数，默认为0，表示通过rbd cache size计算得到，librbd默认以4MB为单位对磁盘Image进行逻辑切分
       #每个chunk对象抽象为一个Object；librbd中以Object为单位来管理缓存，增大该值可以提升性能
 rbd cache target dirty = 235544320 #默认值16777216    #开始执行回写过程的脏数据大小，不能超过 rbd_cache_max_dirty
+```
+
+# 五、报错
+
+1.ceph-deploy new cephnode01 cephnode02 cephnode03 创建集群时报错
+
+```
+[root@cephnode01 my-cluster]# ceph-deploy new cephnode01 cephnode02 cephnode03
+Traceback (most recent call last):
+  File "/usr/bin/ceph-deploy", line 18, in <module>
+    from ceph_deploy.cli import main
+  File "/usr/lib/python2.7/site-packages/ceph_deploy/cli.py", line 1, in <module>
+    import pkg_resources
+ImportError: No module named pkg_resources
+```
+
+解决
+
+```
+wget https://pypi.python.org/packages/ff/d4/209f4939c49e31f5524fa0027bf1c8ec3107abaf7c61fdaad704a648c281/setuptools-21.0.0.tar.gz#md5=81964fdb89534118707742e6d1a1ddb4
+tar vxf setuptools-21.0.0.tar.gz 
+cd setuptools-21.0.0
+python setup.py  install
+
+wget https://pypi.python.org/packages/41/27/9a8d24e1b55bd8c85e4d022da2922cb206f183e2d18fee4e320c9547e751/pip-8.1.1.tar.gz#md5=6b86f11841e89c8241d689956ba99ed7
+tar vxf pip-8.1.1.tar.gz 
+cd pip-8.1.1
+python setup.py install
+
+cd ../../ && rm -fr s*
 ```
