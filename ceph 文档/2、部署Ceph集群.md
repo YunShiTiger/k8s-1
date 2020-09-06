@@ -224,6 +224,26 @@ ceph-deploy rgw create cephnode03
 ```
 ceph-deploy mds create cephnode01 cephnode02 cephnode03 
 ```
+创建池
+
+```
+ceph osd pool create cephfs_data 32
+ceph osd pool create cephfs_metadata 32
+```
+
+创建文件系统
+
+```
+ceph fs new cephfs cephfs_metadata cephfs_data
+```
+
+查看mds状态
+
+```
+#ceph mds stat
+cephfs:1 {0=node3.localdomain=up:active}
+```
+
 11、添加osd
 
 ```
