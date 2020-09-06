@@ -17,7 +17,7 @@
 RBD支持ReadWriteOnce，ReadOnlyMany两种模式
 1、配置rbd-provisioner
 ```
-cat >external-storage-rbd-provisioner.yaml<<EOF
+cat << EOF>external-storage-rbd-provisioner.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -116,10 +116,11 @@ EOF
 kubectl apply -f external-storage-rbd-provisioner.yaml
 ```
 2、配置storageclass
+
 ```
 1、创建pod时，kubelet需要使用rbd命令去检测和挂载pv对应的ceph image，所以要在所有的worker节点安装ceph客户端ceph-common。
-将ceph的ceph.client.admin.keyring和ceph.conf文件拷贝到master的/etc/ceph目录下
 yum -y install ceph-common
+将ceph的ceph.client.admin.keyring和ceph.conf文件拷贝到worker节点的/etc/ceph目录下
 2、创建 osd pool 在ceph的mon或者admin节点
 ceph osd pool create kube 128 128 
 ceph osd pool ls
@@ -129,25 +130,26 @@ ceph auth get-or-create client.kube mon 'allow r' osd 'allow class-read object_p
 ceph auth get-key client.admin
 ceph auth get-key client.kube
 5、创建 admin secret
-kubectl create secret generic ceph-secret --type="kubernetes.io/rbd" \
---from-literal=key=AQCtovZdgFEhARAAoKhLtquAyM8ROvmBv55Jig== \
+kubectl create secret generic ceph-secret \
+--type="kubernetes.io/rbd" \
+--from-literal=key=AQA3SVRf7OdUBRAATiGOfVJ/bCbx3X0RG9oR8A== \
 --namespace=kube-system
 6、在 default 命名空间创建pvc用于访问ceph的 secret
-kubectl create secret generic ceph-user-secret --type="kubernetes.io/rbd" \
---from-literal=key=AQAM9PxdEFi3AhAAzvvhuyk1AfN5twlY+4zNMA== \
+kubectl create secret generic ceph-user-secret \
+--type="kubernetes.io/rbd" \
+--from-literal=key=AQCDyFRf5lCfMxAAx4pDefsQ1kCDP/4BRKA3eQ== \
 --namespace=default
-
 ```
 3、配置StorageClass
 ```
-cat >storageclass-ceph-rdb.yaml<<EOF
+cat<< 'EOF' >storageclass-ceph-rdb.yaml
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: dynamic-ceph-rdb
 provisioner: ceph.com/rbd
 parameters:
-  monitors: 10.151.30.125:6789,10.151.30.126:6789,10.151.30.127:6789
+  monitors: 10.0.0.61:6789,10.0.0.62:6789,10.0.0.63:6789
   adminId: admin
   adminSecretName: ceph-secret
   adminSecretNamespace: kube-system
@@ -170,7 +172,7 @@ kubectl get storageclasses
 ### 测试使用
 1、创建pvc测试
 ```
-cat >ceph-rdb-pvc-test.yaml<<EOF
+cat<< 'EOF' >ceph-rdb-pvc-test.yaml
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
@@ -192,7 +194,7 @@ kubectl get pv
 ```
 3、创建 nginx pod 挂载测试
 ```
-cat >nginx-pod.yaml<<EOF
+cat<< 'EOF' >nginx-pod.yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -236,6 +238,7 @@ kubectl delete -f ceph-rdb-pvc-test.yaml
 # POD使用CephFS做为持久数据卷
 CephFS方式支持k8s的pv的3种访问模式ReadWriteOnce，ReadOnlyMany ，ReadWriteMany
 ## Ceph端创建CephFS pool
+
 1、如下操作在ceph的mon或者admin节点
 CephFS需要使用两个Pool来分别存储数据和元数据
 ```
@@ -255,7 +258,7 @@ ceph fs ls
 ## 部署 cephfs-provisioner
 1、使用社区提供的cephfs-provisioner
 ```
-cat >external-storage-cephfs-provisioner.yaml<<EOF
+cat<< 'EOF'  >external-storage-cephfs-provisioner.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -367,16 +370,18 @@ ceph auth get-key client.admin
 ```
 2、创建 admin secret
 ```
-kubectl create secret generic ceph-secret --type="kubernetes.io/rbd" \
---from-literal=key=AQCtovZdgFEhARAAoKhLtquAyM8ROvmBv55Jig== \
+kubectl create secret generic ceph-secret \
+--type="kubernetes.io/rbd" \
+--from-literal=key=AQA3SVRf7OdUBRAATiGOfVJ/bCbx3X0RG9oR8A== \
 --namespace=kube-system
-
 ```
 3、查看 secret
+
 ```
 kubectl get secret ceph-secret -n kube-system -o yaml
 ```
 4、配置 StorageClass
+
 ```
 cat >storageclass-cephfs.yaml<<EOF
 kind: StorageClass
@@ -385,7 +390,7 @@ metadata:
   name: dynamic-cephfs
 provisioner: ceph.com/cephfs
 parameters:
-    monitors: 10.151.30.125:6789,10.151.30.126:6789,10.151.30.127:6789
+    monitors: 10.0.0.61:6789,10.0.0.62:6789,10.0.0.63:6789
     adminId: admin
     adminSecretName: ceph-secret
     adminSecretNamespace: "kube-system"
@@ -393,6 +398,7 @@ parameters:
 EOF
 ```
 5、创建
+
 ```
 kubectl apply -f storageclass-cephfs.yaml
 ```
@@ -401,6 +407,7 @@ kubectl apply -f storageclass-cephfs.yaml
 kubectl get sc
 ```
 ## 测试使用
+
 1、创建pvc测试
 ```
 cat >cephfs-pvc-test.yaml<<EOF
@@ -456,7 +463,7 @@ kubectl get pods -o wide
  5、修改文件内容
  ```
 kubectl exec -ti nginx-pod2 -- /bin/sh -c 'echo This is from CephFS!!! > /usr/share/nginx/html/index.html'
-```
+ ```
 6、访问pod测试
 ```
 curl http://$podip
