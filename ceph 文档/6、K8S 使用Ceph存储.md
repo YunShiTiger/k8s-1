@@ -236,6 +236,7 @@ kubectl delete -f nginx-pod.yaml
 kubectl delete -f ceph-rdb-pvc-test.yaml
 ```
 # POD使用CephFS做为持久数据卷
+
 CephFS方式支持k8s的pv的3种访问模式ReadWriteOnce，ReadOnlyMany ，ReadWriteMany
 ## Ceph端创建CephFS pool
 
@@ -256,6 +257,7 @@ ceph fs ls
 ```
 
 ## 部署 cephfs-provisioner
+
 1、使用社区提供的cephfs-provisioner
 ```
 cat<< 'EOF'  >external-storage-cephfs-provisioner.yaml
@@ -370,7 +372,7 @@ ceph auth get-key client.admin
 ```
 2、创建 admin secret
 ```
-kubectl create secret generic ceph-secret \
+kubectl create secret generic admin-ceph-secret \
 --type="kubernetes.io/rbd" \
 --from-literal=key=AQA3SVRf7OdUBRAATiGOfVJ/bCbx3X0RG9oR8A== \
 --namespace=kube-system
@@ -392,7 +394,7 @@ provisioner: ceph.com/cephfs
 parameters:
     monitors: 10.0.0.61:6789,10.0.0.62:6789,10.0.0.63:6789
     adminId: admin
-    adminSecretName: ceph-secret
+    adminSecretName: admin-ceph-secret
     adminSecretNamespace: "kube-system"
     claimRoot: /volumes/kubernetes
 EOF
