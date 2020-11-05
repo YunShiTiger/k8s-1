@@ -263,15 +263,15 @@ jenkins	60 IN A 10.0.0.50
 在管理机上
 
 ```bash
-WORK_DIR=/data/nfs-volume/jenkins_home/
+WORK_DIR=/data/nfs-volume/jenkins_home
 sed -i.bak 's#http://updates.jenkins-ci.org/download#https://mirrors.tuna.tsinghua.edu.cn/jenkins#g;s#http://www.google.com#https://www.baidu.com#g' ${WORK_DIR}/updates/default.json
 ```
 
 从新在运算节点部署jenkins
 
 ```bash
-kubectl delete -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
-kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
+kubectl delete -f  deployment.yaml
+kubectl apply -f  deployment.yaml
 ```
 
 #### 页面配置jenkins
@@ -279,7 +279,7 @@ kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
 等到服务启动成功后，我们就可以通过[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)访问 jenkins 服务了，可以根据提示信息进行安装配置即可：![setup jenkins](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622074600136.png)初始化的密码我们可以在 jenkins 的容器的日志中进行查看，也可以直接在 nfs 的共享数据目录中查看：
 
 ```shell
-$ cat /data/k8s/jenkins2/secrets/initAdminPassword
+$ cat ${WORK_DIR}/secrets/initialAdminPassword
 ```
 
 然后选择安装推荐的插件即可。![setup plugin](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622074852477.png)   
@@ -319,13 +319,14 @@ wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.6.3/binaries/apache-mave
 #### 下载helm
 
 ```bash
-wget https://github.com/helm/helm/archive/v3.2.4.tar.gz
+wget https://get.helm.sh/helm-v3.2.4-linux-amd64.tar.gz
 ```
 
 #### 生成ssh密钥对：
 
 ```bash
 ssh-keygen -t rsa -b 2048 -C "wzxmt.com@qq.com" -N "" -f /root/.ssh/id_rsa
+cp /root/.ssh/id_rsa ./
 ```
 
 #### 编写dockerfile
