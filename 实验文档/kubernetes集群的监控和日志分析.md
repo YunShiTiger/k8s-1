@@ -13,10 +13,10 @@
 
 ```bash
 mkdir -p /data/software/dockerfile/tomcat 
-tar xf apache-tomcat-8.5.55.tar.gz -C /data/software/dockerfile/tomcat
+tar xf apache-tomcat-8.5.40.tar.gz -C /data/software/dockerfile/tomcat
 cd /data/software/dockerfile/tomcat
-rm -fr apache-tomcat-8.5.55/webapps/*
-mkdir -p apache-tomcat-8.5.55/webapps/ROOT
+rm -fr apache-tomcat-8.5.40/webapps/*
+mkdir -p apache-tomcat-8.5.40/webapps/ROOT
 ```
 
 ### 简单配置tomcat
@@ -24,7 +24,7 @@ mkdir -p apache-tomcat-8.5.55/webapps/ROOT
 1. 关闭AJP端口
 
 ```bash
-vim apache-tomcat-8.5.55/conf/server.xml
+vim apache-tomcat-8.5.40/conf/server.xml
 <!-- <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" /> -->
 ```
 
@@ -33,14 +33,14 @@ vim apache-tomcat-8.5.55/conf/server.xml
 - 删除3manager，4host-manager的handlers
 
 ```bash
-vim apache-tomcat-8.5.55/conf/logging.properties
+vim apache-tomcat-8.5.40/conf/logging.properties
 handlers = 1catalina.org.apache.juli.AsyncFileHandler, 2localhost.org.apache.juli.AsyncFileHandler,java.util.logging.ConsoleHandler
 ```
 
 - 日志级别改为INFO
 
 ```bash
-vim apache-tomcat-8.5.55/conf/logging.properties
+vim apache-tomcat-8.5.40/conf/logging.properties
 1catalina.org.apache.juli.AsyncFileHandler.level = INFO
 2localhost.org.apache.juli.AsyncFileHandler.level = INFO
 java.util.logging.ConsoleHandler.level = INFO
@@ -49,7 +49,7 @@ java.util.logging.ConsoleHandler.level = INFO
 - 注释掉所有关于3manager，4host-manager日志的配置
 
 ```bash
-vim apache-tomcat-8.5.55/conf/logging.properties
+vim apache-tomcat-8.5.40/conf/logging.properties
 #3manager.org.apache.juli.AsyncFileHandler.level = FINE
 #3manager.org.apache.juli.AsyncFileHandler.directory = ${catalina.base}/logs
 #3manager.org.apache.juli.AsyncFileHandler.prefix = manager.
@@ -70,7 +70,7 @@ RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
     echo 'Asia/Shanghai' >/etc/timezone
 ENV CATALINA_HOME /opt/tomcat
 ENV LANG zh_CN.UTF-8
-ADD apache-tomcat-8.5.55/ /opt/tomcat
+ADD apache-tomcat-8.5.40/ /opt/tomcat
 ADD config.yml /opt/prom/config.yml
 ADD jmx_javaagent-0.3.1.jar /opt/prom/jmx_javaagent-0.3.1.jar
 WORKDIR /opt/tomcat
@@ -117,8 +117,8 @@ chmod +x entrypoint.sh
 ### 制作镜像并推送
 
 ```bash
-docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.55
-docker push harbor.wzxmt.com/base/tomcat:v8.5.55
+docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.40
+docker push harbor.wzxmt.com/base/tomcat:v8.5.40
 ```
 
 ## 改造dubbo-demo-web项目

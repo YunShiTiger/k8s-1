@@ -340,7 +340,7 @@ COPY * /root/
 RUN mkdir /root/.kube &&  mkdir -p /root/.ssh && mkdir /root/.docker && cd /root/ && chown -R root. /root/ && \
 mv id_rsa /root/.ssh/id_rsa && mv config /root/.kube/config && mv config.json /root/.docker/config.json && \
 mv kubectl /usr/local/bin/kubectl && tar xf apache-maven-3.6.3-bin.tar.gz && \
-mv apache-maven-3.6.3 /opt/maven-3.6.3 && \cp settings.xml /opt/maven-3.6.3/conf/settings.xml && \
+mv apache-maven-3.6.3 /opt/maven-3.6.3 && \mv settings.xml /opt/maven-3.6.3/conf/settings.xml && \
 tar xf helm-v3.2.4-linux-amd64.tar.gz && mv linux-amd64/helm /usr/local/bin/ && rm -f *.gz
 ENTRYPOINT ["jenkins-agent"]
 EOF
@@ -411,7 +411,7 @@ spec:
       }
       stage('maven') {
          steps {
-            sh '/home/jenkins/maven-3.6.3/bin/mvn -version'
+            sh '/opt/maven-3.6.3/bin/mvn -version'
          }
       }
       stage('docker') {
@@ -432,6 +432,8 @@ spec:
    }
 }
 ```
+
+
 
 ## test
 
@@ -512,7 +514,7 @@ spec:
    > Default Value :
    >
    > - k/tomcat:v7.0.94
-   > - base/tomcat:v8.5.55
+   > - base/tomcat:v8.5.40
    > - base/tomcat:v9.0.17
    >   Description : project base image list in harbor.wzxmt.com.
 
@@ -640,7 +642,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 - mvn_dir
 
-  > /home/jenkins
+  > /opt
 
 - target_dir
 
@@ -665,3 +667,4 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 ### 开始构建
 
 ![image-20200628021513893](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628021513893.png)
+
