@@ -57,7 +57,7 @@ systemctl start etcd
 使用API 3写入数据库
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -67,7 +67,7 @@ put /name/1 test
 读取数据
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -97,7 +97,7 @@ get /name1
 ### 2、备份etcd数据
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
@@ -125,7 +125,7 @@ systemctl stop etcd
 停掉Leader 10.0.0.33， 查看集群状况，重新选举出了leader，集群可正常使用
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -143,7 +143,7 @@ Failed to get the status of endpoint https://10.0.0.33:2379 (context deadline ex
 停掉10.0.0.32，查看集群状况，集群已经无法正常使用，说明3节点的Etcd容错为1
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -171,7 +171,7 @@ rm -rf /data/etcd/data
 恢复10.0.0.31节点数据
 
 ```bash
-ETCDCTL_API=3 etcdctl  snapshot restore mysnapshot.db \
+etcdctl  snapshot restore mysnapshot.db \
 --name=etcd01 \
 --data-dir=/data/etcd/data \
 --initial-advertise-peer-urls=https://10.0.0.31:2380 \
@@ -182,7 +182,7 @@ ETCDCTL_API=3 etcdctl  snapshot restore mysnapshot.db \
 恢复10.0.0.32节点数据
 
 ```bash
-ETCDCTL_API=3 etcdctl  snapshot restore mysnapshot.db \
+etcdctl  snapshot restore mysnapshot.db \
 --name=etcd02 \
 --data-dir=/data/etcd/data \
 --initial-advertise-peer-urls=https://10.0.0.32:2380 \
@@ -193,7 +193,7 @@ ETCDCTL_API=3 etcdctl  snapshot restore mysnapshot.db \
 恢复10.0.0.33节点数据
 
 ```bash
-ETCDCTL_API=3 etcdctl  snapshot restore mysnapshot.db \
+etcdctl  snapshot restore mysnapshot.db \
 --name=etcd03 \
 --data-dir=/data/etcd/data \
 --initial-advertise-peer-urls=https://10.0.0.33:2380 \
@@ -224,7 +224,7 @@ get /name1
 查看API 3写入数据
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -320,7 +320,7 @@ member remove f1ec1f6015c9d4a4
 - 集群部署完成后，先不启动ETCD服务，并将原有ETCD数据目录删除依次在三台节点上执行恢复数据的命令
 
   ```bash
-  ETCDCTL_API=3 etcdctl  snapshot restore mysnapshot.db \
+  etcdctl  snapshot restore mysnapshot.db \
   --name=etcd01 \
   --data-dir=/data/etcd/data \
   --initial-advertise-peer-urls=https://10.0.0.31:2380 \
@@ -341,7 +341,7 @@ systemctl start etcd
 ### 1）备份数据
 
 ```bash
-ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \

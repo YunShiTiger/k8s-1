@@ -20,11 +20,16 @@ kubectl-debug 其实就是一个 kubectl 的插件，他的原理和 docker 容�
 
 下载二进制文件: 
 
-```
+```bash
 wget https://github.com/aylei/kubectl-debug/releases/download/v0.1.0/kubectl-debug_0.1.0_linux_amd64.tar.gz -O kubectl-debug.tar.gz
 ```
 
-解压文件: tar -zxvf kubectl-debug.tar.gz
+解压文件: 
+
+```bash
+tar -xf kubectl-debug.tar.gz -C /usr/local/bin/
+```
+
 安装 agent 服务端[agent_daemonset.yml](https://raw.githubusercontent.com/aylei/kubectl-debug/master/scripts/agent_daemonset.yml)
 
 修改文件
@@ -122,7 +127,7 @@ kubectl apply -f kubectl-debug-ds.yaml
 
 可以看到每个节点上都创建了 debug-agent 的 DaemonSet，并且宿主机上都监听了10027端口。
 
-```
+```bash
 [root@manage ~]# kubectl get pods
 NAME                                      READY   STATUS    RESTARTS   AGE
 debug-agent-796vb                         1/1     Running   0          86s
@@ -144,26 +149,26 @@ kubectl-debug -h
 老版本的 kubectl 无法自动发现插件, 需要直接调用 binary
 
 ```
-kubect-debug POD_NAME
+kubectl-debug POD_NAME
 ```
 
 假如安装了 debug-agent 的 daemonset, 可以略去 --agentless 来加快启动速度
 之后的命令里会略去 --agentless
 
 ```
-kubectl debug POD_NAME --agentless
+kubectl-debug POD_NAME --agentless
 ```
 
 假如 Pod 处于 CrashLookBackoff 状态无法连接, 可以复制一个完全相同的 Pod 来进行诊断
 
 ```
-kubectl debug POD_NAME --fork
+kubectl-debug POD_NAME --fork
 ```
 
 假如 Node 没有公网 IP 或无法直接访问(防火墙等原因), 请使用 port-forward 模式
 
 ```
-kubectl debug POD_NAME --port-forward --daemonset-ns=kube-system --daemonset-name=debug-agent
+kubectl-debug POD_NAME --port-forward --daemonset-ns=kube-system --daemonset-name=debug-agent
 ```
 
 **进阶使用：**
@@ -171,13 +176,13 @@ kubectl debug POD_NAME --port-forward --daemonset-ns=kube-system --daemonset-nam
 排错init-container：
 
 ```javascript
-kubectl debug demo-pod --container=init-pod
+kubectl-debug demo-pod --container=init-pod
 ```
 
 排错crash pod：
 
 ```javascript
-kubectl debug POD_NAME --fork
+kubectl-debug POD_NAME --fork
 ```
 
 离线配置：
@@ -188,7 +193,7 @@ kubectl debug POD_NAME --fork
 
 ```bash
 # 进入调试容器
-$ kubectl debug -n dev ****-8589cdd7bb-zhsz6 --fork -a
+$ kubectl-debug -n dev ****-8589cdd7bb-zhsz6 --fork -a
 # 进入服务容器
 $ chroot /proc/1/root
 # 启动服务
