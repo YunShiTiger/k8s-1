@@ -35,7 +35,7 @@ tar -xf kubectl-debug.tar.gz -C /usr/local/bin/
 修改文件
 
 ```yaml
-cat << 'EOF' >kubectl-debug-ds.yaml
+cat << 'EOF' >agent_daemonset.yml
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -122,7 +122,7 @@ EOF
 创建 DaemonSet：
 
 ```bash
-kubectl apply -f kubectl-debug-ds.yaml
+kubectl apply -f agent_daemonset.yml
 ```
 
 可以看到每个节点上都创建了 debug-agent 的 DaemonSet，并且宿主机上都监听了10027端口。
