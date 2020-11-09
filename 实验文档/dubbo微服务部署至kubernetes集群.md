@@ -376,7 +376,7 @@ EOF
 ```bash
 kubectl create secret docker-registry harborlogin \
 --namespace=infra  \
---docker-server=https://harbor.wzxmt.com \
+--docker-server=http://harbor.wzxmt.com \
 --docker-username=admin \
 --docker-password=admin
 ```
@@ -625,7 +625,6 @@ vim /data/nfs-volume/jenkins_home/maven-3.6.3-8u222/conf/settings.xml
     <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
     <mirrorOf>central</mirrorOf>
   </mirror>  
-</mirrors>
 <!-- profiles
 #注意位置
 ```

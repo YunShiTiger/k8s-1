@@ -2204,8 +2204,8 @@ http://minio.wzxmt.com
 
 ```bash
 docker pull armory/spinnaker-orca-slim:release-1.8.x-de4ab55
-docker images|grep orca
-docker tag 5103b1f73e04 harbor.wzxmt.com/armory/orca:v1.8.x
+TAG=`docker images|grep orca|awk '{print $3}'`
+docker tag $TAG harbor.wzxmt.com/armory/orca:v1.8.x
 docker push harbor.wzxmt.com/armory/orca:v1.8.x
 ```
 
@@ -2355,8 +2355,8 @@ kubectl exec -n armory  minio-646797b457-kj8rj 2>/dev/null curl armory-orca:8083
 
 ```bash
 docker pull armory/echo-armory:c36d576-release-1.8.x-617c567
-docker images|grep echo
-docker tag 415efd46f474 harbor.wzxmt.com/armory/echo:v1.8.x
+TAG=`docker images|grep echo|awk '{print $3}'`
+docker tag $TAG harbor.wzxmt.com/armory/echo:v1.8.x
 docker push harbor.wzxmt.com/armory/echo:v1.8.x
 ```
 
@@ -2506,8 +2506,8 @@ kubectl exec -n armory  minio-646797b457-kj8rj 2>/dev/null curl armory-echo:8089
 
 ```bash
 docker pull armory/spinnaker-igor-slim:release-1.8-x-new-install-healthy-ae2b329
-docker images|grep igor
-docker tag 23984f5b43f6 harbor.wzxmt.com/armory/igor:v1.8.x
+TAG=`docker images|grep igor|awk '{print $3}'`
+docker tag $TAG harbor.wzxmt.com/armory/igor:v1.8.x
 docker push harbor.wzxmt.com/armory/igor:v1.8.x
 ```
 
@@ -2661,8 +2661,8 @@ kubectl exec -n armory  minio-646797b457-kj8rj 2>/dev/null curl armory-igor:8088
 
 ```bash
 docker pull armory/gate-armory:dfafe73-release-1.8.x-5d505ca
-docker images|grep gate
-docker tag b092d4665301 harbor.wzxmt.com/armory/gate:v1.8.x
+TAG=`docker images|grep gate|awk '{print $3}'`
+docker tag $TAG harbor.wzxmt.com/armory/gate:v1.8.x
 docker push harbor.wzxmt.com/armory/gate:v1.8.x
 ```
 
@@ -2822,8 +2822,8 @@ kubectl apply -f ./
 
 ```bash
 docker pull docker.io/armory/deck-armory:d4bf0cf-release-1.8.x-0a33f94
-docker images|grep deck
-docker tag 9a87ba3b319f harbor.wzxmt.com/armory/deck:v1.8.x
+TAG=`docker images|grep deck|awk '{print $3}'`
+docker tag $TAG harbor.wzxmt.com/armory/deck:v1.8.x
 docker push harbor.wzxmt.com/armory/deck:v1.8.x
 ```
 
