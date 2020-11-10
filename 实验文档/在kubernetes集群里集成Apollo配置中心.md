@@ -195,7 +195,7 @@ Apollo（阿波罗）是携程框架部门研发的分布式配置中心，能�
 ```bash
 mkdir -p /data/dockerfile/apollo-configservice
 unzip -o apollo-configservice-1.6.1-github.zip -d /data/dockerfile/apollo-configservice
-cd /data/dockerfile/apollo-configserver/
+cd /data/dockerfile/apollo-configservice
 rm -f apollo-configservice-1.6.1-sources.jar
 mv apollo-configservice-1.6.1.jar apollo-configservice.jar
 ```
@@ -262,7 +262,7 @@ cat << 'EOF' >scripts/startup.sh
   #!/bin/bash
   SERVICE_NAME=apollo-configservice
   ## Adjust log dir if necessary
-  LOG_DIR=/apollo-configserver/logs
+  LOG_DIR=/apollo-configservice/logs
   ## Adjust server port if necessary
   SERVER_PORT=8080
   SERVER_URL="http://${APOLLO_CONFIG_SERVICE_NAME}:${SERVER_PORT}"
@@ -365,7 +365,8 @@ config	60 IN A 10.0.0.50
 在运维主机上
 
 ```bash
-mkdir /data/software/yaml/apollo-configservice && cd /data/software/yaml/apollo-configservice
+mkdir /data/software/yaml/apollo-configservice 
+cd /data/software/yaml/apollo-configservice
 ```
 
 deployment
@@ -606,7 +607,7 @@ cat << 'EOF' >scripts/startup.sh
       echo "Asia/Shanghai" > /etc/timezone && \
       mkdir -p /apollo-adminservice
   ADD . /apollo-adminservice/
-  APOLLO_ADMIN_SERVICE_NAME="config.wzxmt.com"
+  ENV APOLLO_ADMIN_SERVICE_NAME="config.wzxmt.com"
   EXPOSE 8090
   CMD ["/apollo-adminservice/scripts/startup.sh"]
   EOF
@@ -709,13 +710,12 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```
-kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-adminservice/cm.yaml
-kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-adminservice/dp.yaml
+kubectl apply -f ./
 ```
 
 ### 浏览器访问
 
-[http://config.wzxmt.com](http://config.od.com/)
+[http://config.wzxmt.com](http://config.wzxmt.com/)
 ![apollo注册中心](../upload/image-20200531144127914.png)
 
 ## 交付apollo-portal

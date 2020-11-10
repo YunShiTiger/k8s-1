@@ -812,7 +812,7 @@ kubectl create ns app
 
 kubectl create secret docker-registry harborlogin \
 --namespace=app  \
---docker-server=https://harbor.wzxmt.com \
+--docker-server=http://harbor.wzxmt.com \
 --docker-username=admin \
 --docker-password=admin
 
@@ -986,7 +986,6 @@ spec:
     targetPort: 8080
   selector: 
     app: dubbo-monitor
-  clusterIP: None
   type: ClusterIP
   sessionAffinity: None
 EOF
@@ -1005,13 +1004,13 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:  
   rules:    
-    - host: dubbo-monitor.wzxmt.com      
+    - host: dubbo-monitor.wzxmt.com     
       http:        
         paths:        
         - path: /          
           backend:            
             serviceName: dubbo-monitor            
-            servicePort: 80
+            servicePort: 8080
 EOF
 ```
 
