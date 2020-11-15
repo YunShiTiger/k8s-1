@@ -1,0 +1,50 @@
+1、sql中delete，baidrop ，truncate的区别？
+	 （1）truncate和 delete只删除数据不删除表的bai结构
+	 （2）delete语句是dml,这个操作会放到rollback segement中,事务提交之后才生效;如果有相应的trigger,执行的时候将被触发.
+2、Nginx 性能优化
+	Nginx运行工作进程数量        	worker_processes 4;
+	Nginx运行CPU亲和力			worker_cpu_affinity 0001 0010 0100 1000；
+	Nginx最大打开文件数			worker_rlimit_nofile 65535;
+	Nginx事件处理模型				use epoll;
+	开启高效传输模式				sendfile on;
+	连接超时时间					keepalive_timeout 60;
+tcp_nodelay on;
+client_header_buffer_size 4k;
+open_file_cache max=102400 inactive=20s;
+open_file_cache_valid 30s;
+open_file_cache_min_uses 1;
+client_header_timeout 15;
+client_body_timeout 15;
+reset_timedout_connection on;
+send_timeout 15;
+server_tokens off;
+client_max_body_size 10m;
+
+
+
+数据库的监控指标：
+
+性能类指标	QPS	数据库每秒处理的请求数量
+TPS	数据库每秒处理的事务数量
+并发数	数据库实例当前并行处理的会话数量
+连接数	连接到数据库会话的数量
+缓存命中率	查询命中缓存的比例
+高可用指标	可用性	数据库是否可以正常对外服务
+阻塞	当前阻塞的会话数
+慢查询	慢查询情况
+主从延迟	主从延迟时间
+主从状态	主从链路是否正常
+死锁	查看死锁信息
+
+
+
+做运维岗位带给你的改变： 
+1. 可以认识更多的人，同时也能被更多的人认识， 对于一个喜欢沟通和交流的我来说，更能够在这个岗位上干的长久。
+2. 运维人员临场应变能力和处理突发事件的能力会随着工作经验的增长而增强。更容易养成未雨绸缪，思维上得到锻炼，考虑问题更全面，细致，透彻，且内心承受能来强大
+3. 运维能力不是高学历可以搞定的，需要的是勤奋努力，善于总结 
+其次： 运维不是单纯的运维维护，而是运维规范和规则的制定者以及安全运维规范的忠实维护者和践行者。
+在工作中应该做什么？
+1. 监控，报警，线上部署
+2. 脚本自动化，工具自动化
+3. 故障处理
+要弄懂底层原理，比如监控： 任何的监控都是： 收集数据，存储数据，数据分析，数据指标展示，告警五个部分。理解了这个，对于任何监控你可以去分析，哪个模块是在分析数据，哪个模块是在收集数据，能不能用其他的代替。

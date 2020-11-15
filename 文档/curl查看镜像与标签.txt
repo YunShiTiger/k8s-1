@@ -1,0 +1,22 @@
+curl 查看docker本地私有仓库镜像列表与tag
+查看镜像列表
+curl -u admin:admin -X GET https://harbor.wzxmt.com/v2/_catalog --cacert /etc/docker/certs.d/ca.crt
+curl -u admin:admin http://harbor.wzxmt.com/v2/_catalog
+输出内容
+{“repositories”:[“airflow”,“beats/filebeat”,“elasticsearch”,“logstash/logstash”,“mysql”,“postgres”,“proxy”,“python”,“redis”]}
+
+查看指定镜像的tag
+curl -X GET https://harbor.wzxmt.com/v2/redis/tags/list --cacert /etc/docker/certs.d/ca.crt
+curl -u admin:admin -XGET http://harbor.wzxmt.com/v2/redis/tags/list
+输出内容
+{“name”:“redis”,“tags”:[“0.3.7”,“0.3.8”,“0.3.9”,“0.4.2”,“0.4.1”]}
+
+
+​curl 命令返回json结构human readable
+在curl命令后面添加 | python -m json.tool
+
+不想显示curl的统计信息，添加 -s参数
+
+例：
+
+curl -u admin:admin http://harbor.wzxmt.com/v2/_catalog -s | python -m json.tool |awk '{line[NR]=$0} END {for(i=3 ;i<=NR-2;i++) print line[i]}'

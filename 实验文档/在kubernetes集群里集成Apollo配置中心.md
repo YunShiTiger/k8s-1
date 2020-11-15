@@ -481,7 +481,7 @@ metadata:
 data:
   application-github.properties: |
     # DataSource
-    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigDB?characterEncoding=utf8
+    spring.datasource.url = jdbc:mysql://mysql.wzxmt.com:3306/ApolloConfigDB?characterEncoding=utf8mb4
     spring.datasource.username = apolloconfig
     spring.datasource.password = admin123
     eureka.service.url = http://config.wzxmt.com/eureka
