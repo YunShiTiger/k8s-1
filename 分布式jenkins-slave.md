@@ -40,7 +40,7 @@ docker push harbor.wzxmt.com/infra/jenkins:v2.195
 
 运维主机，以及所有运算节点上：
 
-```
+```bash
 yum install nfs-utils -y
 ```
 
@@ -48,7 +48,7 @@ yum install nfs-utils -y
 
 运维主机：
 
-```
+```bash
 cat<< EOF >/etc/exports
 /data/nfs-volume 10.0.0.0/24(rw,no_root_squash)
 EOF
@@ -59,7 +59,7 @@ EOF
 运维主机上：
 
 ```bash
-mkdir -p /data/nfs-volume
+mkdir -p /data/nfs-volume/{jenkins_home,maven-cache}
 systemctl start nfs
 systemctl enable nfs
 ```
@@ -231,7 +231,7 @@ spec:
 EOF
 ```
 
-创建docker-registry
+**创建docker-registry**
 
 ```bash
 kubectl create secret docker-registry harborlogin \
@@ -300,7 +300,7 @@ $ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 #### jenkins-slave dockerfile结构
 
-```
+```bash
 ├── Dockerfile（见下面）
 ├── settings.xml（maven配置文件）
 ├── helm（helm包管理器）
