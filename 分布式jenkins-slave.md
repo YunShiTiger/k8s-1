@@ -234,6 +234,7 @@ EOF
 **创建docker-registry**
 
 ```bash
+kubectl create namespace infra
 kubectl create secret docker-registry harborlogin \
 --namespace=infra  \
 --docker-server=http://harbor.wzxmt.com \
@@ -244,7 +245,6 @@ kubectl create secret docker-registry harborlogin \
 #### 应用资源清单
 
 ```bash
-kubectl create namespace infra
 kubectl apply -f ./
 ```
 
@@ -605,8 +605,7 @@ spec:
 ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
         sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
         docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
-        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} && \
-        docker rmi harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
       }
     }
   }
