@@ -54,7 +54,7 @@ mkdir -p /opt/zookeeper
 tar xf /opt/src/apache-zookeeper-3.5.8-bin.tar.gz -C /opt/zookeeper
 ln -s /opt/zookeeper/apache-zookeeper-3.5.8-bin /opt/zookeeper/zookeeper
 mkdir -p /data/zookeeper/{data,logs}
-cat << EOF >/opt/zookeeper/zookeeper/conf/zoo.cfg
+cat << EOF >zoo.cfg
 tickTime=2000
 initLimit=10
 syncLimit=5
@@ -816,7 +816,7 @@ kubectl create secret docker-registry harborlogin \
 --docker-username=admin \
 --docker-password=admin
 
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-service/deployment.yaml
+kubectl apply -f deployment.yaml
 ```
 
 ### 检查docker运行情况及zk里的信息
@@ -856,14 +856,6 @@ mkdir -p /root/dockerfile/dubbo-monitor
 tar xf target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
 mv dubbo-monitor-simple-2.6.0 /root/dockerfile/dubbo-monitor/dubbo-monitor-simple
 cd /root/dockerfile/dubbo-monitor
-```
-
-修改配置
-
-```bash
-cat << EOF >dubbo-monitor-simple/conf/dubbo.properties
-
-EOF
 ```
 
 #### 制作镜像
@@ -927,7 +919,7 @@ data:
     dubbo.container=log4j,spring,registry,jetty
     dubbo.application.name=monitor
     dubbo.application.owner=wzxmt
-    dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk2.wzxmt.com:2181,zk3.wzxmt.com:2181
+    dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk1.wzxmt.com:3181,zk1.wzxmt.com:4181
     dubbo.protocol.port=20880
     dubbo.jetty.port=8080
     dubbo.jetty.directory=/dubbo-monitor-simple/monitor
@@ -970,8 +962,8 @@ spec:
           protocol: TCP
         imagePullPolicy: IfNotPresent
         volumeMounts:
-        - name: dubbo-monitor-cm
-          mountPath: /dubbo-monitor-simple/conf
+        - mountPath: /dubbo-monitor-simple/conf
+          name: dubbo-monitor-cm
       volumes:
       - name: dubbo-monitor-cm
         configMap:
