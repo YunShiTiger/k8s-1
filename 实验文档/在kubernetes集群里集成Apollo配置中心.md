@@ -1532,7 +1532,7 @@ demo-prod   60 IN A 10.0.0.50
 ```bash
 source ./apolloconfig.sql
 update ApolloConfigTestDB.ServerConfig set ServerConfig.Value="http://config-test.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
-grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"10.0.0.%" identified by "admin123";
+grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"%" identified by "admin123";
 select * from ServerConfig where Id=1;
 ```
 
@@ -1541,13 +1541,21 @@ select * from ServerConfig where Id=1;
 ```bash
 source ./apolloconfig.sql
 update ApolloConfigProdDB.ServerConfig set ServerConfig.Value="http://config-prod.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
-grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.0.0.%" identified by "admin123";
+grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"%" identified by "admin123";
 select * from ServerConfig where Id=1;
 ```
 
-修改环境列表
+修改apolloportaldb.sql
 
-```yaml
+```bash
+source ./apolloportal.sql
+grant INSERT,DELETE,UPDATE,SELECT on ApolloPortalDB.* to "apolloportal"@"%" identified by "admin123";
+update ServerConfig set Value='[{"orgId":"wzxmt01","orgName":"开发部门"},{"orgId":"wzxmt02","orgName":"测试部门"},{"orgId":"wzxmt03","orgName":"客户部门"}]' where Id=2;
+```
+
+修改环境列表(多环境)
+
+```bash
 use ApolloPortalDB;
 update ServerConfig set Value='fat,pro' where Id=1;
 select * from ServerConfig\G
