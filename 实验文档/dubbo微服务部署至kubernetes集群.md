@@ -852,27 +852,17 @@ mvn clean install
 解压
 
 ```bash
-mkdir -p /data/software/dockerfile/dubbo-monitor
+mkdir -p /root/dockerfile/dubbo-monitor
 tar xf target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
-mv dubbo-monitor-simple-2.6.0 /data/software/dockerfile/dubbo-monitor/dubbo-monitor-simple
+mv dubbo-monitor-simple-2.6.0 /root/dockerfile/dubbo-monitor/dubbo-monitor-simple
+cd /root/dockerfile/dubbo-monitor
 ```
 
 修改配置
 
 ```bash
-cd /data/software/dockerfile/dubbo-monitor
 cat << EOF >dubbo-monitor-simple/conf/dubbo.properties
-dubbo.container=log4j,spring,registry,jetty
-dubbo.application.name=monitor
-dubbo.application.owner=wzxmt
-dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk2.wzxmt.com:2181,zk3.wzxmt.com:2181
-dubbo.protocol.port=20880
-dubbo.jetty.port=8080
-dubbo.jetty.directory=/dubbo-monitor-simple/monitor
-dubbo.charts.directory=/dubbo-monitor-simple/charts
-dubbo.statistics.directory=/dubbo-monitor-simple/monitor/statistics
-dubbo.log4j.file=logs/dubbo-monitor-simple.log
-dubbo.log4j.level=WARN
+
 EOF
 ```
 
@@ -918,29 +908,55 @@ dubbo-monitor IN A 60 10.0.0.50
 
 ### 准备k8s资源配置清单
 
-运维主机上
+```
+mkdir dubbo-monitor -p
+cd dubbo-monitor
+```
+
+ConfigMap
+
+```yaml
+cat << 'EOF' >cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm-monitor
+  namespace: infra
+data:
+  dubbo.properties: |
+    dubbo.container=log4j,spring,registry,jetty
+    dubbo.application.name=monitor
+    dubbo.application.owner=wzxmt
+    dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk2.wzxmt.com:2181,zk3.wzxmt.com:2181
+    dubbo.protocol.port=20880
+    dubbo.jetty.port=8080
+    dubbo.jetty.directory=/dubbo-monitor-simple/monitor
+    dubbo.charts.directory=/dubbo-monitor-simple/charts
+    dubbo.statistics.directory=/dubbo-monitor-simple/monitor/statistics
+    dubbo.log4j.file=logs/dubbo-monitor-simple.log
+    dubbo.log4j.level=WARN
+EOF
+```
 
 deployment
 
 ```yaml
-mkdir /data/software/yaml/dubbo-monitor -p
-cd /data/software/yaml/dubbo-monitor
 cat << EOF >dp.yaml
 kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: dubbo-monitor
   namespace: infra
-  labels: 
+  labels:
     name: dubbo-monitor
 spec:
   replicas: 1
   selector:
-    matchLabels: 
+    matchLabels:
       name: dubbo-monitor
   template:
     metadata:
-      labels: 
+      labels:
         app: dubbo-monitor
         name: dubbo-monitor
     spec:
@@ -953,16 +969,23 @@ spec:
         - containerPort: 20880
           protocol: TCP
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: dubbo-monitor-cm
+          mountPath: /dubbo-monitor-simple/conf
+      volumes:
+      - name: dubbo-monitor-cm
+        configMap:
+          name: cm-monitor
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
-      securityContext: 
+      securityContext:
         runAsUser: 0
       schedulerName: default-scheduler
   strategy:
     type: RollingUpdate
-    rollingUpdate: 
+    rollingUpdate:
       maxUnavailable: 1
       maxSurge: 1
   revisionHistoryLimit: 7
@@ -1019,9 +1042,7 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/dp.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/svc.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/ingress.yaml
+kubectl apply -f ./
 ```
 
 ### 浏览器访问

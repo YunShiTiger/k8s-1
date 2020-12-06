@@ -286,6 +286,15 @@ $ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 安装完成后添加管理员帐号即可进入到 jenkins 主界面：![jenkins home](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622075706388.png)
 
+### 调整安全选项
+
+- Manage Jenkins
+  - Configure Global Security
+    - Allow anonymous read access（钩上）
+
+- Manage Jenkins
+  - 防止跨站点请求伪造(取消钩)
+
 #### 配置
 
 接下来我们就需要来配置 Jenkins，让他能够动态的生成 Slave 的 Pod。
@@ -353,86 +362,6 @@ docker build . -t harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
 docker push harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
 ```
 
-pipline
-
-```yaml
-pipeline {
-  agent {
-    kubernetes {
-      yaml """
-apiVersion: v1
-kind: Pod
-metadata:
-  name: jenkins-slave
-spec:
-  nodeName: n2
-  containers:
-  - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
-    tty: true
-    imagePullPolicy: Always
-    volumeMounts:
-      - name: docker-cmd
-        mountPath: /usr/bin/docker
-      - name: docker-socker
-        mountPath: /run/docker.sock
-      - name: date
-        mountPath: /etc/localtime
-      - name: maven-cache
-        mountPath: /root/.m2
-  restartPolicy: Never
-  imagePullSecrets:
-    - name: harborlogin
-  volumes:
-    - name: date
-      hostPath: 
-        path: /etc/localtime
-        type: ''
-    - name: docker-cmd
-      hostPath: 
-        path: /usr/bin/docker
-        type: ''
-    - name: docker-socker
-      hostPath: 
-        path: /run/docker.sock
-        type: ''
-    - name: maven-cache
-      nfs: 
-        server: 10.0.0.20
-        path: /data/nfs-volume/maven-cache
-"""
-   }
-}
-   stages {
-      stage('kubectl') {
-         steps {
-            sh 'kubectl get pod -A'
-         }
-      }
-      stage('maven') {
-         steps {
-            sh '/opt/maven-3.6.3/bin/mvn -version'
-         }
-      }
-      stage('docker') {
-         steps {
-            sh 'docker images'
-         }
-      }
-      stage('date') {
-         steps {
-            sh 'date'
-         }
-      }
-       stage('helm') {
-         steps {
-            sh 'pwd'
-         }
-      }
-   }
-}
-```
-
 ## 发布准备
 
 ### 制作dubbo微服务的底包镜像
@@ -491,6 +420,104 @@ docker push harbor.wzxmt.com/base/jre8:8u112
 ```
 
 **注意：**jre7底包制作类似，这里略
+
+### 创建docker-registry
+
+```
+kubectl create ns app
+kubectl create secret docker-registry harborlogin \
+--namespace=app  \
+--docker-server=http://harbor.wzxmt.com \
+--docker-username=admin \
+--docker-password=admin
+```
+
+## dubbo-monitor工具
+
+[dubbo-monitor源码包](https://github.com/alibaba/dubbo/archive/dubbo-2.6.0.zip)
+
+#### 下载源码
+
+```bash
+wget https://github.com/alibaba/dubbo/archive/dubbo-2.6.0.zip
+unzip dubbo-2.6.0.zip && cd dubbo-dubbo-2.6.0/dubbo-simple/dubbo-monitor-simple
+```
+
+安装依赖，编译dubbo-monitor
+
+```bash
+yum -y install java-1.8.0-openjdk maven
+mvn clean install
+```
+
+编译成功后的目标文件为：target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
+
+解压
+
+```bash
+mkdir -p /data/software/dockerfile/dubbo-monitor
+tar xf target/dubbo-monitor-simple-2.6.0-assembly.tar.gz
+mv dubbo-monitor-simple-2.6.0 /data/software/dockerfile/dubbo-monitor/dubbo-monitor-simple
+```
+
+修改配置
+
+```bash
+cd /data/software/dockerfile/dubbo-monitor
+cat << EOF >dubbo-monitor-simple/conf/dubbo.properties
+dubbo.container=log4j,spring,registry,jetty
+dubbo.application.name=monitor
+dubbo.application.owner=wzxmt
+dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk2.wzxmt.com:2181,zk3.wzxmt.com:2181
+dubbo.protocol.port=20880
+dubbo.jetty.port=8080
+dubbo.jetty.directory=/dubbo-monitor-simple/monitor
+dubbo.charts.directory=/dubbo-monitor-simple/charts
+dubbo.statistics.directory=/dubbo-monitor-simple/monitor/statistics
+dubbo.log4j.file=logs/dubbo-monitor-simple.log
+dubbo.log4j.level=WARN
+EOF
+```
+
+#### 制作镜像
+
+1. 准备环境
+
+   修改启动初始化内存
+
+   ```bash
+   chmod +x dubbo-monitor-simple/bin/*
+   sed -i "s#128m#16m#g;s#256m#32m#g;s#1g#128m#g;s#2g#256m#g" dubbo-monitor-simple/bin/start.sh
+   sed -i '69,$d' dubbo-monitor-simple/bin/start.sh
+   echo 'exec java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OPTS -classpath $CONF_DIR:$LIB_JARS com.alibaba.dubbo.container.Main &> $STDOUT_FILE' >>dubbo-monitor-simple/bin/start.sh
+   ```
+
+2. 准备Dockerfile
+
+   ```bash
+   \cp /usr/share/zoneinfo/Asia/Shanghai ./
+   cat << EOF >Dockerfile
+   FROM jeromefromcn/docker-alpine-java-bash
+   MAINTAINER Jerome Jiang
+   WORKDIR /dubbo-monitor-simple
+   ADD Shanghai /etc/localtime
+   COPY dubbo-monitor-simple/ /dubbo-monitor-simple/
+   CMD bin/start.sh
+   EOF
+   ```
+
+3. build镜像
+
+   ```bash
+   docker build . -t harbor.wzxmt.com/infra/dubbo-monitor:latest
+   docker push harbor.wzxmt.com/infra/dubbo-monitor:latest
+   ```
+
+### 解析域名
+
+```bash
+dubbo-monitor IN A 60 10.0.0.50
+```
 
 ## 发布dubbo-demo-service
 
@@ -564,7 +591,7 @@ docker push harbor.wzxmt.com/base/jre8:8u112
    >
    > - base/jre7:7u80
    > - base/jre8:8u112
-   >   Description : project base image list in harbor.od.com.
+   >   Description : project base image list in harbor.wzxmt.com.
 
 10. Add Parameter -> Choice Parameter
 
@@ -695,8 +722,6 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 }
 ```
 
-
-
 ## 发布dubbo-demo-consumer
 
 - create new jobs
@@ -769,7 +794,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
    >
    > - base/jre7:7u80
    > - base/jre8:8u112
-   >   Description : project base image list in harbor.od.com.
+   >   Description : project base image list in harbor.wzxmt.com.
 
 10. Add Parameter -> Choice Parameter
 
@@ -900,19 +925,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 }
 ```
 
-
-
-
-
-
-
-
-
-
-
-## test
-
-### 新建Jenkins的pipeline
+## 发布tomcat
 
 ### 配置New job
 
