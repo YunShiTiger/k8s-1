@@ -525,7 +525,7 @@ dubbo-monitor IN A 60 10.0.0.50
 
 - Enter an item name
 
-  > dubbo-demo
+  > dubbo-demo-service
 
 - Pipeline -> OK
 
@@ -545,7 +545,7 @@ dubbo-monitor IN A 60 10.0.0.50
 2. Add Parameter -> String Parameter
 
    > Name : image_name
-   > Default Value :
+   > Default Value : app/dubbo-demo-service
    > Description : project docker image name. e.g: app/dubbo-demo-service
 
 3. Add Parameter -> String Parameter
@@ -569,7 +569,7 @@ dubbo-monitor IN A 60 10.0.0.50
 6. Add Parameter -> String Parameter
 
    > Name : mvn_dir
-   > Default Value : ./
+   > Default Value : /opt
    > Description : project maven directory. e.g: ./
 
 7. Add Parameter -> String Parameter
@@ -598,9 +598,8 @@ dubbo-monitor IN A 60 10.0.0.50
     > Name : maven
     > Default Value :
     >
-    > - 3.6.0-8u181
-    > - 3.2.5-6u025
-    > - 2.2.1-6u025
+    > - maven-3.6.3
+    > - maven-3.6.0
     >   Description : different maven edition.
 
 填入
@@ -619,7 +618,7 @@ dubbo-monitor IN A 60 10.0.0.50
 
 - git_ver
 
-  > master
+  > apollo
 
 - add_tag
 
@@ -627,7 +626,7 @@ dubbo-monitor IN A 60 10.0.0.50
 
 - mvn_dir
 
-  > /
+  > /opt
 
 - target_dir
 
@@ -643,7 +642,8 @@ dubbo-monitor IN A 60 10.0.0.50
 
 - maven
 
-  > 3.6.0-8u181
+  > maven-3.6.3
+  > maven-3.6.0
 
 Pipeline Script
 
@@ -728,7 +728,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 - Enter an item name
 
-  > dubbo-demo
+  > dubbo-demo-consumer
 
 - Pipeline -> OK
 
@@ -772,7 +772,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 6. Add Parameter -> String Parameter
 
    > Name : mvn_dir
-   > Default Value : ./
+   > Default Value :  /opt
    > Description : project maven directory. e.g: ./
 
 7. Add Parameter -> String Parameter
@@ -801,9 +801,10 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
     > Name : maven
     > Default Value :
     >
-    > - 3.6.0-8u181
-    > - 3.2.5-6u025
-    > - 2.2.1-6u025
+    > - maven-3.6.3
+    >
+    > - maven-3.6.0
+    >
     >   Description : different maven edition.
 
 依次填入/选择：
@@ -822,7 +823,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 - git_ver
 
-  > master
+  > apollo
 
 - add_tag
 
@@ -830,7 +831,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 - mvn_dir
 
-  > ./
+  > /opt
 
 - target_dir
 
@@ -846,7 +847,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 - maven
 
-  > 3.6.0-8u181
+  > maven-3.6.3
 
 Pipeline Script
 

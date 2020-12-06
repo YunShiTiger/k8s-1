@@ -919,7 +919,7 @@ data:
     dubbo.container=log4j,spring,registry,jetty
     dubbo.application.name=monitor
     dubbo.application.owner=wzxmt
-    dubbo.registry.address=zookeeper://zk1.wzxmt.com:2181?backup=zk1.wzxmt.com:3181,zk1.wzxmt.com:4181
+    dubbo.registry.address=zookeeper://zk-0.zk-hs.infra.svc.cluster.local:2181?backup=zk1.wzxmt.com:3181,zk1.wzxmt.com:4181
     dubbo.protocol.port=20880
     dubbo.jetty.port=8080
     dubbo.jetty.directory=/dubbo-monitor-simple/monitor
