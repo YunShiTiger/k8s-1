@@ -193,9 +193,9 @@ Apollo（阿波罗）是携程框架部门研发的分布式配置中心，能�
 [下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.6.1/apollo-configservice-1.6.1-github.zip)
 
 ```bash
-mkdir -p /data/dockerfile/apollo-configservice
-unzip -o apollo-configservice-1.6.1-github.zip -d /data/dockerfile/apollo-configservice
-cd /data/dockerfile/apollo-configservice
+mkdir -p apollo-configservice
+unzip -o apollo-configservice-1.6.1-github.zip -d apollo-configservice
+cd apollo-configservice
 rm -f apollo-configservice-1.6.1-sources.jar
 mv apollo-configservice-1.6.1.jar apollo-configservice.jar
 ```
@@ -513,9 +513,9 @@ kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/ingress.yaml
 [下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.6.1/apollo-adminservice-1.6.1-github.zip)
 
 ```bash
-mkdir /data/dockerfile/apollo-adminservice -p
-unzip -o apollo-adminservice-1.6.1-github.zip -d /data/dockerfile/apollo-adminservice
-cd /data/dockerfile/apollo-adminservice
+mkdir apollo-adminservice -p
+unzip -o apollo-adminservice-1.6.1-github.zip -d apollo-adminservice
+cd apollo-adminservice
 rm -f  apollo-adminservice-1.6.1-sources.jar
 mv apollo-adminservice-1.6.1.jar apollo-adminservice.jar
 ```
@@ -533,7 +533,8 @@ cat << 'EOF' >scripts/startup.sh
   ## Adjust log dir if necessary
   LOG_DIR=/apollo-adminservice/logs
   ## Adjust server port if necessary
-  SERVER_PORT=8090
+  SERVER_PORT=8080
+  APOLLO_ADMIN_SERVICE_NAME=$(hostname -i)
   # SERVER_URL="http://localhost:${SERVER_PORT}"
   SERVER_URL="http://${APOLLO_ADMIN_SERVICE_NAME}:${SERVER_PORT}"
   
@@ -589,6 +590,7 @@ cat << 'EOF' >scripts/startup.sh
       echo "$(date) Failed to start $SERVICE_NAME.jar, return code: $rc"
       exit $rc;
   fi
+  
   tail -f /dev/null
   EOF
   ```
@@ -625,8 +627,8 @@ docker build . -t harbor.wzxmt.com/infra/apollo-adminservice:v1.6.1
 在运维主机上
 
 ```bash
-mkdir /data/software/yaml/apollo-adminservice
-cd /data/software/yaml/apollo-adminservice
+mkdir apollo-adminservice
+cd apollo-adminservice
 ```
 
 deployment
@@ -726,9 +728,9 @@ kubectl apply -f ./
 [下载官方release包](https://github.com/ctripcorp/apollo/releases/download/v1.6.1/apollo-portal-1.6.1-github.zip)
 
 ```bash
-mkdir /data/dockerfile/apollo-portal
-unzip -o apollo-portal-1.6.1-github.zip -d /data/dockerfile/apollo-portal
-cd /data/dockerfile/apollo-portal
+mkdir apollo-portal
+unzip -o apollo-portal-1.6.1-github.zip -d apollo-portal
+cd apollo-portal
 rm -f apollo-portal-1.6.1-sources.jar
 mv apollo-portal-1.6.1.jar  apollo-portal.jar
 ```
@@ -1525,7 +1527,7 @@ demo-prod   60 IN A 10.0.0.50
 
 ## Apollo的k8s应用配置
 
-修改apolloportaldb.sql的数据库为ApolloConfigTestDB
+修改apolloconfig.sql的数据库为ApolloConfigTestDB
 
 ```bash
 source ./apolloconfig.sql
@@ -1534,13 +1536,21 @@ grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigTestDB.* to "apolloconfig"@"10.
 select * from ServerConfig where Id=1;
 ```
 
-修改apolloportaldb.sql的数据库为ApolloConfigProdDB
+修改apolloconfig.sql的数据库为ApolloConfigProdDB
 
 ```bash
 source ./apolloconfig.sql
 update ApolloConfigProdDB.ServerConfig set ServerConfig.Value="http://config-prod.wzxmt.com/eureka" where ServerConfig.Key="eureka.service.url";
 grant INSERT,DELETE,UPDATE,SELECT on ApolloConfigProdDB.* to "apolloconfig"@"10.0.0.%" identified by "admin123";
 select * from ServerConfig where Id=1;
+```
+
+修改环境列表
+
+```yaml
+use ApolloPortalDB;
+update ServerConfig set Value='fat,pro' where Id=1;
+select * from ServerConfig\G
 ```
 
 - 准备apollo-config，apollo-admin的资源配置清单（各2套）
@@ -2033,14 +2043,21 @@ EOF
 
 ### 应用资源配置清单
 
+```bash
+kubectl create ns test
+kubectl create ns prod
+kubectl create secret docker-registry harborlogin --namespace=pord  --docker-server=http://harbor.wzxmt.com --docker-username=admin --docker-password=admin
+kubectl create secret docker-registry harborlogin --namespace=test  --docker-server=http://harbor.wzxmt.com --docker-username=admin --docker-password=admin
+```
+
 在任意一台k8s运算节点上执行：
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-configserviceProd.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-configserviceTest.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-adminserviceProd.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-adminserviceTest.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/apollo/apollo-portal.yaml
+kubectl apply -f apollo-configserviceProd.yaml
+kubectl apply -f apollo-configserviceTest.yaml
+kubectl apply -f apollo-adminserviceProd.yaml
+kubectl apply -f apollo-adminserviceTest.yaml
+kubectl apply -f apollo-portal.yaml
 ```
 
 ## Apollo的portal配置

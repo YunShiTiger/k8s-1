@@ -734,7 +734,7 @@ kubectl apply -f http://www.wzxmt.com/yaml/node-exporter/ds.yaml
 
 ```bash
 docker pull google/cadvisor:v0.33.0
-docker tag google/cadvisor:latest harbor.wzxmt.com/k8s/cadvisor:v0.33.0
+docker tag google/cadvisor:v0.33.0 harbor.wzxmt.com/k8s/cadvisor:v0.33.0
 docker push harbor.wzxmt.com/k8s/cadvisor:v0.33.0
 ```
 
