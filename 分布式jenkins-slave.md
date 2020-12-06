@@ -433,6 +433,481 @@ spec:
 }
 ```
 
+## 发布准备
+
+### 制作dubbo微服务的底包镜像
+
+1. 自定义Dockerfile
+
+```bash
+mkdir -p dockerfile/jre8
+cd dockerfile/jre8
+cat << EOF >Dockerfile
+FROM stanleyws/jre8:8u112
+RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\
+    echo 'Asia/Shanghai' >/etc/timezone
+ADD config.yml /opt/prom/config.yml
+ADD jmx_javaagent-0.3.1.jar /opt/prom/
+WORKDIR /opt/project_dir
+ADD entrypoint.sh /entrypoint.sh
+CMD ["/entrypoint.sh"]
+EOF
+```
+
+config.yml
+
+```bash
+cat << 'EOF' >config.yml
+---
+rules:
+  - pattern: '.*'
+EOF
+```
+
+jmx_javaagent-0.3.1.jar
+
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar
+```
+
+entrypoint.sh
+
+```bash
+cat << 'EOF' >entrypoint.sh
+#!/bin/sh
+M_OPTS="-Duser.timezone=Asia/Shanghai -javaagent:/opt/prom/jmx_javaagent-0.3.1.jar=$(hostname -i):${M_PORT:-"12346"}:/opt/prom/config.yml"
+C_OPTS=${C_OPTS}
+JAR_BALL=${JAR_BALL}
+exec java -jar ${M_OPTS} ${C_OPTS} ${JAR_BALL}
+EOF
+chmod +x entrypoint.sh
+```
+
+制作dubbo服务docker底包
+
+```bash
+docker build . -t harbor.wzxmt.com/base/jre8:8u112
+docker push harbor.wzxmt.com/base/jre8:8u112
+```
+
+**注意：**jre7底包制作类似，这里略
+
+## 发布dubbo-demo-service
+
+- create new jobs
+
+- Enter an item name
+
+  > dubbo-demo
+
+- Pipeline -> OK
+
+- Discard wzxmt builds
+
+  > Days to keep builds : 3
+  > Max # of builds to keep : 30
+
+- This project is parameterized
+
+1. Add Parameter -> String Parameter
+
+   > Name : app_name
+   > Default Value :
+   > Description : project name. e.g: dubbo-demo-service
+
+2. Add Parameter -> String Parameter
+
+   > Name : image_name
+   > Default Value :
+   > Description : project docker image name. e.g: app/dubbo-demo-service
+
+3. Add Parameter -> String Parameter
+
+   > Name : git_repo
+   > Default Value :
+   > Description : project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git
+
+4. Add Parameter -> String Parameter
+
+   > Name : git_ver
+   > Default Value :
+   > Description : git commit id of the project.
+
+5. Add Parameter -> String Parameter
+
+   > Name : add_tag
+   > Default Value :
+   > Description : project docker image tag, date_timestamp recommended. e.g: 190117_1920
+
+6. Add Parameter -> String Parameter
+
+   > Name : mvn_dir
+   > Default Value : ./
+   > Description : project maven directory. e.g: ./
+
+7. Add Parameter -> String Parameter
+
+   > Name : target_dir
+   > Default Value : ./target
+   > Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target
+
+8. Add Parameter -> String Parameter
+
+   > Name : mvn_cmd
+   > Default Value : mvn clean package -Dmaven.test.skip=true
+   > Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true
+
+9. Add Parameter -> Choice Parameter
+
+   > Name : base_image
+   > Default Value :
+   >
+   > - base/jre7:7u80
+   > - base/jre8:8u112
+   >   Description : project base image list in harbor.od.com.
+
+10. Add Parameter -> Choice Parameter
+
+    > Name : maven
+    > Default Value :
+    >
+    > - 3.6.0-8u181
+    > - 3.2.5-6u025
+    > - 2.2.1-6u025
+    >   Description : different maven edition.
+
+填入
+
+- app_name
+
+  > dubbo-demo-service
+
+- image_name
+
+  > app/dubbo-demo-service
+
+- git_repo
+
+  > https://github.com/wzxmt/dubbo-demo-service.git
+
+- git_ver
+
+  > master
+
+- add_tag
+
+  > 200525_0100
+
+- mvn_dir
+
+  > /
+
+- target_dir
+
+  > ./dubbo-server/target
+
+- mvn_cmd
+
+  > mvn clean package -Dmaven.test.skip=true
+
+- base_image
+
+  > base/jre8:8u112
+
+- maven
+
+  > 3.6.0-8u181
+
+Pipeline Script
+
+```yaml
+pipeline {
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-slave
+spec:
+  nodeName: n2
+  containers:
+  - name: jnlp
+    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    tty: true
+    imagePullPolicy: Always
+    volumeMounts:
+      - name: docker-cmd
+        mountPath: /usr/bin/docker
+      - name: docker-socker
+        mountPath: /run/docker.sock
+      - name: date
+        mountPath: /etc/localtime
+      - name: maven-cache
+        mountPath: /root/.m2
+  restartPolicy: Never
+  imagePullSecrets:
+    - name: harborlogin
+  volumes:
+    - name: date
+      hostPath: 
+        path: /etc/localtime
+        type: ''
+    - name: docker-cmd
+      hostPath: 
+        path: /usr/bin/docker
+        type: ''
+    - name: docker-socker
+      hostPath: 
+        path: /run/docker.sock
+        type: ''
+    - name: maven-cache
+      nfs: 
+        server: 10.0.0.20
+        path: /data/nfs-volume/maven-cache
+"""
+   }
+} 
+stages {
+      stage('pull') { //get project code from repo 
+        steps {
+          sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
+        }
+      }
+      stage('build') { //exec mvn cmd
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
+        }
+      }
+      stage('package') { //move jar file into project_dir
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && mv *.jar ./project_dir"
+        }
+      }
+      stage('image') { //build image and push to registry
+        steps {
+          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
+ADD ${params.target_dir}/project_dir /opt/project_dir"""
+          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+        }
+      }
+   }
+}
+```
+
+
+
+## 发布dubbo-demo-consumer
+
+- create new jobs
+
+- Enter an item name
+
+  > dubbo-demo
+
+- Pipeline -> OK
+
+- Discard wzxmt builds
+
+  > Days to keep builds : 3
+  > Max # of builds to keep : 30
+
+- This project is parameterized
+
+1. Add Parameter -> String Parameter
+
+   > Name : app_name
+   > Default Value :
+   > Description : project name. e.g: dubbo-demo-service
+
+2. Add Parameter -> String Parameter
+
+   > Name : image_name
+   > Default Value :
+   > Description : project docker image name. e.g: app/dubbo-demo-service
+
+3. Add Parameter -> String Parameter
+
+   > Name : git_repo
+   > Default Value :
+   > Description : project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git
+
+4. Add Parameter -> String Parameter
+
+   > Name : git_ver
+   > Default Value :
+   > Description : git commit id of the project.
+
+5. Add Parameter -> String Parameter
+
+   > Name : add_tag
+   > Default Value :
+   > Description : project docker image tag, date_timestamp recommended. e.g: 190117_1920
+
+6. Add Parameter -> String Parameter
+
+   > Name : mvn_dir
+   > Default Value : ./
+   > Description : project maven directory. e.g: ./
+
+7. Add Parameter -> String Parameter
+
+   > Name : target_dir
+   > Default Value : ./target
+   > Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target
+
+8. Add Parameter -> String Parameter
+
+   > Name : mvn_cmd
+   > Default Value : mvn clean package -Dmaven.test.skip=true
+   > Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true
+
+9. Add Parameter -> Choice Parameter
+
+   > Name : base_image
+   > Default Value :
+   >
+   > - base/jre7:7u80
+   > - base/jre8:8u112
+   >   Description : project base image list in harbor.od.com.
+
+10. Add Parameter -> Choice Parameter
+
+    > Name : maven
+    > Default Value :
+    >
+    > - 3.6.0-8u181
+    > - 3.2.5-6u025
+    > - 2.2.1-6u025
+    >   Description : different maven edition.
+
+依次填入/选择：
+
+- app_name
+
+  > dubbo-demo-consumer
+
+- image_name
+
+  > app/dubbo-demo-consumer
+
+- git_repo
+
+  > https://github.com/wzxmt/dubbo-demo-web.git
+
+- git_ver
+
+  > master
+
+- add_tag
+
+  > 200527_2150
+
+- mvn_dir
+
+  > ./
+
+- target_dir
+
+  > ./dubbo-client/target
+
+- mvn_cmd
+
+  > mvn clean package -Dmaven.test.skip=true
+
+- base_image
+
+  > base/jre8:8u112
+
+- maven
+
+  > 3.6.0-8u181
+
+Pipeline Script
+
+```yaml
+pipeline {
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-slave
+spec:
+  nodeName: n2
+  containers:
+  - name: jnlp
+    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    tty: true
+    imagePullPolicy: Always
+    volumeMounts:
+      - name: docker-cmd
+        mountPath: /usr/bin/docker
+      - name: docker-socker
+        mountPath: /run/docker.sock
+      - name: date
+        mountPath: /etc/localtime
+      - name: maven-cache
+        mountPath: /root/.m2
+  restartPolicy: Never
+  imagePullSecrets:
+    - name: harborlogin
+  volumes:
+    - name: date
+      hostPath: 
+        path: /etc/localtime
+        type: ''
+    - name: docker-cmd
+      hostPath: 
+        path: /usr/bin/docker
+        type: ''
+    - name: docker-socker
+      hostPath: 
+        path: /run/docker.sock
+        type: ''
+    - name: maven-cache
+      nfs: 
+        server: 10.0.0.20
+        path: /data/nfs-volume/maven-cache
+"""
+   }
+} 
+stages {
+      stage('pull') { //get project code from repo 
+        steps {
+          sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
+        }
+      }
+      stage('build') { //exec mvn cmd
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
+        }
+      }
+      stage('package') { //move jar file into project_dir
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && mv *.jar ./project_dir"
+        }
+      }
+      stage('image') { //build image and push to registry
+        steps {
+          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
+ADD ${params.target_dir}/project_dir /opt/project_dir"""
+          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+        }
+      }
+   }
+}
+```
+
+
+
+
+
+
+
+
+
 
 
 ## test

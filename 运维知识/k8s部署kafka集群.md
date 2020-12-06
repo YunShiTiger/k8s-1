@@ -292,7 +292,7 @@ kubectl -n infra edit statefulsets zk
 ## 3.0、kafka集群部署
 
 ```bash
-mkdir kafak && cd kafka
+mkdir kafka && cd kafka
 ```
 
 ### 3.1.1、定义StorageClass资源
