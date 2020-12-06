@@ -1156,3 +1156,107 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 ![image-20200628021513893](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628021513893.png)
 
+dubbo-demo-service
+
+```
+cat << 'EOF' >dubbo-demo-service.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dubbo-demo-service
+  namespace: test
+  labels: 
+    name: dubbo-demo-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: dubbo-demo-service
+  template:
+    metadata:
+      labels: 
+        app: dubbo-demo-service
+        name: dubbo-demo-service
+    spec:
+      containers:
+      - name: dubbo-demo-service
+        image: harbor.wzxmt.com/app/dubbo-demo-service:apollo_20201206_0001
+        ports:
+        - containerPort: 20880
+          protocol: TCP
+        env:
+        - name: C_OPTS
+          value: -Denv=fat -Dapollo.meta=http://config-test.wzxmt.com
+        - name: JAR_BALL
+          value: dubbo-server.jar
+        imagePullPolicy: Always
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+EOF
+```
+
+dubbo-demo-consumer
+
+```
+cat << 'EOF' >dubbo-demo-consumer.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dubbo-demo-consumer
+  namespace: test
+  labels: 
+    name: dubbo-demo-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      name: dubbo-demo-consumer
+  template:
+    metadata:
+      labels: 
+        app: dubbo-demo-consumer
+        name: dubbo-demo-consumer
+    spec:
+      containers:
+      - name: dubbo-demo-consumer
+        image: harbor.wzxmt.com/app/dubbo-demo-consumer:apollo_20201206_0001
+        ports:
+        - containerPort: 20880
+          protocol: TCP
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        - name: C_OPTS
+          value: -Denv=fat -Dapollo.meta=http://config-test.wzxmt.com
+        - name: JAR_BALL
+          value: dubbo-client.jar
+        imagePullPolicy: Always
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      securityContext: 
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  revisionHistoryLimit: 7
+  progressDeadlineSeconds: 600
+EOF
+```
+
