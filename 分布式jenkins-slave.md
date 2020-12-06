@@ -1209,7 +1209,7 @@ EOF
 
 dubbo-demo-consumer
 
-```
+```yaml
 cat << 'EOF' >dubbo-demo-consumer.yaml
 kind: Deployment
 apiVersion: apps/v1
@@ -1257,6 +1257,38 @@ spec:
       maxSurge: 1
   revisionHistoryLimit: 7
   progressDeadlineSeconds: 600
+---
+kind: Service
+apiVersion: v1
+metadata: 
+  name: dubbo-demo-consumer
+  namespace: test
+spec:
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector: 
+    app: dubbo-demo-consumer
+  clusterIP: None
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dubbo-demo-consumer
+  namespace: test
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`demo-test.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: dubbo-demo-consumer
+      port: 8080
 EOF
 ```
 
+http://demo-test.wzxmt.com/hello?name=wangdao
