@@ -4490,29 +4490,28 @@ schedulerConfig(){
    fi
 # 创建kube-scheduler 启动配置文件
 cat > ${HOST_PATH}/roles/kube-scheduler/templates/kube-scheduler << EOF
-KUBE_SCHEDULER_OPTS=" \\
-                   --logtostderr=${LOGTOSTDERR} \\
-                   --address=127.0.0.1 \\
-                   --bind-address={{ $KUBELET_IPV4 }} \\
-                   --leader-elect=true \\
-                   ${FEATURE_GATES} \\
-                   --kubeconfig=${K8S_PATH}/config/kube-scheduler.kubeconfig \\
-                   --authentication-kubeconfig=${K8S_PATH}/config/kube-scheduler.kubeconfig \\
-                   --authorization-kubeconfig=${K8S_PATH}/config/kube-scheduler.kubeconfig \\
-                   --tls-cert-file=${K8S_PATH}/ssl/k8s/k8s-scheduler.pem \\
-                   --tls-private-key-file=${K8S_PATH}/ssl/k8s/k8s-scheduler-key.pem \\
-                   --client-ca-file=${K8S_PATH}/ssl/k8s/k8s-ca.pem \\
-                   --requestheader-allowed-names= \\
-                   --requestheader-extra-headers-prefix=X-Remote-Extra- \\
-                   --requestheader-group-headers=X-Remote-Group \\
-                   --requestheader-username-headers=X-Remote-User \\                   
-                   --alsologtostderr=${ALSOLOGTOSTDERR} \\
-                   --kube-api-qps=${KUBE_API_QPS} \\
-                   --authentication-tolerate-lookup-failure=false \\
-                   --kube-api-burst=${KUBE_API_BURST} \\
-                   --log-dir=${K8S_PATH}/log \\
-                   --tls-cipher-suites=${TLS_CIPHER} \\
-                   --v=${LEVEL_LOG}"
+KUBE_SCHEDULER_OPTS="--logtostderr=${LOGTOSTDERR} \\
+--address=127.0.0.1 \\
+--bind-address={{ $KUBELET_IPV4 }} \\
+--leader-elect=true \\
+${FEATURE_GATES} \\
+--kubeconfig=${K8S_PATH}/config/kube-scheduler.kubeconfig \\
+--authentication-kubeconfig=${K8S_PATH}/config/kube-scheduler.kubeconfig \\
+--authorization-kubeconfig=${K8S_PATH}/config/kube-scheduler.kubeconfig \\
+--tls-cert-file=${K8S_PATH}/ssl/k8s/k8s-scheduler.pem \\
+--tls-private-key-file=${K8S_PATH}/ssl/k8s/k8s-scheduler-key.pem \\
+--client-ca-file=${K8S_PATH}/ssl/k8s/k8s-ca.pem \\
+--requestheader-allowed-names= \\
+--requestheader-extra-headers-prefix=X-Remote-Extra- \\
+--requestheader-group-headers=X-Remote-Group \\
+--requestheader-username-headers=X-Remote-User \\ 
+--alsologtostderr=${ALSOLOGTOSTDERR} \\
+--kube-api-qps=${KUBE_API_QPS} \\
+--authentication-tolerate-lookup-failure=false \\
+--kube-api-burst=${KUBE_API_BURST} \\
+--log-dir=${K8S_PATH}/log \\
+--tls-cipher-suites=${TLS_CIPHER} \\
+--v=${LEVEL_LOG}"
 EOF
 # 创建kube-scheduler 启动文件
 cat > ${HOST_PATH}/roles/kube-scheduler/templates/kube-scheduler.service << EOF
@@ -4521,6 +4520,7 @@ Description=Kubernetes Scheduler
 Documentation=https://github.com/kubernetes/kubernetes
 
 [Service]
+Type=notify
 LimitNOFILE=${HARD_SOFT}
 LimitNPROC=${HARD_SOFT}
 LimitCORE=infinity
@@ -4531,7 +4531,6 @@ ExecStart=${K8S_PATH}/bin/kube-scheduler \$KUBE_SCHEDULER_OPTS
 Restart=on-failure
 RestartSec=5
 User=k8s
-
 [Install]
 WantedBy=multi-user.target
 EOF
