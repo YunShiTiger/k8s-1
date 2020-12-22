@@ -4504,7 +4504,7 @@ ${FEATURE_GATES} \\
 --requestheader-allowed-names= \\
 --requestheader-extra-headers-prefix=X-Remote-Extra- \\
 --requestheader-group-headers=X-Remote-Group \\
---requestheader-username-headers=X-Remote-User \\ 
+--requestheader-username-headers=X-Remote-User \\
 --alsologtostderr=${ALSOLOGTOSTDERR} \\
 --kube-api-qps=${KUBE_API_QPS} \\
 --authentication-tolerate-lookup-failure=false \\
