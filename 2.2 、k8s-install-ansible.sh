@@ -4520,7 +4520,6 @@ Description=Kubernetes Scheduler
 Documentation=https://github.com/kubernetes/kubernetes
 
 [Service]
-Type=notify
 LimitNOFILE=${HARD_SOFT}
 LimitNPROC=${HARD_SOFT}
 LimitCORE=infinity
