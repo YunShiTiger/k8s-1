@@ -57,8 +57,6 @@ NAME             PROVISIONER      RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUM
 zk-data          fuseim.pri/ifs   Delete          Immediate           false                  23m
 ```
 
-
-
 ### 2.2.1、官方资源清单修改
 
 官方资源清单：https://kubernetes.io/zh/docs/tutorials/stateful-application/zookeeper/

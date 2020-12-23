@@ -237,7 +237,7 @@ EOF
 kubectl create namespace infra
 kubectl create secret docker-registry harborlogin \
 --namespace=infra  \
---docker-server=http://harbor.wzxmt.com \
+--docker-server=https://harbor.wzxmt.com \
 --docker-username=admin \
 --docker-password=admin
 ```

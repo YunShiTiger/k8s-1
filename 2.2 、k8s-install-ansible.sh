@@ -43,13 +43,13 @@ ETCD_EVENTS_MEMBER_2_HOSTNAMES="n3"
 #### 以下参数根据实际网络环境修改不能有重复网段
 # 最好使用 当前未用的网段 来定义服务网段和 Pod 网段
 # 服务网段，部署前路由不可达，部署后集群内路由可达(kube-proxy 保证)
-export SERVICE_CIDR="10.66.0.0/16"
+export SERVICE_CIDR="10.96.0.0/16"
 # Pod 网段，建议 /12 段地址，部署前路由不可达，部署后集群内路由可达(网络插件 保证)
-export CLUSTER_CIDR="10.80.0.0/12"
+export CLUSTER_CIDR="172.16.0.0/12"
 # 服务端口范围 (NodePort Range)
 NODE_PORT_RANGE="30000-65535"
 # kubernetes 服务 IP (一般是 SERVICE_CIDR 中第一个IP)
-export CLUSTER_KUBERNETES_SVC_IP="10.66.0.1"
+export CLUSTER_KUBERNETES_SVC_IP="10.96.0.1"
 # 集群名字
 export CLUSTER_NAME=kubernetes
 #集群域名
@@ -57,7 +57,7 @@ export CLUSTER_DNS_DOMAIN="cluster.local"
 # 集群 服务帐号令牌颁发者的标识符 1.20版本及以上用到
 export SERVICE_ACCOUNT_ISSUER="https://${CLUSTER_NAME}.default.svc.${CLUSTER_DNS_DOMAIN}"
 #集群DNS
-export CLUSTER_DNS_SVC_IP="10.66.0.2"
+export CLUSTER_DNS_SVC_IP="10.66.0.10"
 # 证书相关配置
 export CERT_ST="GuangDong"
 export CERT_L="GuangZhou"
@@ -80,7 +80,7 @@ INSTALL_K8S=ON
 NTAINERD,CRIO 默认docker
 RUNTIME=DOCKER
 # 网络插件 选择 calico ,flannel,kube-router,calico-typha(大于50节点建议使用，calico-typha及kube-router)  默认 flannel 
-NET_PLUG=flannel
+NET_PLUG=calico
 #K8S events 存储ETCD 集群 默认关闭OFF ON开启
 K8S_EVENTS=OFF
 # 是否升级iptables OFF 关闭 ON 开启
@@ -129,7 +129,7 @@ export DOWNLOAD_PATH=${HOST_PATH}/download
 # ETCD 版本
 export ETCD_VERSION=v3.4.14
 # kubernetes 版本
-export KUBERNETES_VERSION=v1.20.0
+export KUBERNETES_VERSION=v1.18.14
 # cni 版本
 export CNI_VERSION=v0.8.7
 # iptables
@@ -2718,6 +2718,7 @@ cat > ${HOST_PATH}/roles/docker/templates/daemon.json << EOF
         "https://gcr.azk8s.cn",
         "https://quay.azk8s.cn"
     ],
+    "insecure-registries": ["https://harbor.wzxmt.com"],
     "log-opts": {
         "max-size": "${LOG_OPTS_MAX_SIZE}",
         "max-file": "${LOG_OPTS_MAX_FILE}"
