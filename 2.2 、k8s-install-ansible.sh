@@ -57,7 +57,7 @@ export CLUSTER_DNS_DOMAIN="cluster.local"
 # 集群 服务帐号令牌颁发者的标识符 1.20版本及以上用到
 export SERVICE_ACCOUNT_ISSUER="https://${CLUSTER_NAME}.default.svc.${CLUSTER_DNS_DOMAIN}"
 #集群DNS
-export CLUSTER_DNS_SVC_IP="10.66.0.10"
+export CLUSTER_DNS_SVC_IP="10.96.0.10"
 # 证书相关配置
 export CERT_ST="GuangDong"
 export CERT_L="GuangZhou"
