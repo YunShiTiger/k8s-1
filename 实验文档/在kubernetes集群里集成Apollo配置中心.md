@@ -130,8 +130,7 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/cm.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-monitor/dp.yaml
+kubectl apply -f ./
 ```
 
 ## 重新发版，修改dubbo项目的配置文件
@@ -495,10 +494,7 @@ EOF
 在任意一台k8s运算节点执行：
 
 ```bash
-kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/cm.yaml
-kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/dp.yaml
-kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/svc.yaml
-kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-configservice/ingress.yaml
+kubectl apply -f ./
 ```
 
 ### 浏览器访问
@@ -2054,8 +2050,8 @@ EOF
 ```bash
 kubectl create ns test
 kubectl create ns prod
-kubectl create secret docker-registry harborlogin --namespace=pord  --docker-server=http://harbor.wzxmt.com --docker-username=admin --docker-password=admin
-kubectl create secret docker-registry harborlogin --namespace=test  --docker-server=http://harbor.wzxmt.com --docker-username=admin --docker-password=admin
+kubectl create secret docker-registry harborlogin --namespace=pord  --docker-server=https://harbor.wzxmt.com --docker-username=admin --docker-password=admin
+kubectl create secret docker-registry harborlogin --namespace=test  --docker-server=https://harbor.wzxmt.com --docker-username=admin --docker-password=admin
 ```
 
 在任意一台k8s运算节点上执行：
