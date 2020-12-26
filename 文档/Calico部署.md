@@ -129,22 +129,38 @@ ip route delete 10.244.0.0/24 via 10.4.7.21 dev eth0
 ```yaml
  cat >/opt/cni/net.d/10-calico.conf <<EOF
 {
-    "name": "calico-k8s-network",
-    "cniVersion": "0.1.0",
-    "type": "calico",
-    "etcd_endpoints": "http://10.0.0.31:2379,http://10.0.0.32:2379,http://10.0.0.33:2379",
-    "log_level": "info",
-    "ipam": {
-        "type": "calico-ipam",
-        "assign_ipv4": "true",
-        "ipv4_pools": ["172.16.0.0/16"]
+  "name": "k8s-pod-network",
+  "cniVersion": "0.3.1",
+  "plugins": [
+    {
+      "type": "calico",
+      "log_level": "info",
+      "log_file_path": "/var/log/calico/cni/cni.log",
+      "etcd_endpoints": "https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379",
+      "etcd_key_file": "/etc/cni/net.d/calico-tls/etcd-key",
+      "etcd_cert_file": "/etc/cni/net.d/calico-tls/etcd-cert",
+      "etcd_ca_cert_file": "/etc/cni/net.d/calico-tls/etcd-ca",
+      "mtu": 0,
+      "ipam": {
+          "type": "calico-ipam"
+      },
+      "policy": {
+          "type": "k8s"
+      },
+      "kubernetes": {
+          "kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
+      }
     },
-    "policy": {
-        "type": "k8s"
+    {
+      "type": "portmap",
+      "snat": true,
+      "capabilities": {"portMappings": true}
     },
-    "kubernetes": {
-        "kubeconfig": "/var/lib/kubelet/kubeconfig"
+    {
+      "type": "bandwidth",
+      "capabilities": {"bandwidth": true}
     }
+  ]
 }
 EOF
 ```
