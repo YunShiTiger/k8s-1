@@ -2050,7 +2050,7 @@ EOF
 ```bash
 kubectl create ns test
 kubectl create ns prod
-kubectl create secret docker-registry harborlogin --namespace=pord  --docker-server=https://harbor.wzxmt.com --docker-username=admin --docker-password=admin
+kubectl create secret docker-registry harborlogin --namespace=prod  --docker-server=https://harbor.wzxmt.com --docker-username=admin --docker-password=admin
 kubectl create secret docker-registry harborlogin --namespace=test  --docker-server=https://harbor.wzxmt.com --docker-username=admin --docker-password=admin
 ```
 
