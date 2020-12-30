@@ -178,11 +178,11 @@ Apollo（阿波罗）是携程框架部门研发的分布式配置中心，能�
 
 ### 基础架构
 
-![apollo基础架构](https://blog.stanley.wang/images/apollo.png)
+![apollo基础架构](../acess/apollo.png)
 
 ### 简化模型
 
-![apollo简化架构](https://blog.stanley.wang/images/apollo-simple.png)
+![apollo简化架构](../acess/apollo-simple.png)
 
 ## 交付apollo-configservice
 
@@ -714,7 +714,7 @@ kubectl apply -f ./
 ### 浏览器访问
 
 [http://config.wzxmt.com](http://config.wzxmt.com/)
-![apollo注册中心](../upload/image-20200531144127914.png)
+![apollo注册中心](../acess/image-20200531144127914.png)
 
 ## 交付apollo-portal
 
@@ -1012,11 +1012,11 @@ kubectl apply -f http://harbor.wzxmt.com/yaml/apollo-portal/ingress.yaml
 - 用户名：apollo
 - 密码： admin
 
-![apollo-portal](../upload/image-20200531154325488.png)
+![apollo-portal](../acess/image-20200531154325488.png)
 
 ### 创建项目
 
-![image-20200531160236265](../upload/image-20200531160236265.png)
+![image-20200531160236265](../acess/image-20200531160236265.png)
 
 # 实战dubbo微服务接入Apollo配置中心
 
@@ -1184,7 +1184,7 @@ git push origin apollo
 ### 发布配置
 
 点击**发布**，配置生效
-![apollo-release](../upload/image-20200531212735122.png)
+![apollo-release](../acess/image-20200531212735122.png)
 
 ## 使用jenkins进行CI
 

@@ -276,15 +276,15 @@ kubectl apply -f  deployment.yaml
 
 #### 页面配置jenkins
 
-等到服务启动成功后，我们就可以通过[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)访问 jenkins 服务了，可以根据提示信息进行安装配置即可：![setup jenkins](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622074600136.png)初始化的密码我们可以在 jenkins 的容器的日志中进行查看，也可以直接在 nfs 的共享数据目录中查看：
+等到服务启动成功后，我们就可以通过[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)访问 jenkins 服务了，可以根据提示信息进行安装配置即可：![setup jenkins](acess/image-20200622074600136.png)初始化的密码我们可以在 jenkins 的容器的日志中进行查看，也可以直接在 nfs 的共享数据目录中查看：
 
 ```shell
 $ cat ${WORK_DIR}/secrets/initialAdminPassword
 ```
 
-然后选择安装推荐的插件即可。![setup plugin](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622074852477.png)   
+然后选择安装推荐的插件即可。![setup plugin](acess/image-20200622074852477.png)   
 
-安装完成后添加管理员帐号即可进入到 jenkins 主界面：![jenkins home](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200622075706388.png)
+安装完成后添加管理员帐号即可进入到 jenkins 主界面：![jenkins home](acess/image-20200622075706388.png)
 
 ### 调整安全选项
 
@@ -301,9 +301,9 @@ $ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 **第1步.** 我们需要安装**kubernetes plugin (新版本就叫 Kubernetes)**， 点击 Manage Jenkins -> Manage Plugins -> Available -> Kubernetes plugin 勾选安装即可。
 
-![image-2020062](https://raw.githubusercontent.com/wzxmt/images/master/img/image-2020062208044.png)
+![image-2020062](acess/image-2020062208044.png)
 
-**第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200627224756024.png)
+**第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](acess/image-20200627224756024.png)
 
 ## 部署jenkins-slave
 
@@ -1154,7 +1154,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 ### 开始构建
 
-![image-20200628021513893](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628021513893.png)
+![image-20200628021513893](acess/image-20200628021513893.png)
 
 dubbo-demo-service
 

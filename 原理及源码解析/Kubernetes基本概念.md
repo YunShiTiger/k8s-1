@@ -317,4 +317,4 @@ example-etcd-cluster-v6v6s6stxd   1/1       Running     0          2m
 
 ### kubernetes技能图谱
 
-![kubernetes技能图谱](assets/kubernetes技能图谱.jpg)
+![kubernetes技能图谱](../acess/kubernetes技能图谱.jpg)

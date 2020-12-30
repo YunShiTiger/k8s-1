@@ -315,7 +315,7 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 ## 构建应用镜像
 
 使用Jenkins进行CI，并查看harbor仓库
-![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200607232943333.png)
+![jenkins构建](../acess/image-20200607232943333.png)
 
 依次填入/选择：
 
@@ -1009,7 +1009,7 @@ kubectl apply -f http://www.wzxmt.com/yaml/blackbox-exporter/ingress.yaml
 
 [http://blackbox.wzxmt.com](http://blackbox.wzxmt.com/)
 
-![blackbox-exporter](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200604004252969.png)
+![blackbox-exporter](../acess/image-20200604004252969.png)
 
 ## 部署prometheus
 
@@ -1784,7 +1784,7 @@ grafana	60 IN A 10.0.0.50
 - 密 码：admin
 
 登录后需要修改管理员密码
-![grafana首次登录](https://blog.stanley.wang/images/grafana-password.png)
+![grafana首次登录](../acess/grafana-password.png)
 
 ### 配置grafana页面
 
@@ -1882,7 +1882,7 @@ Configuration -> Data Sources
 
 - Save & Test
 
-![Grafana数据源](https://blog.stanley.wang/images/grafana-datasource.png)
+![Grafana数据源](../acess/grafana-datasource.png)
 
 ### 配置Kubernetes集群Dashboard
 
@@ -2222,7 +2222,7 @@ rule_files:
 # curl -X POST http://prometheus.wzxmt.com/-/reload
 ```
 
-![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218173411675-688635972.png)
+![img](../acess/1034759-20191218173411675-688635972.png)
 
  
 
@@ -2232,31 +2232,31 @@ rule_files:
 
 把app命名空间里的dubbo-demo-service给停掉：
 
-![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218173935193-1795591117.png)
+![img](../acess/1034759-20191218173935193-1795591117.png)
 
  
 
  看下blackbox里的信息：
 
-![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174004624-1646255779.png)
+![img](../acess/1034759-20191218174004624-1646255779.png)
 
  
 
 看下alert：
 
-![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174052248-183200263.png)
+![img](../acess/1034759-20191218174052248-183200263.png)
 
  
 
  红色的时候就开会发邮件告警：
 
-![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174118507-915764907.png)
+![img](../acess/1034759-20191218174118507-915764907.png)
 
  
 
  已经收到告警了，后续上生产，还会更新如何添加微信、钉钉、短信告警
 
-![img](https://img2018.cnblogs.com/blog/1034759/201912/1034759-20191218174253105-950989449.png)
+![img](../acess/1034759-20191218174253105-950989449.png)
 
  如果需要自己定制告警规则和告警内容，需要研究一下promql，自己修改配置文件。
 
@@ -2551,7 +2551,7 @@ km	60 IN A 10.0.0.50
 
 [http://km.wzxmt.com](http://km.wzxmt.com/)
 
-![image-20200609153312857](../upload/image-20200609153312857.png)
+![image-20200609153312857](../acess/image-20200609153312857.png)
 
 ## 部署filebeat
 
@@ -2721,7 +2721,7 @@ EOF
 
 看到kafaka-manager里，topic打进来，即为成功。
 
-![kafka-topic](../upload/image-20200609212651972.png)
+![kafka-topic](../acess/image-20200609212651972.png)
 
 ### 验证数据
 
@@ -2940,11 +2940,11 @@ kubectl apply -f ./
 ### 浏览器访问
 
 [http://kibana.wzxmt.com](http://kibana.wzxmt.com/)
-![kibana页面](https://blog.stanley.wang/images/kibana.png)
+![kibana页面](../acess/kibana.png)
 
 ## kibana的使用
 
-![kibana用法](https://blog.stanley.wang/images/kibana-usage.png)
+![kibana用法](../acess/kibana-usage.png)
 
 ### 选择区域
 

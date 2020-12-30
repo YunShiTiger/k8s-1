@@ -269,7 +269,7 @@ etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status
 ```
 
-![线上 Etcd 数据库集群常见问题处理](upload/image-20200809093633357.png)
+![线上 Etcd 数据库集群常见问题处理](acess/image-20200809093633357.png)
 
 ### 2）摘除异常节点
 

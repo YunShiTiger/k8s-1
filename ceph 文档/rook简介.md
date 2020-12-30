@@ -13,12 +13,12 @@ Rook 使用底层云本机容器管理、调度和编排平台提供的工具来
 Rook 目前支持Ceph、NFS、Minio Object Store和CockroachDB。
 
 Rook使用Kubernetes原语使Ceph存储系统能够在Kubernetes上运行。下图说明了Ceph Rook如何与Kubernetes集成：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104133544110.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook)
 随着Rook在Kubernetes集群中运行，Kubernetes应用程序可以挂载由Rook管理的块设备和文件系统，或者可以使用S3 / Swift API提供对象存储。Rook oprerator自动配置存储组件并监控群集，以确保存储处于可用和健康状态。
 Rook oprerator是一个简单的容器，具有引导和监视存储集群所需的全部功能。oprerator将启动并监控ceph monitor pods和OSDs的守护进程，它提供基本的RADOS存储。oprerator通过初始化运行服务所需的pod和其他组件来管理池，对象存储（S3 / Swift）和文件系统的CRD。
 oprerator将监视存储后台驻留程序以确保群集正常运行。Ceph mons将在必要时启动或故障转移，并在群集增长或缩小时进行其他调整。oprerator还将监视api服务请求的所需状态更改并应用更改。
 Rook oprerator还创建了Rook agent。这些agent是在每个Kubernetes节点上部署的pod。每个agent都配置一个Flexvolume插件，该插件与Kubernetes的volume controller集成在一起。处理节点上所需的所有存储操作，例如附加网络存储设备，安装卷和格式化文件系统。
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104133558632.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook01)
 该rook容器包括所有必需的Ceph守护进程和工具来管理和存储所有数据 - 数据路径没有变化。 rook并没有试图与Ceph保持完全的忠诚度。 许多Ceph概念（如placement groups和crush maps）都是隐藏的，因此您无需担心它们。 相反，Rook为管理员创建了一个简化的用户体验，包括物理资源，池，卷，文件系统和buckets。 同时，可以在需要时使用Ceph工具应用高级配置。
 Rook在golang中实现。Ceph在C ++中实现，其中数据路径被高度优化。我们相信这种组合可以提供两全其美的效果。
 
@@ -55,7 +55,7 @@ lsblk
 ```
 
 本次搭建的基本原理图：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190106123334504.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook02)
 无另外说明，以下全部操作都在master节点执行。
 
 ## 部署Rook Operator
@@ -198,17 +198,17 @@ kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['dat
 找到username和password字段，我这里是admin，8v2AbqHDj6
 打开浏览器输入任意一个Node的IP+nodeport端口，这里使用master节点 ip访问：
 [https://192.168.92.56:32483](https://192.168.92.56:32483/)
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104134300431.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook03)
 登录后界面如下：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104134335201.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook04)
 查看hosts状态：
 运行了1个mgr、3个mon和3个osd
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104134341810.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook05)
 查看monitors状态：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104134348345.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook06)
 查看OSD状态
 3个osd状态正常，每个容量50GB.
-![在这里插入图片描述](https://img-blog.csdnimg.cn/2019010413440155.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook07)
 
 ## 部署Ceph toolbox
 
@@ -351,7 +351,7 @@ rook-ceph-block   ceph.rook.io/block   171m
 ```
 
 登录ceph dashboard查看创建的存储池：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104134752317.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook08)
 **使用存储**
 以官方wordpress示例为例，创建一个经典的wordpress和mysql应用程序来使用Rook提供的块存储，这两个应用程序都将使用Rook提供的block volumes。
 查看yaml文件配置，主要看定义的pvc和挂载volume部分，以wordpress.yaml为例：
@@ -447,7 +447,7 @@ Filesystem               Size  Used Avail Use% Mounted on
 ```
 
 登录ceph dashboard查看创建的images
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104134923802.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook09)
 一旦wordpress和mysql pods处于运行状态，获取wordpress应用程序的集群IP并使用浏览器访问：
 
 ```shell
@@ -457,4 +457,4 @@ wordpress   LoadBalancer   10.98.178.189   <pending>     80:30001/TCP   136m
 ```
 
 访问wordpress:
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20190104135002395.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25ldHdvcmtlbg==,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/rook10)

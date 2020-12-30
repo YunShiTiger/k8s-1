@@ -426,7 +426,7 @@ kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
 
 ## 页面配置jenkins
 
-![jenkins初始化页面](../upload/image-20200524143150587.png)
+![jenkins初始化页面](../acess/image-20200524143150587.png)
 
 ### 初始化密码
 
@@ -436,20 +436,20 @@ cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
 
 ### 安装插件
 
-![jenkins安装页面](../upload/image-20200524143444194.png)
+![jenkins安装页面](../acess/image-20200524143444194.png)
 
 ### 设置用户
 
-![jenkins设置用户](../upload/image-20200524161048685.png)
+![jenkins设置用户](../acess/image-20200524161048685.png)
 
 ### 完成安装
 
-![jenkins完成安装1](../upload/image-20200524161225578.png)
-![jenkins完成安装2](../upload/image-20200524161328386.png)
+![jenkins完成安装1](../acess/image-20200524161225578.png)
+![jenkins完成安装2](../acess/image-20200524161328386.png)
 
 ### 使用admin登录
 
-![jenkins登录](../upload/jenkins-welcome.png)
+![jenkins登录](../acess/jenkins-welcome.png)
 
 ### 安装Blue Ocean插件
 
@@ -551,7 +551,7 @@ cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
     > - 2.2.1-6u025
     >   Description : different maven edition.
 
-![image-20200524230105011](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200524230105011.png)
+![image-20200524230105011](../acess/image-20200524230105011.png)
 
 ## Pipeline Script
 
@@ -698,10 +698,10 @@ docker push harbor.wzxmt.com/base/jre8:8u112
 
 打开jenkins页面，使用admin登录，准备构建`dubbo-demo`项目
 
-![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200524231817369.png)
+![jenkins构建](../acess/image-20200524231817369.png)
 点`Build with Parameters`
 
-![jenkins构建详情](https://blog.stanley.wang/images/jenkins-builddetail.png)
+![jenkins构建详情](../acess/jenkins-builddetail.png)
 依次填入/选择：
 
 - app_name
@@ -750,7 +750,7 @@ test $? -eq 0 && 成功，进行下一步 || 失败，排错直到成功
 
 ### 检查harbor仓库内镜像
 
-![harbor仓库内镜像](https://blog.stanley.wang/images/harbor-firstci.png)
+![harbor仓库内镜像](../acess/harbor-firstci.png)
 
 ### 准备k8s资源配置清单
 
@@ -1047,10 +1047,10 @@ http://dubbo-monitor.wzxmt.com
 
 打开jenkins页面，使用admin登录，准备构建`dubbo-demo`项目
 
-![jenkins构建](https://blog.stanley.wang/images/jenkins-firstbuild.png)
+![jenkins构建](../acess/jenkins-firstbuild.png)
 点`Build with Parameters`
 
-![jenkins构建详情](https://blog.stanley.wang/images/jenkins-builddetail.png)
+![jenkins构建详情](../acess/jenkins-builddetail1)
 依次填入/选择：
 
 - app_name
@@ -1099,7 +1099,7 @@ test $? -eq 0 && 成功，进行下一步 || 失败，排错直到成功
 
 ### 检查harbor仓库内镜像
 
-![harbor仓库内镜像](https://blog.stanley.wang/images/harbor-secondci.png)
+![harbor仓库内镜像](../acess/harbor-secondci.png)
 
 ### 解析域名
 

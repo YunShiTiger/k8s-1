@@ -143,7 +143,7 @@ spec:
 
 ### Kubernetes默认的调度策略
 
-![1587049585883](assets/1587049585883.png)
+![1587049585883](../acess/1587049585883.png)
 
 > 调度机制的工作原理示意图
 
@@ -233,17 +233,17 @@ spec:
 
 ### kubelet
 
-![img](https://static001.geekbang.org/resource/image/91/03/914e097aed10b9ff39b509759f8b1d03.png)
+![img](../acess/914e097aed10b9ff39b509759f8b1d03.png)
 
 **kubelet 调用下层容器运行时的执行过程，并不会直接调用 Docker 的 API，而是通过一组叫作 CRI（Container Runtime Interface，容器运行时接口）的 gRPC 接口来间接执行的。**为什么由CRI来间接执行是关乎历史原因，搭配CRI之后，Kubernetes 以及 kubelet 本身的架构，就可以用如下所示的一幅示意图来描述。
 
-![img](https://static001.geekbang.org/resource/image/51/fe/5161bd6201942f7a1ed6d70d7d55acfe.png)
+![img](../acess/5161bd6201942f7a1ed6d70d7d55acfe.png)
 
 可以看到，当 Kubernetes 通过编排能力创建了一个 Pod 之后，调度器会为这个 Pod 选择一个具体的节点来运行，比如创建一个Pod。此时，kubelet 实际上就会调用一个叫作 GenericRuntime 的通用组件来发起创建 Pod 的 CRI 请求。如果使用容器项目是 Docker 的话，那么负责响应这个请求的就是一个叫作 dockershim 的组件。它会把 CRI 请求里的内容拿出来，然后组装成 Docker API 请求发给 Docker Daemon。
 
 **CRI 这个接口的定义**如下图
 
-![1587263685501](assets/1587263685501.png)
+![1587263685501](../acess/1587263685501.png)
 
 - 第一组，是 RuntimeService。它提供的接口，主要是跟容器相关的操作。比如，创建和启动容器、删除容器、执行 exec 命令等等。
 - 而第二组，则是 ImageService。它提供的接口，主要是容器镜像相关的操作，比如拉取镜像、删除镜像等等。

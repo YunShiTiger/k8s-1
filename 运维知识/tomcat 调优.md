@@ -34,7 +34,7 @@ set JAVA_OPTS=-server -XX:PermSize=512M -XX:MaxPermSize=1024m -Xms2048m -Xmx2048
 
 Connector是连接器，负责接收客户的请求，以及向客户端回送响应的消息。所以 Connector的优化是重要部分。默认情况下 Tomcat只支持200线程访问，超过这个数量的连接将被等待甚至超时放弃，所以我们需要提高这方面的处理能力。
 
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20181120143608487.png)
+![在这里插入图片描述](../acess/tmc05)
 
 参数说明
 
@@ -51,7 +51,7 @@ Connector是连接器，负责接收客户的请求，以及向客户端回送�
 
 ### 缓存优化
 
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20181120144104609.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI4MTA5MTcx,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/tmc04)
 
 参数说明
 
@@ -62,7 +62,7 @@ Connector是连接器，负责接收客户的请求，以及向客户端回送�
 
 ### IO优化
 
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20181120144740303.png)
+![在这里插入图片描述](../acess/tmc03)
 
 说明
 1:同步阻塞IO（JAVA BIO） 同步并阻塞，服务器实现模式为一个连接一个线程(one connection one thread 想想都觉得恐怖,线程可是非常宝贵的资源)，当然可以通过线程池机制改善.
@@ -76,9 +76,9 @@ AIO方式使用于连接数目多且连接比较长（重操作）的架构，�
 
 配置
 
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20181120145457967.png)
+![在这里插入图片描述](../acess/tmc02)
 
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20181120145441570.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI4MTA5MTcx,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/tmc01)
 
 
 参数说明

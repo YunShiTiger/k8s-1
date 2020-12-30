@@ -2,7 +2,7 @@
 
 自动化执行的方式有很多种，最原始的就是shell脚本，但是显然它不能满足我们的需求。常见自动化配置管理工具有很多种，slatstack和ansible是比较流行的两种，而且它们都是用python开发的，但是相对来讲ansible的优势更加明显，主要是因为它拥有大量的模块和插件，而且你在GitHub和gitee上也可以找到很多别人写好的编排剧本，基本拿过来就可以使用了。
 
-![ansible超详细讲解，值得收藏](https://p3-tt.byteimg.com/origin/pgc-image/02a45f9db4fc4d68bda0c2d9cf0692cb?from=pc)
+![ansible超详细讲解，值得收藏](../acess/02a45f9db4fc4d68bda0c)
 
 
 
@@ -567,7 +567,7 @@ hosts变量通过-e传递是比较常见的，我们可以区分测试环境和�
         msg: "{{httpd_status}}"
 ```
 
-![ansible超详细讲解，值得收藏](https://p1-tt.byteimg.com/origin/pgc-image/8e79e70ef4b34cc8be006a90ff3b703d?from=pc)
+![ansible超详细讲解，值得收藏](../acess/8e79e70ef4b34cc8be006a90ff3b703d)
 
 
 
@@ -575,13 +575,13 @@ hosts变量通过-e传递是比较常见的，我们可以区分测试环境和�
 
 # **ansible facts变量的意义**
 
-![ansible超详细讲解，值得收藏](https://p6-tt.byteimg.com/origin/pgc-image/6652ad151e4c4784b95f4cfbe08bf3f6?from=pc)
+![ansible超详细讲解，值得收藏](../acess/6652ad151e4c4784b95f4cfbe08bf3f6)
 
 
 
 这是我们安装Apache的打印，可以看到分为几个过程：PLAY、TASK、PLAY RECAP，在TASK的第一个打印我们看到是Gathering Facts，但是我们并没有添加这个任务，这是ansible自动为我们添加的，这个任务是做什么用的呢？我们在执行的过程中发现这一块执行时间还比较长。这个任务的主要作用是获取目标主机的信息，我们看一下都能获取哪些信息，可以通过以下语句打印：**ansible web -m setup**
 
-![ansible超详细讲解，值得收藏](https://p1-tt.byteimg.com/origin/pgc-image/d111dc8ed184487f9f01c8cfb2b38b66?from=pc)
+![ansible超详细讲解，值得收藏](../acess/d111dc8ed184487f9f01c8cfb2b38b66)
 
 
 
@@ -595,7 +595,7 @@ hosts变量通过-e传递是比较常见的，我们可以区分测试环境和�
         msg: IP address is {{ansible_default_ipv4.address}} in hosts {{ansible_distribution}}
 ```
 
-![ansible超详细讲解，值得收藏](https://p6-tt.byteimg.com/origin/pgc-image/a9802bdb832446f2a2f876731372f52c?from=pc)
+![ansible超详细讲解，值得收藏](../acess/a9802bdb832446f2a2f876731372f52c)
 
 
 
@@ -613,7 +613,7 @@ hosts变量通过-e传递是比较常见的，我们可以区分测试环境和�
       service: name=httpd state=started enabled=yes
 ```
 
-![ansible超详细讲解，值得收藏](https://p3-tt.byteimg.com/origin/pgc-image/47e70527ae6542d2bf253af887777a5d?from=pc)
+![ansible超详细讲解，值得收藏](../acess/47e70527ae6542d2bf253af887777a5d)
 
 
 
@@ -952,7 +952,7 @@ jinja模板是类似Django的模板，如果做过Django的同学应该是比较
 
 最后我们要讲一下ansible中最重要的一个概念-roles，如果前面的你都搞清楚了，那么roles是非常简单的。总的来说roles就是把我们前面讲过的东西进行了一个排版，它规定了严格的目录格式，我们必须按照目录结构和文件名进行创建，否则它的文件系统就加载不到。目录格式如下：
 
-![ansible超详细讲解，值得收藏](https://p3-tt.byteimg.com/origin/pgc-image/c597b1b340644993a1cff74d0a16001b?from=pc)
+![ansible超详细讲解，值得收藏](../acess/c597b1b340644993a1cff74d0a16001b)
 
 
 
@@ -991,7 +991,7 @@ jinja模板是类似Django的模板，如果做过Django的同学应该是比较
 
 就把上面这一段改成roles的格式，目录结构如下：
 
-![ansible超详细讲解，值得收藏](https://p3-tt.byteimg.com/origin/pgc-image/eb910b70a3634b2c98229b0dbc7cefb8?from=pc)
+![ansible超详细讲解，值得收藏](../acess/eb910b70a3634b2c98229b0dbc7cefb8)
 
 
 
@@ -1026,7 +1026,7 @@ jinja模板是类似Django的模板，如果做过Django的同学应该是比较
 
 最后再与httpd1.yml同级目录下执行**ansible-playbook httpd1.yml**即可（我这里实际是httpd2.yml，不要在意这些细节）
 
-![ansible超详细讲解，值得收藏](https://p6-tt.byteimg.com/origin/pgc-image/abb1d04ab856415a9de210522daf2ee4?from=pc)
+![ansible超详细讲解，值得收藏](../acess/abb1d04ab856415a9de210522daf2ee4)
 
 
 

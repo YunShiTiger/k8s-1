@@ -16,7 +16,7 @@ dubbo 依赖于反射和代理去实现;dubbo 消费方服务是不停监听注�
 
 
 
-![img](https://oscimg.oschina.net/oscnet/c034e3d954d909a6c6979ffdeb74cefb904.jpg)
+![img](../acess/c034e3d954d909a6c6979ffdeb74cefb904.jpg)
 
 
 
@@ -52,7 +52,7 @@ Dubbo项目可以在 [http://dubbo.io/](https://link.jianshu.com?t=http%3A%2F%2F
 
 
 
-![img](https:////upload-images.jianshu.io/upload_images/9487374-5528239355b5f5a2.JPG?imageMogr2/auto-orient/strip|imageView2/2/w/352/format/webp)
+![img](../acess/webp)
 
 可以通过Dubbo的代码（使用Maven管理）组织，与上面的模块进行比较。简单说明各个包的情况：
 

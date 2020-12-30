@@ -455,7 +455,7 @@ args:
 kubectl apply -f ingressroute-tcp.yaml
 ```
 
-![image-20200809220848663](upload/image-20200809220848663.png)
+![image-20200809220848663](acess/image-20200809220848663.png)
 
 #### 4.3、添加DNS解析
 
