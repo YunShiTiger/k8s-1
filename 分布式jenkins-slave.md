@@ -342,7 +342,7 @@ cp /root/.ssh/id_rsa ./
 
 ```bash
 cat << 'EOF' >Dockerfile
-ARG version=4.3-4
+ARG version=latest
 FROM jenkins/inbound-agent:$version
 USER root
 COPY * /root/
@@ -651,6 +651,7 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
+      label "jenkins-slave"
       yaml """
 apiVersion: v1
 kind: Pod
@@ -855,6 +856,7 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
+      label "jenkins-slave"
       yaml """
 apiVersion: v1
 kind: Pod
