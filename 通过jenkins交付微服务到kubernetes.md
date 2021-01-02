@@ -102,106 +102,24 @@ mysql -uroot -p -e "source stock.sql"
 ## 四、在Kubernetes中部署jenkins
 
 部署（略）
-
-先创建一个test的pipeline的语法流水线，熟悉一下怎么发布任务
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281544.png)
-在这里就可以看到语法的格式，这里分为两种，以pipeline开头的也叫声明式语法，主要遵循的Groovy的相同语法来实现的pipeline {}
-这个也是比较主流的方式。
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281546.png)
-测试一个hello的语法，默认提供的pipeline,进行使用
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281515.png)
-直接build，这个就能构建
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/200511164028151.png)
-当我们构建完成后，这里会显示一个执行的步骤显示一个具体的内容，可以看到jenkins的工作目录，默认传统部署jenkins的目录为/root/.jenkins下，而作为在k8s部署jenkins需要考虑数据的持久化了，因为pod遇到不确定的因素进行重启之后，那么这个pod的数据就会丢失，所以针对这个问题，我们就需要将这个pod的工作目录挂载到持久卷上，这样的话，即使pod重启飘移到其他的节点也能读取到相应的数据了。
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281511.png)
-可以看到k8s的持久化目录是在这个jobs目录下，将我们构建的内容和数据都放在这里了。
-
-```
-[root@k8s-node3 ~]# ll /ifi/kubernetes/default-jenkins-home-pvc-0d67f7f5-2b31-4dc8-aee2-5e7b9e0e7e19/jobs/test/
-总用量 8
-drwxr-xr-x 3 1000 1000   50 1月  13 11:36 builds
--rw-r--r-- 1 1000 1000 1021 1月  13 11:36 config.xml
--rw-r--r-- 1 1000 1000    2 1月  13 11:36 nextBuildNumber
-```
-
-测试一个hello的pipeline的语法格式
-
-```
-pipeline {
-   agent any
-
-   stages {
-      stage('Build') {
-         steps {
-            echo "hello" 
-         }
-      }
-      stage('test') {
-         steps {
-            echo "hello"
-         }
-      }
-      stage('deploy') {
-         steps {
-            echo "hello"
-         }
-      }
-   }
-}
-```
-
-控制台输出了三个任务，分别执行hello，大概就是这个样子
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281550.png)
-目录也持久化了，看到新增的jenkins的项目任务
-[root@k8s-node3 ~]# ll /ifi/kubernetes/default-jenkins-home-pvc-0d67f7f5-2b31-4dc8-aee2-5e7b9e0e7e19/jobs/
-总用量 0
-drwxr-xr-x 3 1000 1000 61 1月 13 11:36 test
-drwxr-xr-x 3 1000 1000 61 1月 13 14:04 test-demo
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/200511164028159.png)
 jenkins pipeline就像一个管道的建模一样,在这个脚本里完成了整个生命周期各个阶段，从development开发提交代码commit id,到build构建，再到test测试，再到stage步骤做一些处理，deploy部署到dev或者qa环境中，最后到线上,其实在这个流程中它是有一个目的的，刚开始是在开发环境，最终是把它带到线上环境，而中间一系列的流程都是通过管道的形式串起来，而这个管道这个模型是通过pipeline去书写的，这个语法就是这个模型，需要把这个生命周期的所需的都套进这个模型中来，然后由jenkins pipeline去管理
 
-第一用这个pipepine它有很大的特点
+pipepine它有很大的特点
 1、可视化页面，每个步骤都可以可视化展示，方便我们去解决每个步骤的相关问题
 2、每个步骤都写脚本里面了，只需要维护这个脚本就好了，而这个脚本可以写的具有通用性，如果想写多个项目时，比如发布3组微服务，那么第一个写的pipeline，那么也同样适用于第二个和第三个微服务的模版。那么这个需要考虑它们有哪些不同点？
 不同点：
-1）拉取git代码的地址不一样
-2）分支名也不一样，因为是不同的git地址，所以打的分支名也不一样。
-3）部署的机器也不一样，有可能这几个服务部署在node1,另外的服务部署在node2或者node3
-4）打出的包名不一样
+
+- 拉取git代码的地址不一样
+- 分支名也不一样，因为是不同的git地址，所以打的分支名也不一样。
+- 部署的机器也不一样，有可能这几个服务部署在node1,另外的服务部署在node2或者node3
+- 打出的包名不一样
+
 所以要把这些不同点，做成一种人工交互的形式去发布，这样的话这个脚本才具有通用性，发布服务才能使用这写好的pipeline发布更多的微服务，而且jenkins pipeline支持参数化构建。
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281549.png)
-这里也就是pipeline一些的语法，比如选择parameters参数化构建，选择框式参数choice parameter，比如给它几个值，然后让它动态的去输入，或者凭据参数credentials parameter,或者文件参数file parameter，或者密码参数password parameter，或者运行参数 run parameter,或者字符串参数 string paramether ,或者多行字符串参数multi-line string parameter,或者布尔型参数boolean parameter
-
-比如选择choice parameter，选择型参数
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281537.png)
-比如发布的git地址不一样，那么就需要多个地址可以去选择，需要使用choice parameter选择框型参数，这个可以体现在构建的页面，也可以体现在configure配置的页面,这样配置也比较麻烦，所以直接在configure里面直接添加对应的参数就可以
-先配置一个看一下效果
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281517.png)
-将生成的选择型参数添加到指定的pipeline的语法中，save一下
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281528.png)
-再回到项目中可以看到build名字从build now换成了build with parameters，也就是增加了几行的的配置，可以进行选择的去拉去哪个分支下的代码了
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281548.png)
-也可以在configure去配置，这两个地方都可以添加，要是再添加一个直接add parameter，可以选择多种类型的参数帮助我们去构建这个多样式的需求
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281512.png)
-再比如分支这一块，可能每次打的分支都不同，这个不是固定的，所以需要一个git的参数化构建，那么这个就需要动态的去从选择的git地址获取到当前的所有的分支
-还有一个分布的机器不同，这个也可以使用刚才的choice parameter，将多个主机的ip也进去
-
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/200511164028158.png)
-将这个生产的语法，复制到pipeline语法中
-choice choices: ['10.4.7.12', '10.4.7.21', '10.4.7.22'], description: '发布哪台node上', name: 'host'
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281521.png)
-构建一下，发现也可以使用选择型参数了，类似这个的人工交互就可以选择多个参数了，可以写一个通用的模版，就处理人工交互的逻辑
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281516.png)
-现在我们可以去人工选择了，这里面的值怎么获取到，我们处理不同的项目，必须在这里面去实现，比如选择这个git之后，拉取这个代码编译构建，这些可能都是一些相同点，不同点发布的机器不一样，所以要选择用户是拿到的哪个git地址，发布的哪个机器，在脚本里去拿到，其实默认这个name就是一个变量，jenkins已经将这个赋予变量，并且pipeline可以直接获取这个变量名，就是刚才定义的git,host这个名字，那么我们从刚才设置的parameters里去测试这个变量可不可以拿到，拿到的话说明这个就很好去处理
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281519.png)
-构建一下，现在构建成功后已经是构建成功了，也已经获取到刚才我们的git这个参数下的值了
-![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/200511164028155.png)
-
-有了这些方式，就可以将这些不同点通过里面的agent和shell脚本来处理了,写pipeline参数化构建就是满足更多的一个需求，能适配更多的项目，能让人工干预的做一些复杂的任务
 
 五、jenkins在k8s中动态创建代理(略)
 
-六、自定义构建jenkins-slave镜像(略)
+六、部署私有代码仓库gitlab(略)
 
 七、基于kubernetes构建jenkins ci系统(略)
 
@@ -397,16 +315,12 @@ pipeline解析
 1、首先去安装这几个插件
 
 - Git Parameter 可以实现动态的从git中获取所有分支
-
 - Git 拉取代码
-
 - Pipeline 刚才安装的pipeline，来实现这个pipeline流水线的发布任务
-
 - Config File Provider 主要可以将kubeconfig配置文件存放在jenkins里，让这个pipeline引用这个配置文件
-
 - kubernetes 动态的去创建代理，好让k8s连接到jenkins，可以动态的去伸缩slave节点
-
 - Extended Choice Parameter 进行对选择框插件进行扩展，可以多选，扩展参数构建，而且部署微服务还需要多选
+- Blue Ocean 一个可视化、可编辑的流水线插件
 
 2、参数含义
 // 公共
