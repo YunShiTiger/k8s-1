@@ -357,9 +357,9 @@ spec:
                 helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} \
                 --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} myrepo/${Template}"
 
+
                 #判断是否为新部署
-                helm history \${service_name}  ${k8s_args} &>/dev/null
-                if [ \$? -eq 0 ];then
+                if helm history \${service_name} ${k8s_args} &>/dev/null;then
                   action=upgrade
                 else
                   action=install
