@@ -212,18 +212,20 @@ choice choices: ['10.4.7.12', '10.4.7.21', '10.4.7.22'], description: '发布哪
 ```json
 #!/usr/bin/env groovy
 // 公共
-def registry = "https://harbor.wzxmt.com"
+def registry = "harbor.wzxmt.com"
 // 项目
-def project = "microservice"
-def git_url = "https://github.com/wzxmt/simple-microservice.git"
+//def project = "microservice"
+def git_url = "http://git.wzxmt.com:9999/root/simple-microservice.git"
 def gateway_domain_name = "gateway.wzxmt.com"
 def portal_domain_name = "portal.wzxmt.com"
+def k8s_args="--kubeconfig /opt/admin.kubeconfig"
+def k8s_ns_args="-n ${params.Namespace} --kubeconfig /opt/admin.kubeconfig"
 // 认证
 def image_pull_secret = "registry-pull-secret"
-def harbor_registry_auth = "e5402e52-7dd0-4daf-8d21-c4aa6e47736b"
-def git_auth = "a65680b4-0bf7-418f-a77e-f20778f9e737"
+def harbor_registry_auth = "68c13df1-8979-42a2-9bfc-eecb8491212d"
+def git_auth = "4cfda67a-5ae0-4c93-88cd-a91d9fc2ba8a"
 // ConfigFileProvider ID
-def k8s_auth = "7ee65e53-a559-4c52-8b88-c968a637051e"
+def k8s_auth = "bbafac8f-2d98-421f-af11-7ec9462e005b"
 
 pipeline {
   agent {
@@ -274,10 +276,14 @@ spec:
    }
 } 
     parameters {
+        string defaultValue: 'simple-microservice', description: '', name: 'project', trim: true
         gitParameter branch: '', branchFilter: '.*', defaultValue: '', description: '选择发布的分支', name: 'Branch', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'NONE', tagFilter: '*', type: 'PT_BRANCH'        
         extendedChoice defaultValue: 'none', description: '选择发布的微服务', \
           multiSelectDelimiter: ',', name: 'Service', type: 'PT_CHECKBOX', \
           value: 'gateway-service:9999,portal-service:8080,product-service:8010,order-service:8020,stock-service:8030'
+        string defaultValue: '', description: '', name: 'add_tag', trim: true
+        choice choices: ['maven-3.6.3', 'maven-3.6.0'], description: '', name: 'maven_version'
+        choice choices: ['mvn clean package -Dmaven.test.skip=true', 'mvn clean install -Dmaven.test.skip=true -Dmaven.javadoc.skip=true'], description: '', name: 'mvn_cmd'
         choice (choices: ['ms', 'demo'], description: '部署模板', name: 'Template')
         choice (choices: ['1', '3', '5', '7'], description: '副本数', name: 'ReplicaCount')
         choice (choices: ['ms'], description: '命名空间', name: 'Namespace')
@@ -297,7 +303,7 @@ spec:
             // 编译指定服务
             steps {
                 sh """
-                  mvn clean package -Dmaven.test.skip=true
+                  /opt/${params.maven_version}/bin/${params.mvn_cmd}
                 """
             }
         }
@@ -305,69 +311,79 @@ spec:
           steps {
               withCredentials([usernamePassword(credentialsId: "${harbor_registry_auth}", passwordVariable: 'password', usernameVariable: 'username')]) {
                 sh """
-                 docker login -u ${username} -p '${password}' ${registry}
+                 echo "\${password}" | docker login --username admin --password-stdin ${registry}
                  for service in \$(echo ${Service} |sed 's/,/ /g'); do
                     service_name=\${service%:*}
-                    image_name=${registry}/${project}/\${service_name}:${BUILD_NUMBER}
+                    image_name=${registry}/app/\${service_name}:${params.add_tag}
                     cd \${service_name}
-                    if ls |grep biz &>/dev/null; then
+                    n=`ls |grep biz|wc -l`
+                    if [ \$n -ne 0 ]; then
                         cd \${service_name}-biz
                     fi
+
                     docker build -t \${image_name} .
                     docker push \${image_name}
                     cd ${WORKSPACE}
                   done
                 """
-                configFileProvider([configFile(fileId: "${k8s_auth}", targetLocation: "admin.kubeconfig")]){
-                    sh """
-                    // 添加镜像拉取认证
-                    kubectl create secret docker-registry ${image_pull_secret} --docker-username=${username} --docker-password=${password} --docker-server=${registry} -n ${Namespace} --kubeconfig admin.kubeconfig |true
-
-                    // 添加私有chart仓库
-                    helm repo add  --username ${username} --password ${password} myrepo http://${registry}/chartrepo/${project}
-                    """
-                }
-              }
+              configFileProvider([configFile(fileId: "${k8s_auth}", targetLocation: '/opt/admin.kubeconfig')]) {
+                sh """
+                    # 添加ns
+                    m_ns=`kubectl get ns ${k8s_args} |grep -w ${Namespace}|wc -l`
+                    if [ \${m_ns} -eq 0 ];then
+                        kubectl create ns ${params.Namespace} ${k8s_args}
+                    fi
+                    # 添加镜像拉取认证
+                    m_sc=`kubectl get secret ${k8s_ns_args}|grep -w ${image_pull_secret}|wc -l`
+                    if [ \${m_sc} -eq 0 ];then
+                        kubectl create secret docker-registry ${image_pull_secret} --docker-username=${username} \
+                        --docker-password=${password} --docker-server=https://${registry} ${k8s_ns_args}
+                    fi
+                    # 添加私有chart仓库
+                    # helm repo add  --username ${username} --password ${password} myrepo http://${registry}/chartrepo/${project} ${k8s_ns_args}
+                   """
+               }
+             }
           }
         }
         stage('Helm部署到K8S') {
           steps {
               sh """
-              common_args="-n ${Namespace} --kubeconfig admin.kubeconfig"
-
               for service in  \$(echo ${Service} |sed 's/,/ /g'); do
                 service_name=\${service%:*}
                 service_port=\${service#*:}
                 image=${registry}/${project}/\${service_name}
-                tag=${BUILD_NUMBER}
-                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} myrepo/${Template}"
+                tag=${params.add_tag}
+                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} \
+                --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} myrepo/${Template}"
 
-                // 判断是否为新部署
-                if helm history \${service_name} \${common_args} &>/dev/null;then
+                #判断是否为新部署
+                helm history \${service_name}  ${k8s_args} &>/dev/null
+                if [ \$? -eq 0 ];then
                   action=upgrade
                 else
                   action=install
                 fi
 
-                // 针对服务启用ingress
+                #针对服务启用ingress
                 if [ \${service_name} == "gateway-service" ]; then
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${gateway_domain_name} \
-                   \${common_args}
+                   ${k8s_ns_args}
                 elif [ \${service_name} == "portal-service" ]; then
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${portal_domain_name} \
-                   \${common_args}
+                   ${k8s_ns_args}
                 else
-                  helm \${action} \${helm_args} \${common_args}
+                  helm \${action} \${helm_args} ${k8s_ns_args}
                 fi
               done
 
-              // 查看Pod状态
+              #查看Pod状态
               sleep 10
-              kubectl get pods \${common_args}
+              kubectl get pods ${k8s_ns_args}
               """
           }
         }

@@ -342,7 +342,7 @@ cp /root/.ssh/id_rsa ./
 
 ```bash
 cat << 'EOF' >Dockerfile
-ARG version=latest
+ARG version=v4.3-4
 FROM jenkins/inbound-agent:$version
 USER root
 COPY * /root/
