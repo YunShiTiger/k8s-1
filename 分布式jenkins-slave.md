@@ -536,6 +536,7 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
+    label "jenkins-slave"
     yaml """
 apiVersion: v1
 kind: Pod
@@ -635,7 +636,8 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
-    yaml """
+      label "jenkins-slave"
+      yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -692,30 +694,32 @@ parameters {
   choice choices: ['base/jre8:8u112', 'base/jre7:7u112'], description: 'different base images.', name: 'base_image'
   choice choices: ['maven-3.6.3', 'maven-3.6.2', 'maven-3.6.1'], description: 'different maven edition.', name: 'maven'
 }
-stages {
-      stage('pull') { //get project code from repo 
-        steps {
-          sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
+    stages {
+    stage('pull') { //get project code from repo 
+      steps {
+        sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
         }
+    }
+    stage('build') { //exec mvn cmd
+      steps {
+        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
       }
-      stage('build') { //exec mvn cmd
-        steps {
-          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
-        }
+    }
+    stage('unzip') { //unzip  target/*.war -c target/project_dir
+      steps {
+        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && unzip *.war -d ./project_dir"
       }
-      stage('package') { //move jar file into project_dir
-        steps {
-          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && mv *.jar ./project_dir"
-        }
+    }
+    stage('image') { //build image and push to registry
+      steps {
+        writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
+ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
+        sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
+        docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
+        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
       }
-      stage('image') { //build image and push to registry
-        steps {
-          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
-ADD ${params.target_dir}/project_dir /opt/project_dir"""
-          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
-        }
-      }
-   }
+    }
+  }
 }
 ```
 
@@ -742,6 +746,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 pipeline {
   agent {
     kubernetes {
+    label "jenkins-slave"
     yaml """
 apiVersion: v1
 kind: Pod
