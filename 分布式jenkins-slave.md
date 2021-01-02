@@ -529,121 +529,6 @@ dubbo-monitor IN A 60 10.0.0.50
 
 - Pipeline -> OK
 
-- Discard wzxmt builds
-
-  > Days to keep builds : 3
-  > Max # of builds to keep : 30
-
-- This project is parameterized
-
-1. Add Parameter -> String Parameter
-
-   > Name : app_name
-   > Default Value :
-   > Description : project name. e.g: dubbo-demo-service
-
-2. Add Parameter -> String Parameter
-
-   > Name : image_name
-   > Default Value : app/dubbo-demo-service
-   > Description : project docker image name. e.g: app/dubbo-demo-service
-
-3. Add Parameter -> String Parameter
-
-   > Name : git_repo
-   > Default Value :
-   > Description : project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git
-
-4. Add Parameter -> String Parameter
-
-   > Name : git_ver
-   > Default Value :
-   > Description : git commit id of the project.
-
-5. Add Parameter -> String Parameter
-
-   > Name : add_tag
-   > Default Value :
-   > Description : project docker image tag, date_timestamp recommended. e.g: 190117_1920
-
-6. Add Parameter -> String Parameter
-
-   > Name : mvn_dir
-   > Default Value : /opt
-   > Description : project maven directory. e.g: ./
-
-7. Add Parameter -> String Parameter
-
-   > Name : target_dir
-   > Default Value : ./target
-   > Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target
-
-8. Add Parameter -> String Parameter
-
-   > Name : mvn_cmd
-   > Default Value : mvn clean package -Dmaven.test.skip=true
-   > Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true
-
-9. Add Parameter -> Choice Parameter
-
-   > Name : base_image
-   > Default Value :
-   >
-   > - base/jre7:7u80
-   > - base/jre8:8u112
-   >   Description : project base image list in harbor.wzxmt.com.
-
-10. Add Parameter -> Choice Parameter
-
-    > Name : maven
-    > Default Value :
-    >
-    > - maven-3.6.3
-    > - maven-3.6.0
-    >   Description : different maven edition.
-
-填入
-
-- app_name
-
-  > dubbo-demo-service
-
-- image_name
-
-  > app/dubbo-demo-service
-
-- git_repo
-
-  > https://github.com/wzxmt/dubbo-demo-service.git
-
-- git_ver
-
-  > apollo
-
-- add_tag
-
-  > 200525_0100
-
-- mvn_dir
-
-  > /opt
-
-- target_dir
-
-  > ./dubbo-server/target
-
-- mvn_cmd
-
-  > mvn clean package -Dmaven.test.skip=true
-
-- base_image
-
-  > base/jre8:8u112
-
-- maven
-
-  > maven-3.6.3
-  > maven-3.6.0
 
 Pipeline Script
 
@@ -651,8 +536,7 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
-      label "jenkins-slave"
-      yaml """
+    yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -696,6 +580,19 @@ spec:
 """
    }
 } 
+parameters {
+  string defaultValue: 'dubbo-demo-service', description: 'project name. e.g: dubbo-demo-service', name: 'app_name', trim: true
+  string defaultValue: 'app/dubbo-demo-service', description: 'project docker image name. e.g: app/dubbo-demo-service', name: 'image_name', trim: true
+  string defaultValue: 'https://github.com/wzxmt/dubbo-demo-service.git', description: 'project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git', name: 'git_repo', trim: true
+  string defaultValue: 'apollo', description: 'git commit id of the project.', name: 'git_ver', trim: true
+  string defaultValue: '', description: 'project docker image tag, date_timestamp recommended. e.g: 200102_0001', name: 'add_tag', trim: true
+  string defaultValue: '/opt', description: 'project maven directory. e.g: ./', name: 'mvn_dir', trim: true
+  string defaultValue: './dubbo-server/target', description: 'the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target', name: 'target_dir', trim: true
+  string defaultValue: 'mvn clean package -Dmaven.test.skip=true', description: 'maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true', name: 'mvn_cmd', trim: true
+  string defaultValue: '/opt', description: '', name: 'mvn_dir', trim: true
+  choice choices: ['base/jre8:8u112', 'base/jre7:7u112'], description: 'different base images.', name: 'base_image'
+  choice choices: ['maven-3.6.3', 'maven-3.6.2', 'maven-3.6.1'], description: 'different maven edition.', name: 'maven'
+}
 stages {
       stage('pull') { //get project code from repo 
         steps {
@@ -731,124 +628,6 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
   > dubbo-demo-consumer
 
-- Pipeline -> OK
-
-- Discard wzxmt builds
-
-  > Days to keep builds : 3
-  > Max # of builds to keep : 30
-
-- This project is parameterized
-
-1. Add Parameter -> String Parameter
-
-   > Name : app_name
-   > Default Value :
-   > Description : project name. e.g: dubbo-demo-service
-
-2. Add Parameter -> String Parameter
-
-   > Name : image_name
-   > Default Value :
-   > Description : project docker image name. e.g: app/dubbo-demo-service
-
-3. Add Parameter -> String Parameter
-
-   > Name : git_repo
-   > Default Value :
-   > Description : project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git
-
-4. Add Parameter -> String Parameter
-
-   > Name : git_ver
-   > Default Value :
-   > Description : git commit id of the project.
-
-5. Add Parameter -> String Parameter
-
-   > Name : add_tag
-   > Default Value :
-   > Description : project docker image tag, date_timestamp recommended. e.g: 190117_1920
-
-6. Add Parameter -> String Parameter
-
-   > Name : mvn_dir
-   > Default Value :  /opt
-   > Description : project maven directory. e.g: ./
-
-7. Add Parameter -> String Parameter
-
-   > Name : target_dir
-   > Default Value : ./target
-   > Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target
-
-8. Add Parameter -> String Parameter
-
-   > Name : mvn_cmd
-   > Default Value : mvn clean package -Dmaven.test.skip=true
-   > Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true
-
-9. Add Parameter -> Choice Parameter
-
-   > Name : base_image
-   > Default Value :
-   >
-   > - base/jre7:7u80
-   > - base/jre8:8u112
-   >   Description : project base image list in harbor.wzxmt.com.
-
-10. Add Parameter -> Choice Parameter
-
-    > Name : maven
-    > Default Value :
-    >
-    > - maven-3.6.3
-    >
-    > - maven-3.6.0
-    >
-    >   Description : different maven edition.
-
-依次填入/选择：
-
-- app_name
-
-  > dubbo-demo-consumer
-
-- image_name
-
-  > app/dubbo-demo-consumer
-
-- git_repo
-
-  > https://github.com/wzxmt/dubbo-demo-web.git
-
-- git_ver
-
-  > apollo
-
-- add_tag
-
-  > 200527_2150
-
-- mvn_dir
-
-  > /opt
-
-- target_dir
-
-  > ./dubbo-client/target
-
-- mvn_cmd
-
-  > mvn clean package -Dmaven.test.skip=true
-
-- base_image
-
-  > base/jre8:8u112
-
-- maven
-
-  > maven-3.6.3
 
 Pipeline Script
 
@@ -856,8 +635,7 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
-      label "jenkins-slave"
-      yaml """
+    yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -901,6 +679,19 @@ spec:
 """
    }
 } 
+parameters {
+  string defaultValue: 'dubbo-demo-consumer', description: 'project name. e.g: dubbo-demo-service', name: 'app_name', trim: true
+  string defaultValue: 'app/dubbo-demo-consumer', description: 'project docker image name. e.g: app/dubbo-demo-consumer', name: 'image_name', trim: true
+  string defaultValue: 'https://github.com/wzxmt/dubbo-demo-web.git', description: 'project git repository. e.g: https://github.com/wzxmt/dubbo-demo-web.git', name: 'git_repo', trim: true
+  string defaultValue: 'apollo', description: 'git commit id of the project.', name: 'git_ver', trim: true
+  string defaultValue: '', description: 'project docker image tag, date_timestamp recommended. e.g: 200102_0001', name: 'add_tag', trim: true
+  string defaultValue: '/opt', description: 'project maven directory. e.g: ./', name: 'mvn_dir', trim: true
+  string defaultValue: './dubbo-client/target', description: 'the relative path of target file such as .jar or .war package. e.g: ./dubbo-client/target', name: 'target_dir', trim: true
+  string defaultValue: 'mvn clean package -Dmaven.test.skip=true', description: 'maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true', name: 'mvn_cmd', trim: true
+  string defaultValue: '/opt', description: '', name: 'mvn_dir', trim: true
+  choice choices: ['base/jre8:8u112', 'base/jre7:7u112'], description: 'different base images.', name: 'base_image'
+  choice choices: ['maven-3.6.3', 'maven-3.6.2', 'maven-3.6.1'], description: 'different maven edition.', name: 'maven'
+}
 stages {
       stage('pull') { //get project code from repo 
         steps {
@@ -944,85 +735,6 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 - Pipeline -> OK
 
-- Discard old builds
-
-  > Days to keep builds : 3
-  > Max # of builds to keep : 30
-
-- This project is parameterized
-
-1. Add Parameter -> String Parameter
-
-   > Name : app_name
-   > Default Value :
-   > Description : project name. e.g: dubbo-demo-web
-
-2. Add Parameter -> String Parameter
-
-   > Name : image_name
-   > Default Value :
-   > Description : project docker image name. e.g: app/dubbo-demo-web
-
-3. Add Parameter -> String Parameter
-
-   > Name : git_repo
-   > Default Value :
-   > Description : project git repository. e.g: [git@gitee.com](https://gitee.com/wzxmt/dubbo-demo-web.git)
-
-4. Add Parameter -> String Parameter
-
-   > Name : git_ver
-   > Default Value : tomcat
-   > Description : git commit id of the project.
-
-5. Add Parameter -> String Parameter
-
-   > Name : add_tag
-   > Default Value :
-   > Description : project docker image tag, date_timestamp recommended. e.g: 200607_0930
-
-6. Add Parameter -> String Parameter
-
-   > Name : mvn_dir
-   > Default Value :  /opt
-   > Description : project maven directory. e.g: /opt
-
-7. Add Parameter -> String Parameter
-
-   > Name : target_dir
-   > Default Value : ./dubbo-client/target
-   > Description : the relative path of target file such as .jar or .war package. e.g: ./dubbo-client/target
-
-8. Add Parameter -> String Parameter
-
-   > Name : mvn_cmd
-   > Default Value : mvn clean package -Dmaven.test.skip=true
-   > Description : maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true
-
-9. Add Parameter -> Choice Parameter
-
-   > Name : base_image
-   > Default Value :
-   >
-   > - k/tomcat:v7.0.94
-   > - base/tomcat:v8.5.40
-   > - base/tomcat:v9.0.17
-   >   Description : project base image list in harbor.wzxmt.com.
-
-10. Add Parameter -> Choice Parameter
-
-    > Name : maven
-    > Default Value :
-    >
-    > - maven-3.6.0
-    > - maven-3.6.3
-    >   Description : different maven edition.
-
-11. Add Parameter -> String Parameter
-
-    > Name : root_url
-    > Default Value : ROOT
-    > Description : webapp dir.
 
 ### Pipeline Script
 
@@ -1030,7 +742,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 pipeline {
   agent {
     kubernetes {
-      yaml """
+    yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1074,32 +786,44 @@ spec:
 """
    }
 } 
-    stages {
-    stage('pull') { //get project code from repo 
-      steps {
-        sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
+parameters {
+  string defaultValue: 'dubbo-demo-web', description: 'project name. e.g: dubbo-demo-service', name: 'app_name', trim: true
+  string defaultValue: 'app/dubbo-demo-web', description: 'project docker image name. e.g: app/dubbo-demo-service', name: 'image_name', trim: true
+  string defaultValue: 'https://gitee.com/wzxmt/dubbo-demo-web.git', description: 'project git repository. e.g: https://gitee.com/wzxmt/dubbo-demo-web.git', name: 'git_repo', trim: true
+  string defaultValue: 'apollo', description: 'git commit id of the project.', name: 'git_ver', trim: true
+  string defaultValue: '', description: 'project docker image tag, date_timestamp recommended. e.g: 200102_0001', name: 'add_tag', trim: true
+  string defaultValue: '/opt', description: 'project maven directory. e.g: ./', name: 'mvn_dir', trim: true
+  string defaultValue: './dubbo-client/target', description: 'the relative path of target file such as .jar or .war package. e.g: ./dubbo-client/target', name: 'target_dir', trim: true
+  string defaultValue: 'mvn clean package -Dmaven.test.skip=true', description: 'maven command. e.g: mvn clean package -e -q -Dmaven.test.skip=true', name: 'mvn_cmd', trim: true
+  string defaultValue: '/opt', description: '', name: 'mvn_dir', trim: true
+  choice choices: ['base/tomcat:v8.5.40', 'base/tomcat:v9.0.17', 'base/tomcat:v7.0.94'], description: 'project base image list in harbor.wzxmt.com.', name: 'base_image'
+  choice choices: ['maven-3.6.3', 'maven-3.6.2', 'maven-3.6.1'], description: 'different maven edition.', name: 'maven'
+  string defaultValue: 'ROOT', description: 'webapp dir.', name: 'webapp_DIR', trim: true
+}
+stages {
+      stage('pull') { //get project code from repo 
+        steps {
+          sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
         }
-    }
-    stage('build') { //exec mvn cmd
-      steps {
-        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
       }
-    }
-    stage('unzip') { //unzip  target/*.war -c target/project_dir
-      steps {
-        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && unzip *.war -d ./project_dir"
+      stage('build') { //exec mvn cmd
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
+        }
       }
-    }
-    stage('image') { //build image and push to registry
-      steps {
-        writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
-ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
-        sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
-        docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
-        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+      stage('package') { //move jar file into project_dir
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && mv *.jar ./project_dir"
+        }
       }
-    }
-  }
+      stage('image') { //build image and push to registry
+        steps {
+          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
+ADD ${params.target_dir}/project_dir /opt/project_dir"""
+          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+        }
+      }
+   }
 }
 ```
 
