@@ -132,7 +132,6 @@ pipepine它有很大的特点
 // 公共
 def registry = "harbor.wzxmt.com"
 // 项目
-//def project = "microservice"
 def git_url = "http://git.wzxmt.com:9999/root/simple-microservice.git"
 def gateway_domain_name = "gateway.wzxmt.com"
 def portal_domain_name = "portal.wzxmt.com"
@@ -194,7 +193,7 @@ spec:
    }
 } 
     parameters {
-        string defaultValue: 'simple-microservice', description: '', name: 'project', trim: true
+        string defaultValue: 'app', description: 'harbor project', name: 'project', trim: true
         gitParameter branch: '', branchFilter: '.*', defaultValue: '', description: '选择发布的分支', name: 'Branch', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'NONE', tagFilter: '*', type: 'PT_BRANCH'        
         extendedChoice defaultValue: 'none', description: '选择发布的微服务', \
           multiSelectDelimiter: ',', name: 'Service', type: 'PT_CHECKBOX', \
@@ -232,7 +231,7 @@ spec:
                  echo "\${password}" | docker login --username admin --password-stdin ${registry}
                  for service in \$(echo ${Service} |sed 's/,/ /g'); do
                     service_name=\${service%:*}
-                    image_name=${registry}/app/\${service_name}:${params.add_tag}
+                    image_name="${registry}/${params.project}/\${service_name}:${params.add_tag}"
                     cd \${service_name}
                     n=`ls |grep biz|wc -l`
                     if [ \$n -ne 0 ]; then
@@ -258,7 +257,7 @@ spec:
                         --docker-password=${password} --docker-server=https://${registry} ${k8s_ns_args}
                     fi
                     # 添加私有chart仓库
-                    # helm repo add  --username ${username} --password ${password} myrepo http://${registry}/chartrepo/${project} ${k8s_ns_args}
+                    # helm repo add  --username ${username} --password ${password} myrepo http://${registry}/chartrepo/${params.project} ${k8s_ns_args}
                    """
                }
              }
@@ -270,10 +269,10 @@ spec:
               for service in  \$(echo ${Service} |sed 's/,/ /g'); do
                 service_name=\${service%:*}
                 service_port=\${service#*:}
-                image=${registry}/${project}/\${service_name}
+                image="${registry}/${params.project}/\${service_name}"
                 tag=${params.add_tag}
                 helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} \
-                --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} myrepo/${Template}"
+                --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} library/${Template}"
 
 
                 #判断是否为新部署
