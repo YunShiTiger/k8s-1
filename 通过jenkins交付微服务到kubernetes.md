@@ -313,13 +313,13 @@ spec:
         gitParameter branch: '', branchFilter: '.*', defaultValue: '', description: '选择发布的分支', name: 'Branch', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'NONE', tagFilter: '*', type: 'PT_BRANCH'        
         extendedChoice defaultValue: 'none', description: '选择发布的微服务', \
           multiSelectDelimiter: ',', name: 'Service', type: 'PT_CHECKBOX', \
-          value: 'gateway-service:9999,portal-service:8080,product-service:8010,order-service:8020,stock-service:8030'
+          value: 'product-service:8010,stock-service:8030,order-service:8020,portal-service:8080,gateway-service:9999'
         string defaultValue: '', description: '', name: 'add_tag', trim: true
         choice choices: ['maven-3.6.3', 'maven-3.6.0'], description: '', name: 'maven_version'
         choice choices: ['mvn clean package -Dmaven.test.skip=true', 'mvn clean install -Dmaven.test.skip=true -Dmaven.javadoc.skip=true'], description: '', name: 'mvn_cmd'
-        choice (choices: ['ms', 'deamon'], description: '部署模板', name: 'Template')
+        choice (choices: ['ms','test'], description: '命名空间', name: 'Namespace')
+        choice (choices: ['demo', 'ms'], description: '部署模板', name: 'Template')
         choice (choices: ['1', '3', '5', '7'], description: '副本数', name: 'ReplicaCount')
-        choice (choices: ['ms'], description: '命名空间', name: 'Namespace')
     }
     stages {
         stage('拉取代码'){
@@ -390,23 +390,23 @@ spec:
                 service_port=\${service#*:}
                 image="${registry}/${params.project}/\${service_name}"
                 tag=${params.add_tag}
-                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} \
-                --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} library/${Template}"
+                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set readinessProbe.tcpSocket.port=\${service_port} --set livenessProbe.tcpSocket.port=\${service_port} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} library/${Template}"
                  
                 #判断是否为新部署
-                if helm history \${service_name} ${k8s_args} &>/dev/null;then
+                helm list ${k8s_ns_args}|awk "NR>1{print \$1}"|grep \${service_name} &>/dev/null
+                if [ \$? -eq 0];then
                   action=upgrade
                 else
                   action=install
                 fi
 
                 #针对服务启用ingress
-                if [ \${service_name} == "gateway-service" ]; then
+                if [[ \${service_name} == "gateway-service" ]]; then
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${gateway_domain_name} \
                    ${k8s_ns_args}
-                elif [ \${service_name} == "portal-service" ]; then
+                elif [[ \${service_name} == "portal-service" ]]; then
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${portal_domain_name} \
@@ -443,7 +443,7 @@ pipeline解析
 // 公共
 
 ```json
-def registry = "https://harbor.wzxmt.com"   //镜像仓库
+def registry = "harbor.wzxmt.com"   //镜像仓库
 ```
 
 // 项目
@@ -633,13 +633,13 @@ stage('Helm部署到K8S') {
                 fi
 
                 //针对服务启用ingress
-                if [ \${service_name} == "gateway-service" ]; then
+                if [[ \${service_name} == "gateway-service" ]]; then
                   helm \${action} \${helm_args} \
                 //为true就启用ingress，因为chart肯定默认的为force，就是不启用ingress
                   --set ingress.enabled=true \  
                   --set ingress.host=${gateway_domain_name} \
                    \${common_args}
-                elif [ \${service_name} == "portal-service" ]; then 
+                elif [[ \${service_name} == "portal-service" ]]; then 
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${portal_domain_name} \
