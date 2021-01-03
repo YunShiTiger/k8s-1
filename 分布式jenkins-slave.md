@@ -313,6 +313,7 @@ $ cat ${WORK_DIR}/secrets/initialAdminPassword
 ├── Dockerfile（见下面）
 ├── repositories.yaml（helm chart认证文件）
 ├── helm（helm包管理器）
+├── cert.tar.gz (harbor 的ca证书及私钥)
 └── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ```
 
@@ -356,10 +357,10 @@ cat << "EOF" >repositories.yaml
 apiVersion: ""
 generated: "0001-01-01T00:00:00Z"
 repositories:
-- caFile: "ca.crt"
-  certFile: "harbor.wzxmt.com.crt"
+- caFile: "/opt/cert/ca.crt"
+  certFile: "/opt/cert/harbor.wzxmt.com.crt"
   insecure_skip_tls_verify: false
-  keyFile: "harbor.wzxmt.com.key"
+  keyFile: "/opt/cert/harbor.wzxmt.com.key"
   name: library
   password: admin
   url: https://harbor.wzxmt.com/chartrepo/library
@@ -375,24 +376,16 @@ repositories:
 EOF
 ```
 
-授权Jenkins
-
-```
-chown -R jenkins. *
-```
-
 #### 编写dockerfile
 
 ```bash
 cat << 'EOF' >Dockerfile
 FROM jenkins/inbound-agent:latest
-RUN mkdir -p /home/jenkins/.config/helm
 USER root
 ADD * /opt/
-RUN chown -R jenkins. /opt/* && rm -f /opt/Dockerfile && \
+RUN chown -R root. /opt/* && rm -f /opt/Dockerfile && \
 mv /opt/helm /usr/bin/ && mv /opt/kubectl /usr/bin/ && \
-mv /opt/repositories.yaml /home/jenkins/.config/helm
-USER jenkins
+mkdir -p /root/.config/helm && mv /opt/repositories.yaml /root/.config/helm
 ENTRYPOINT ["jenkins-agent"]
 EOF
 ```
@@ -599,7 +592,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /home/jenkins/.m2
+        mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -699,7 +692,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /home/jenkins/.m2
+        mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -809,7 +802,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /home/jenkins/.m2
+        mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin

@@ -284,7 +284,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /home/jenkins/.m2
+        mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -317,7 +317,7 @@ spec:
         string defaultValue: '', description: '', name: 'add_tag', trim: true
         choice choices: ['maven-3.6.3', 'maven-3.6.0'], description: '', name: 'maven_version'
         choice choices: ['mvn clean package -Dmaven.test.skip=true', 'mvn clean install -Dmaven.test.skip=true -Dmaven.javadoc.skip=true'], description: '', name: 'mvn_cmd'
-        choice (choices: ['ms', 'daemon'], description: '部署模板', name: 'Template')
+        choice (choices: ['ms', 'deamon'], description: '部署模板', name: 'Template')
         choice (choices: ['1', '3', '5', '7'], description: '副本数', name: 'ReplicaCount')
         choice (choices: ['ms'], description: '命名空间', name: 'Namespace')
     }
