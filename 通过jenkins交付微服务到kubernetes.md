@@ -150,9 +150,7 @@ spec:
   selector:
     project: infra
     app: eureka
-
 ---
-
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -319,7 +317,7 @@ spec:
         string defaultValue: '', description: '', name: 'add_tag', trim: true
         choice choices: ['maven-3.6.3', 'maven-3.6.0'], description: '', name: 'maven_version'
         choice choices: ['mvn clean package -Dmaven.test.skip=true', 'mvn clean install -Dmaven.test.skip=true -Dmaven.javadoc.skip=true'], description: '', name: 'mvn_cmd'
-        choice (choices: ['ms', 'demo'], description: '部署模板', name: 'Template')
+        choice (choices: ['ms', 'daemon'], description: '部署模板', name: 'Template')
         choice (choices: ['1', '3', '5', '7'], description: '副本数', name: 'ReplicaCount')
         choice (choices: ['ms'], description: '命名空间', name: 'Namespace')
     }
@@ -385,6 +383,8 @@ spec:
         stage('Helm部署到K8S') {
           steps {
               sh """
+              #更新helm chart
+              helm repo update
               for service in  \$(echo ${Service} |sed 's/,/ /g'); do
                 service_name=\${service%:*}
                 service_port=\${service#*:}
@@ -392,8 +392,7 @@ spec:
                 tag=${params.add_tag}
                 helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} \
                 --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} library/${Template}"
-
-
+                 
                 #判断是否为新部署
                 if helm history \${service_name} ${k8s_args} &>/dev/null;then
                   action=upgrade
