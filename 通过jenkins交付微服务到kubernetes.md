@@ -273,7 +273,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -284,7 +284,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /root/.m2
+        mountPath: /home/jenkins/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -497,7 +497,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /root/.m2
+        mountPath: /home/jenkins/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin

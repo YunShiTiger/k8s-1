@@ -311,46 +311,88 @@ $ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 ```bash
 ├── Dockerfile（见下面）
-├── settings.xml（maven配置文件）
+├── repositories.yaml（helm chart认证文件）
 ├── helm（helm包管理器）
-├── apache-maven-3.6.3-bin.tar.gz（maven工具）
-├── config（连接api-serviservice信息）
-├── config.json（连接harbor信息）
-└── id_rsa （连接git）
+└── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ```
 
-#### 下载maven
+#### 下载maven修改配置
 
 ```bash
 wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+tar xf apache-maven-3.6.3-bin.tar.gz
+mv apache-maven-3.6.3 maven-3.6.3
+rm -f apache-maven-3.6.3-bin.tar.gz
+#修改maven-3.6.3/conf/settings.xml
+...
+    </mirror>
+     -->   #下面增加
+    <mirror>
+      <id>alimaven</id>
+      <name>aliyun maven</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+    #以上
+  </mirrors>
+...
+tar zcvf maven-3.6.3.tar.gz maven-3.6.3
+rm -rf apache-maven-3.6.3-bin.tar.gz maven-3.6.3
 ```
 
 #### 下载helm
 
 ```bash
-wget https://get.helm.sh/helm-v3.2.4-linux-amd64.tar.gz
+wget https://get.helm.sh/helm-v3.4.2-linux-amd64.tar.gz
+tar xf helm-v3.4.2-linux-amd64.tar.gz
+mv linux-amd64/helm ./
+rm -fr helm-v3.4.2-linux-amd64.tar.gz linux-amd64
 ```
 
-#### 生成ssh密钥对：
+#### 关闭helm cahrt认证
 
-```bash
-ssh-keygen -t rsa -b 2048 -C "wzxmt.com@qq.com" -N "" -f /root/.ssh/id_rsa
-cp /root/.ssh/id_rsa ./
+```yaml
+cat << "EOF" >repositories.yaml
+apiVersion: ""
+generated: "0001-01-01T00:00:00Z"
+repositories:
+- caFile: "ca.crt"
+  certFile: "harbor.wzxmt.com.crt"
+  insecure_skip_tls_verify: false
+  keyFile: "harbor.wzxmt.com.key"
+  name: library
+  password: admin
+  url: https://harbor.wzxmt.com/chartrepo/library
+  username: admin
+- caFile: ""
+  certFile: ""
+  insecure_skip_tls_verify: false
+  keyFile: ""
+  name: bitnami
+  password: ""
+  url: https://charts.bitnami.com/bitnami
+  username: ""
+EOF
+```
+
+授权Jenkins
+
+```
+chown -R jenkins. *
 ```
 
 #### 编写dockerfile
 
 ```bash
 cat << 'EOF' >Dockerfile
-ARG version=v4.3-4
-FROM jenkins/inbound-agent:$version
+FROM jenkins/inbound-agent:latest
+RUN mkdir -p /home/jenkins/.config/helm
 USER root
-COPY * /root/
-RUN mkdir /root/.kube &&  mkdir -p /root/.ssh && mkdir /root/.docker && cd /root/ && chown -R root. /root/ && \
-mv id_rsa /root/.ssh/id_rsa && mv config /root/.kube/config && mv config.json /root/.docker/config.json && \
-mv kubectl /usr/local/bin/kubectl && tar xf apache-maven-3.6.3-bin.tar.gz && \
-mv apache-maven-3.6.3 /opt/maven-3.6.3 && \mv settings.xml /opt/maven-3.6.3/conf/settings.xml && \
-tar xf helm-v3.2.4-linux-amd64.tar.gz && mv linux-amd64/helm /usr/local/bin/ && rm -f *.gz
+ADD * /opt/
+RUN chown -R jenkins. /opt/* && rm -f /opt/Dockerfile && \
+mv /opt/helm /usr/bin/ && mv /opt/kubectl /usr/bin/ && \
+mv /opt/repositories.yaml /home/jenkins/.config/helm
+USER jenkins
 ENTRYPOINT ["jenkins-agent"]
 EOF
 ```
@@ -358,8 +400,8 @@ EOF
 #### 构建镜像
 
 ```bash
-docker build . -t harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
-docker push harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+docker build . -t harbor.wzxmt.com/infra/jenkins-slave:latest
+docker push harbor.wzxmt.com/infra/jenkins-slave:latest
 ```
 
 ## 发布准备
@@ -557,7 +599,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /root/.m2
+        mountPath: /home/jenkins/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -657,7 +699,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /root/.m2
+        mountPath: /home/jenkins/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -767,7 +809,7 @@ spec:
       - name: date
         mountPath: /etc/localtime
       - name: maven-cache
-        mountPath: /root/.m2
+        mountPath: /home/jenkins/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
@@ -832,56 +874,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 }
 ```
 
-### 构建应用镜像
-
-使用Jenkins进行CI，并查看harbor仓库
-![jenkins构建](https://raw.githubusercontent.com/wzxmt/images/master/img/image-20200628020151780.png)
-
 依次填入/选择：
-
-- app_name
-
-  > dubbo-demo-web
-
-- image_name
-
-  > app/dubbo-demo-web
-
-- git_repo
-
-  > https://gitee.com/wzxmt/dubbo-demo-web.git
-
-- git_ver
-
-  > tomcat
-
-- add_tag
-
-  > 200628_0140
-
-- mvn_dir
-
-  > /opt
-
-- target_dir
-
-  > ./dubbo-client/target
-
-- mvn_cmd
-
-  > mvn clean package -Dmaven.test.skip=true
-
-- base_image
-
-  > base/tomcat:v8.5.40
-
-- maven
-
-  > maven-3.6.3
-
-- root_url
-
-  >ROOT
 
 ### 开始构建
 
