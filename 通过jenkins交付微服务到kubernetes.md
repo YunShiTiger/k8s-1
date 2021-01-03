@@ -82,18 +82,136 @@
 
 4、部署gitlab（略）
 
-5、mysql 微服务数据库
+5、部署
 
-下载 微服务sql
+下载
 
 ```
 git clone https://github.com/wzxmt/simple-microservice.git
+cd simple-microservice-dev3
+```
+
+编译
+
+```
+mvn clean package -Dmaven.test.skip=true
+```
+
+Dockerfile
+
+```bash
+cat << 'EOF' >Dockerfile
+FROM openjdk:8-jdk-alpine
+LABEL maintainer www.wzxmt.com
+ENV JAVA_ARGS="-Dfile.encoding=UTF8 -Duser.timezone=GMT+08"
+COPY ./target/eureka-service.jar ./
+EXPOSE 8888
+CMD java -jar $JAVA_ARGS $JAVA_OPTS -Deureka.instance.hostname=${MY_POD_NAME}.eureka.ms /eureka-service.jar
+EOF
+```
+
+构建镜像
+
+```bash
+docker build . -t harbor.wzxmt.com/infra/eureka:latest
+docker push harbor.wzxmt.com/infra/eureka:latest
+```
+
+部署
+
+```yaml
+cat<< 'EOF' >eureka.yaml
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: eureka
+  namespace: infra
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`eureka.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: eureka
+      port: 8888
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka
+  namespace: infra
+spec:
+  clusterIP: None
+  ports:
+  - port: 8888
+    name: eureka 
+  selector:
+    project: infra
+    app: eureka
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: eureka
+  namespace: infra 
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      project: infra
+      app: eureka
+  serviceName: "eureka"
+  template:
+    metadata:
+      labels:
+        project: infra 
+        app: eureka
+    spec:
+      imagePullSecrets:
+      - name: harborlogin
+      containers:
+      - name: eureka
+        image: harbor.wzxmt.com/infra/eureka:latest
+        ports:
+          - protocol: TCP
+            containerPort: 8888
+        env:
+          - name: JAVA_OPTS
+            value: "-Xmx1g"
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 256Mi
+          limits:
+            cpu: 1 
+            memory: 1Gi
+        readinessProbe:
+          tcpSocket:
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 10
+EOF
+```
+
+5、mysql 微服务数据库 
+
+创建数据库
+
+```
 cd simple-microservice-dev3/db/
-```
-
- 创建数据库
-
-```
 mysql -uroot -p -e "source order.sql"
 mysql -uroot -p -e "source product.sql"
 mysql -uroot -p -e "source stock.sql"
@@ -240,6 +358,7 @@ spec:
 
                     docker build -t \${image_name} .
                     docker push \${image_name}
+                    docker rmi \${image_name}
                     cd ${WORKSPACE}
                   done
                 """
