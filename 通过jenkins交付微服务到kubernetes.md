@@ -553,7 +553,6 @@ add 添加凭据
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281540.png)
 git的用户名和密码
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281524.png)
-然后更新一下，把密钥放到指定的pipeline中
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281543.png)
 将这个id放到pipeline中
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281545.png)
