@@ -373,8 +373,6 @@ spec:
                         kubectl create secret docker-registry ${image_pull_secret} --docker-username=${username} \
                         --docker-password=${password} --docker-server=https://${registry} ${k8s_ns_args}
                     fi
-                    # 添加私有chart仓库
-                    # helm repo add  --username ${username} --password ${password} myrepo http://${registry}/chartrepo/${params.project} ${k8s_ns_args}
                    """
                }
              }
@@ -385,6 +383,8 @@ spec:
               sh """
               #更新helm chart
               helm repo update
+              
+              #更新服务
               for service in  \$(echo ${Service} |sed 's/,/ /g'); do
                 service_name=\${service%:*}
                 service_port=\${service#*:}
@@ -393,20 +393,19 @@ spec:
                 helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set readinessProbe.tcpSocket.port=\${service_port} --set livenessProbe.tcpSocket.port=\${service_port} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} library/${Template}"
                  
                 #判断是否为新部署
-                helm list ${k8s_ns_args}|awk "NR>1{print \$1}"|grep \${service_name} &>/dev/null
-                if [ \$? -eq 0];then
+                if helm status \${service_name} ${k8s_ns_args};then
                   action=upgrade
                 else
                   action=install
                 fi
 
                 #针对服务启用ingress
-                if [[ \${service_name} == "gateway-service" ]]; then
+                if [ \${service_name} = "gateway-service" ]; then
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${gateway_domain_name} \
                    ${k8s_ns_args}
-                elif [[ \${service_name} == "portal-service" ]]; then
+                elif [ \${service_name} = "portal-service" ]; then
                   helm \${action} \${helm_args} \
                   --set ingress.enabled=true \
                   --set ingress.host=${portal_domain_name} \
@@ -420,9 +419,9 @@ spec:
               sleep 10
               kubectl get pods ${k8s_ns_args}
               """
-          }
-        }
-    }
+         }
+      }
+   }
 }
 ```
 

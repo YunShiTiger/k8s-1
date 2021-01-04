@@ -365,14 +365,6 @@ repositories:
   password: admin
   url: https://harbor.wzxmt.com/chartrepo/library
   username: admin
-- caFile: ""
-  certFile: ""
-  insecure_skip_tls_verify: false
-  keyFile: ""
-  name: bitnami
-  password: ""
-  url: https://charts.bitnami.com/bitnami
-  username: ""
 EOF
 ```
 
