@@ -390,7 +390,7 @@ spec:
                 service_port=\${service#*:}
                 image="${registry}/${params.project}/\${service_name}"
                 tag=${params.add_tag}
-                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set readinessProbe.tcpSocket.port=\${service_port} --set livenessProbe.tcpSocket.port=\${service_port} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} library/${Template}"
+                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set readinessProbe.tcpSocket.port=\${service_port} --set livenessProbe.tcpSocket.port=\${service_port} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.port=\${service_port} --set service.containerPort=\${service_port} library/${Template}"
                  
                 #判断是否为新部署
                 if helm status \${service_name} ${k8s_ns_args};then
@@ -622,7 +622,7 @@ stage('Helm部署到K8S') {
                 image=${registry}/${project}/\${service_name}
 
                 tag=${BUILD_NUMBER} //jenkins构建的一个编号
-                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.targetPort=\${service_port} myrepo/${Template}"
+                helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.port=\${service_port} --set service.containerPort=\${service_port} myrepo/${Template}"
 
                 //判断是否为新部署，那么加一个判断看看是不是部署了，为假就install，为真就upgrade
                 if helm history \${service_name} \${common_args} &>/dev/null;then 
