@@ -224,9 +224,9 @@ mysql -uroot -p -e "source stock.sql"
 授权
 
 ```bash
-grant INSERT,DELETE,UPDATE,SELECT on order.* to "clouder"@"%" identified by "123456";
-grant INSERT,DELETE,UPDATE,SELECT on product.* to "clouder"@"%" identified by "123456";
-grant INSERT,DELETE,UPDATE,SELECT on stock.* to "clouder"@"%" identified by "123456";
+grant INSERT,DELETE,UPDATE,SELECT on tb_order.* to "clouder"@"%" identified by "123456";
+grant INSERT,DELETE,UPDATE,SELECT on tb_product.* to "clouder"@"%" identified by "123456";
+grant INSERT,DELETE,UPDATE,SELECT on tb_stock.* to "clouder"@"%" identified by "123456";
 ```
 
 ## 四、在Kubernetes中部署jenkins
