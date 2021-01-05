@@ -64,6 +64,14 @@
 6、在k8s中部署eureka（注册中心）
 ```
 
+微服务项目的逻辑架构
+
+![整体逻辑架构图](acess/%E6%95%B4%E4%BD%93%E9%80%BB%E8%BE%91%E6%9E%B6%E6%9E%84%E5%9B%BE.png))
+
+服务暴露的关系图
+
+![服务暴露的关系图](acess/%E6%9C%8D%E5%8A%A1%E6%9A%B4%E9%9C%B2%E7%9A%84%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
+
 1、检查k8s基础组件的环境是否安装：
 
 - 默认我的这个基础的组件都是安装好的，ingress 和coredns
@@ -83,8 +91,6 @@
 4、部署gitlab（略）
 
 5、部署
-
-下载
 
 ```
 git clone https://github.com/wzxmt/simple-microservice.git
@@ -204,15 +210,23 @@ spec:
 EOF
 ```
 
-5、mysql 微服务数据库 
+6、mysql 微服务数据库 
 
 创建数据库
 
-```
+```bash
 cd simple-microservice-dev3/db/
 mysql -uroot -p -e "source order.sql"
 mysql -uroot -p -e "source product.sql"
 mysql -uroot -p -e "source stock.sql"
+```
+
+授权
+
+```bash
+grant INSERT,DELETE,UPDATE,SELECT on order.* to "clouder"@"%" identified by "123456";
+grant INSERT,DELETE,UPDATE,SELECT on product.* to "clouder"@"%" identified by "123456";
+grant INSERT,DELETE,UPDATE,SELECT on stock.* to "clouder"@"%" identified by "123456";
 ```
 
 ## 四、在Kubernetes中部署jenkins
