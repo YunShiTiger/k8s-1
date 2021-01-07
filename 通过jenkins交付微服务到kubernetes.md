@@ -66,11 +66,11 @@
 
 微服务项目的逻辑架构
 
-![整体逻辑架构图](acess/%E6%95%B4%E4%BD%93%E9%80%BB%E8%BE%91%E6%9E%B6%E6%9E%84%E5%9B%BE.png))
+![](acess/整体逻辑架构图.png)
 
 服务暴露的关系图
 
-![服务暴露的关系图](acess/%E6%9C%8D%E5%8A%A1%E6%9A%B4%E9%9C%B2%E7%9A%84%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
+![服务暴露的关系图](acess/服务暴露的关系图.png)
 
 1、检查k8s基础组件的环境是否安装：
 
@@ -407,7 +407,7 @@ spec:
                 helm_args="\${service_name} --set image.repository=\${image} --set image.tag=\${tag} --set readinessProbe.tcpSocket.port=\${service_port} --set livenessProbe.tcpSocket.port=\${service_port} --set replicaCount=${replicaCount} --set imagePullSecrets[0].name=${image_pull_secret} --set service.port=\${service_port} --set service.containerPort=\${service_port} library/${Template}"
                  
                 #判断是否为新部署
-                if helm status \${service_name} ${k8s_ns_args};then
+                if helm history \${service_name} ${k8s_ns_args};then
                   action=upgrade
                 else
                   action=install
