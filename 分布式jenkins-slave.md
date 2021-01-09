@@ -327,14 +327,27 @@ rm -f apache-maven-3.6.3-bin.tar.gz
 #修改maven-3.6.3/conf/settings.xml
 ...
     </mirror>
-     -->   #下面增加
+    <!--阿里云仓库-->  
     <mirror>
-      <id>alimaven</id>
-      <name>aliyun maven</name>
+      <id>mirrorId</id>
+      <mirrorOf>repositoryId</mirrorOf>
+      <name>Nexus aliyun</name>
       <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
-      <mirrorOf>central</mirrorOf>
     </mirror>
-    #以上
+	<!--中央仓库1-->  
+    <mirror>
+      <id>repo1</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Human Readable Name for this.Mirror.</name>
+      <url>http://repo1.maven.org/maven2/</url>
+    </mirror>
+	<!--中央仓库2-->  
+    <mirror>
+      <id>repo2</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Human Readable Name for this.Mirror.</name>
+      <url>http://repo2.maven.org/maven2/</url>
+    </mirror>
   </mirrors>
 ...
 tar zcvf maven-3.6.3.tar.gz maven-3.6.3
