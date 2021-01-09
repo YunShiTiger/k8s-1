@@ -368,6 +368,11 @@ spec:
     services:
     - name: eureka
       port: 8888
+  - match: Host(`actuator.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: eureka
+      port: 9999
 EOF
 ```
 
@@ -384,3 +389,8 @@ kubectl apply -f eureka-ingress.yaml
 访问 [eureka.wzxmt.com](http://eureka.wzxmt.com) 地址，查看 Eureka UI 界面。
 
 ![image-20210109175502542](acess/image-20210109175502542.png)
+
+查看健康状况[http://actuator.wzxmt.com/actuator/health](http://actuator.wzxmt.com/actuator/health)
+
+![image-20210109182147378](acess/image-20210109182147378.png)   
+
