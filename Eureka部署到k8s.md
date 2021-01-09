@@ -149,20 +149,21 @@ public class EurekaApplication {
 ```java
 #注册中心名
 spring.application.name=eureka-server
+#服务注册中心实例的主机名
+eureka.instance.hostname=localhost
 #服务注册中心端口号
 server.port=8888
 #程序的监控数据端口，这里主要用其中的/actuator/health 端口进行健康检查
-management.server.port=9999
-#程序的监控数据方式
+management.endpoints.enabled=true
+management.endpoints.web.base-path=/actuator    
 management.endpoints.web.exposure.include=*
+management.endpoints.web.exposure.exclude=*
 #触发自我保护机制的阀值配置信息时间
 eureka.server.renewal-percent-threshold=0.9
 #关闭保护机
 eureka.server.enable-self-preservation=false
 #扫描失效服务的间隔时间
 eureka.server.eviction-interval-timer-in-ms=40000
-#服务注册中心实例的主机名
-eureka.instance.hostname=localhost
 #是否向服务注册中心注册自己
 eureka.instance.prefer-ip-address=false
 #false表示不向注册中心注册自己
@@ -234,8 +235,6 @@ spec:
   ports:
     - name: server
       port: 8888
-    - name: management
-      port: 9999
   selector:
     app: eureka
 ---
@@ -267,8 +266,6 @@ spec:
           ports:
             - name: server
               containerPort: 8888
-            - name: management
-              containerPort: 9999
           env:
             - name: APP_NAME
               value: "eureka"
@@ -281,15 +278,17 @@ spec:
                      --spring.application.name=${APP_NAME}
                      --eureka.instance.hostname=${POD_NAME}.${APP_NAME}
                      --server.port=8888
-                     --management.server.port=9999
+                     --management.endpoints.enabled=true
+                     --management.endpoints.web.base-path=/actuator    
                      --management.endpoints.web.exposure.include=*
+                     --management.endpoints.web.exposure.exclude=*
                      --eureka.server.renewal-percent-threshold=0.9
                      --eureka.server.enable-self-preservation=false
                      --eureka.server.eviction-interval-timer-in-ms=40000
                      --eureka.instance.prefer-ip-address=false
                      --eureka.client.register-with-eureka=true
                      --eureka.client.fetch-registry=true
-                     --eureka.client.serviceUrl.defaultZone=http://eureka-0.eureka.infra:${server.port}/eureka,http://eureka-1.eureka.infra:${server.port}/eureka,http://eureka-2.eureka.infra:${server.port}/eureka
+                     --eureka.client.serviceUrl.defaultZone=http://eureka-0.eureka.infra.svc.cluster.local:${server.port}/eureka,http://eureka-1.eureka.infra.svc.cluster.local:${server.port}/eureka,http://eureka-2.eureka.infra.svc.cluster.local:${server.port}/eureka
                      "
           resources:
             limits:
@@ -303,17 +302,15 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 10
             failureThreshold: 5
-            httpGet:
-              path: /actuator/health
-              port: 9999
+            tcpSocket:
+              port: 8888
           livenessProbe:
             initialDelaySeconds: 60
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 3
-            httpGet:
-              path: /actuator/health
-              port: 9999
+            tcpSocket:
+              port: 8888
 EOF
 ```
 
@@ -368,11 +365,6 @@ spec:
     services:
     - name: eureka
       port: 8888
-  - match: Host(`actuator.wzxmt.com`) && PathPrefix(`/`)
-    kind: Rule
-    services:
-    - name: eureka
-      port: 9999
 EOF
 ```
 
@@ -390,7 +382,6 @@ kubectl apply -f eureka-ingress.yaml
 
 ![image-20210109175502542](acess/image-20210109175502542.png)
 
-查看健康状况[http://actuator.wzxmt.com/actuator/health](http://actuator.wzxmt.com/actuator/health)
+查看健康状况[http://eureka.wzxmt.com/actuator/health](http://eureka.wzxmt.com/actuator/health)
 
-![image-20210109182147378](acess/image-20210109182147378.png)   
-
+   ![image-20210109232158515](acess/image-20210109232158515.png)
