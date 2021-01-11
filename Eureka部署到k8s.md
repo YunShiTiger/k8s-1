@@ -153,11 +153,8 @@ spring.application.name=eureka-server
 eureka.instance.hostname=localhost
 #服务注册中心端口号
 server.port=8888
-#程序的监控数据端口，这里主要用其中的/actuator/health 端口进行健康检查
-management.endpoints.enabled=true
-management.endpoints.web.base-path=/actuator    
+#程序的监控数据端口，这里主要用其中的/actuator/health 端口进行健康检查   
 management.endpoints.web.exposure.include=*
-management.endpoints.web.exposure.exclude=*
 #触发自我保护机制的阀值配置信息时间
 eureka.server.renewal-percent-threshold=0.9
 #关闭保护机
@@ -277,11 +274,8 @@ spec:
               value: "
                      --spring.application.name=${APP_NAME}
                      --eureka.instance.hostname=${POD_NAME}.${APP_NAME}
-                     --server.port=8888
-                     --management.endpoints.enabled=true
-                     --management.endpoints.web.base-path=/actuator    
+                     --server.port=8888    
                      --management.endpoints.web.exposure.include=*
-                     --management.endpoints.web.exposure.exclude=*
                      --eureka.server.renewal-percent-threshold=0.9
                      --eureka.server.enable-self-preservation=false
                      --eureka.server.eviction-interval-timer-in-ms=40000
@@ -302,14 +296,16 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 10
             failureThreshold: 5
-            tcpSocket:
+            httpGet:
+              path: /actuator/health
               port: 8888
           livenessProbe:
             initialDelaySeconds: 60
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 3
-            tcpSocket:
+            httpGet:
+              path: /actuator/health
               port: 8888
 EOF
 ```
@@ -328,12 +324,12 @@ EOF
 
 - **livenessProbe：** 存活探针，定期检测 Docker 内部程序是否存活。
 
-- **spec.podManagementPolicy:**
+- **podManagementPolicy:**
 
   pod的启动顺序策略
 
   - **OrderedReady：** 顺序启停 Pod，默认设置。
-- **Parallel：** 并行启停 Pod，而不遵循一个 Pod 启动后再启动另一个这种规则。
+  - **Parallel：** 并行启停 Pod，而不遵循一个 Pod 启动后再启动另一个这种规则。
 
 ### 2、部署 Eureka 到 Kubernetes
 
