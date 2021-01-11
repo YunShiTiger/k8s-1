@@ -381,3 +381,59 @@ kubectl apply -f eureka-ingress.yaml
 查看健康状况[http://eureka.wzxmt.com/actuator/health](http://eureka.wzxmt.com/actuator/health)
 
    ![image-20210109232158515](acess/image-20210109232158515.png)
+
+## 六、服务离线
+
+服务离线，即某服务不能对外提供服务了。服务离线的原因有两种:服务下架与服务下 线。这两种方案都是基于 Actuator 监控器实现的。
+服务下架:将注册到 Eureka Server 中的 Eureka Client 从 Server 的注册表中移除，这样其它 Client 就无法发现该 Client 了。
+服务下线:Client并没有从Eureka Server的注册表中移除(其它Client仍可发现该服务)， 而是通过修改服务的状态来达到其它 Client 无法调用的目的。
+
+#### 1、准备工作
+
+为 Eureka Client 添加 actuator 依赖。
+
+```
+<!--actuator依赖-->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+#### 2、服务下架
+
+(1) 修改配置文件
+
+```
+#开启所有监控终端
+management.endpoints.web.exposure.include=*
+#开启shutdown监控终端
+management.endpoints.shutdown.enabled=true
+management.endpoints.shutdown.sensitive = false
+```
+
+(2) 运行测试
+在 postman中提交如下 POST 请求即可关闭该应用。
+![img](https://imgconvert.csdnimg.cn/aHR0cHM6Ly91c2VyLWdvbGQtY2RuLnhpdHUuaW8vMjAyMC8yLzI2LzE3MDdmNWZjOTUxZGMzYjE?x-oss-process=image/format,png)
+
+可看到eureka中的服务实例已被移除了
+![img](https://imgconvert.csdnimg.cn/aHR0cHM6Ly91c2VyLWdvbGQtY2RuLnhpdHUuaW8vMjAyMC8yLzI2LzE3MDdmNjA3YThiNzM1ZTE?x-oss-process=image/format,png)
+
+#### 3、服务平滑上下线
+
+前面的“服务下架”方式存在一个不足是，若还需要再启用该服务，则必须再次启动该 应用。我们也可以通过修改服务的状态为 UP 或 DOWN 来设置提供者是否可用，而无需重启 应用。这种方式通常称为服务的平滑上下线。
+
+(1) 修改配置文件
+
+```
+#开启所有监控终端
+management.security.enabled=false
+management.endpoints.web.exposure.include=*
+```
+
+(2) 运行测试
+在 curl 中提交如下 POST 请求，然后再查看 Eureka 页面，发现服务状态已经变为了
+DOWN。
+![image-20210111230537750](acess/image-20210111230537750.png)
+
+![image-20210111230619867](acess/image-20210111230619867.png)

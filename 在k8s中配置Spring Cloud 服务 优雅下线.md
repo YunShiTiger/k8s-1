@@ -3,18 +3,19 @@
 修改 `application.yml` 暴露接口
 
 ```yaml
-management:  
-  endpoints:  
-    web:  
-      exposure:  
+management:
+  security:
+    enabled: false
+  endpoints:
+    web:
+      exposure:
         include: "*"
 ```
 
 client 强制下线接口:
 
 ```json
-curl -X "POST" "http://localhost:8888/actuator/service-registry?status=DOWN"
--H "Content-Type: application/vnd.spring-boot.actuator.v2+json;charset=UTF-8"
+curl -X "POST" "http://127.0.0.1:8888/actuator/service-registry?status=DOWN" -H "Content-Type: application/vnd.spring-boot.actuator.v2+json;charset=UTF-8"
 ```
 
 Eureka Server 强制下线接口：
@@ -32,7 +33,7 @@ lifecycle:
       command:
         - bash
         - -c                
-        - 'curl -X POST --data DOWN http://127.0.0.1:8888/service-registry/instance-status -H "Content-Type: application/vnd.spring-boot.actuator.v2+json;charset=UTF-8";sleep 90'
+        - 'curl -X "POST" "http://127.0.0.1:8888/actuator/service-registry?status=DOWN" -H "Content-Type: application/vnd.spring-boot.actuator.v2+json;charset=UTF-8";sleep 90'
 ```
 
 同时指定一下优雅终止宽限期
