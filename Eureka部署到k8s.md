@@ -158,15 +158,15 @@ management.endpoints.web.exposure.include=*
 #触发自我保护机制的阀值配置信息时间
 eureka.server.renewal-percent-threshold=0.9
 #关闭保护机
-eureka.server.enable-self-preservation=false
+eureka.server.enable-self-preservation=true
 #扫描失效服务的间隔时间
-eureka.server.eviction-interval-timer-in-ms=40000
+eureka.server.eviction-interval-timer-in-ms=5
 #是否向服务注册中心注册自己
 eureka.instance.prefer-ip-address=false
 #false表示不向注册中心注册自己
 eureka.client.register-with-eureka=true
 #false表示自己端就是注册中心，我的职责就是维护服务实例，并不需要去检索服务
-eureka.client.fetch-registry=true
+eureka.client.fetch-registry=false
 #服务注册中心的配置内容，指定服务注册中心的位置
 eureka.client.serviceUrl.defaultZone=http://eureka-0.eureka.infra.svc.cluster.local:${server.port}/eureka,http://eureka-1.eureka.infra.svc.cluster.local:${server.port}/eureka,http://eureka-2.eureka.infra.svc.cluster.local:${server.port}/eureka
 ```
@@ -277,11 +277,11 @@ spec:
                      --server.port=8888    
                      --management.endpoints.web.exposure.include=*
                      --eureka.server.renewal-percent-threshold=0.9
-                     --eureka.server.enable-self-preservation=false
-                     --eureka.server.eviction-interval-timer-in-ms=40000
+                     --eureka.server.enable-self-preservation=true
+                     --eureka.server.eviction-interval-timer-in-ms=5
                      --eureka.instance.prefer-ip-address=false
                      --eureka.client.register-with-eureka=true
-                     --eureka.client.fetch-registry=true
+                     --eureka.client.fetch-registry=false
                      --eureka.client.serviceUrl.defaultZone=http://eureka-0.eureka.infra.svc.cluster.local:${server.port}/eureka,http://eureka-1.eureka.infra.svc.cluster.local:${server.port}/eureka,http://eureka-2.eureka.infra.svc.cluster.local:${server.port}/eureka
                      "
           resources:
