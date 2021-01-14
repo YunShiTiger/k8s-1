@@ -32,8 +32,8 @@
 
 ```bash
 docker pull jenkins/jenkins:2.195-centos
-docker tag jenkins/jenkins:2.195-centos harbor.wzxmt.com/infra/jenkins:v2.195
-docker push harbor.wzxmt.com/infra/jenkins:v2.195
+docker tag jenkins/jenkins:2.195-centos harbor.wzxmt.com/infra/jenkins:latest
+docker push harbor.wzxmt.com/infra/jenkins:latest
 ```
 
 #### 准备共享存储
@@ -145,7 +145,7 @@ spec:
       serviceAccountName: jenkins
       containers:
       - name: jenkins
-        image: harbor.wzxmt.com/infra/jenkins:v2.195
+        image: harbor.wzxmt.com/infra/jenkins:latest
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -153,7 +153,7 @@ spec:
           protocol: TCP
         env:
         - name: JAVA_OPTS
-          value: -Xmx512m -Xms512m
+          value: -XshowSettings:vm -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Duser.timezone=Asia/Shanghai
         resources:
           limits: 
             cpu: 500m
@@ -166,7 +166,7 @@ spec:
           mountPath: /var/jenkins_home
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
