@@ -72,11 +72,15 @@ rules:
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["get"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get","list","watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: jenkins
+  namespace: infra
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -84,6 +88,7 @@ roleRef:
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: User
+  namespace: infra
   name: system:serviceaccount:infra:jenkins
 ---
 kind: ClusterRole
@@ -469,7 +474,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -700,7 +705,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -800,7 +805,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -910,7 +915,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:

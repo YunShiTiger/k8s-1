@@ -287,7 +287,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
