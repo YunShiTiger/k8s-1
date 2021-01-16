@@ -359,6 +359,41 @@ $ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 **第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](acess/image-20200627224756024.png)
 
+## 添加扩展插件
+
+- Git Parameter 可以实现动态的从git中获取所有分支
+- Config File Provider 主要可以将kubeconfig配置文件存放在jenkins里，让这个pipeline引用这个配置文件
+- Extended Choice Parameter 进行对选择框插件进行扩展，可以多选，扩展参数构建，而且部署微服务还需要多选
+- Blue Ocean 一个可视化、可编辑的流水线插件
+
+## 添加凭据
+
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/200511164028156.png)
+点击jenkins
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281526.png)
+add 添加凭据
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281534.png)
+填写harbor的用户名和密码，密码Harbor12345
+描述随便写,
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281535.png)
+再添加第二个
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281540.png)
+git的用户名和密码
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281524.png)
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281543.png)
+将这个id放到pipeline中
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281545.png)
+将生成的密钥认证放到pipeline中
+
+现在去添加kubeconfig的文件
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281518.png)
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281541.png)
+将这个ID放到我们k8s-auth的pipeline中，这个配置文件是k8s连接kubeconfig的ID，cat /root/.kube/config 这个文件下将文件拷贝到jenkins中
+![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281529.png)
+
+最后进行测试发布在pipeline的配置指定发布的服务进行发布
+查看pod的状态
+
 ## 部署jenkins-slave
 
 #### jenkins-slave dockerfile结构
