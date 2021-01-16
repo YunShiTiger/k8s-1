@@ -277,7 +277,6 @@ def k8s_auth = "bbafac8f-2d98-421f-af11-7ec9462e005b"
 pipeline {
   agent {
     kubernetes {
-      label "jenkins-slave"
       yaml """
 apiVersion: v1
 kind: Pod

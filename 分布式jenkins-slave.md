@@ -54,6 +54,38 @@ metadata:
   name: jenkins
   namespace: infra
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins
+  namespace: infra
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create","delete","get","list","patch","update","watch"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create","delete","get","list","patch","update","watch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get","list","watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: system:serviceaccount:infra:jenkins
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -427,7 +459,6 @@ docker push harbor.wzxmt.com/infra/jenkins-slave:latest
 pipeline {
   agent {
     kubernetes {
-    label "jenkins-slave"
     yaml """
 apiVersion: v1
 kind: Pod
@@ -659,7 +690,6 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
-    label "jenkins-slave"
     yaml """
 apiVersion: v1
 kind: Pod
@@ -760,7 +790,6 @@ Pipeline Script
 pipeline {
   agent {
     kubernetes {
-      label "jenkins-slave"
       yaml """
 apiVersion: v1
 kind: Pod
@@ -871,7 +900,6 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 pipeline {
   agent {
     kubernetes {
-    label "jenkins-slave"
     yaml """
 apiVersion: v1
 kind: Pod
