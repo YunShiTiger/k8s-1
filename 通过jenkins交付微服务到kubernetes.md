@@ -283,11 +283,12 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: jenkins-slave
+  namespace: infra
 spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:latest
+    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -297,28 +298,28 @@ spec:
         mountPath: /run/docker.sock
       - name: date
         mountPath: /etc/localtime
-      - name: maven-cache
+      - name: jenkins-maven
+        subPath: maven-cache
         mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
   volumes:
     - name: date
-      hostPath: 
+      hostPath:
         path: /etc/localtime
         type: ''
     - name: docker-cmd
-      hostPath: 
+      hostPath:
         path: /usr/bin/docker
         type: ''
     - name: docker-socker
-      hostPath: 
+      hostPath:
         path: /run/docker.sock
         type: ''
-    - name: maven-cache
-      nfs: 
-        server: 10.0.0.20
-        path: /data/nfs-volume/maven-cache
+    - name: jenkins-maven
+      persistentVolumeClaim:
+        claimName: jenkins-pvc
 """
    }
 } 

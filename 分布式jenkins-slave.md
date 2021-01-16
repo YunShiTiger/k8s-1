@@ -31,44 +31,49 @@
 在运维主机下载官网上的稳定版
 
 ```bash
-docker pull jenkins/jenkins:2.195-centos
-docker tag jenkins/jenkins:2.195-centos harbor.wzxmt.com/infra/jenkins:latest
+docker pull jenkins/jenkins:lts
+docker tag jenkins/jenkins:lts harbor.wzxmt.com/infra/jenkins:latest
 docker push harbor.wzxmt.com/infra/jenkins:latest
-```
-
-#### 准备共享存储
-
-运维主机，以及所有运算节点上：
-
-```bash
-yum install nfs-utils -y
-```
-
-- 配置NFS服务
-
-运维主机：
-
-```bash
-cat<< EOF >/etc/exports
-/data/nfs-volume 10.0.0.0/24(rw,no_root_squash)
-EOF
-```
-
-- 启动NFS服务
-
-运维主机上：
-
-```bash
-mkdir -p /data/nfs-volume/{jenkins_home,maven-cache}
-systemctl start nfs
-systemctl enable nfs
 ```
 
 #### 准备资源配置清单
 
+PVC
+
+```yaml
+cat << 'EOF' >pvc.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jenkins-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Delete
+  nfs:
+    server: 10.0.0.20
+    path: /data/nfs-volume/jenkins
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins-pvc
+  namespace: infra
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+EOF
+```
+
 RBAC
 
-```bash
+```yaml
 cat << 'EOF' >rbac.yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -137,11 +142,6 @@ spec:
         app: jenkins 
         name: jenkins
     spec:
-      volumes:
-      - name: data
-        nfs: 
-          server: 10.0.0.20
-          path: /data/nfs-volume/jenkins_home
       serviceAccountName: jenkins
       containers:
       - name: jenkins
@@ -161,12 +161,22 @@ spec:
           requests: 
             cpu: 500m
             memory: 1Gi
-        volumeMounts:
-        - name: data
-          mountPath: /var/jenkins_home
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0     #设置以ROOT用户运行容器
+          privileged: true #拥有特权
+        volumeMounts:
+        - name: jenkins-home
+          subPath: jenkins-home
+          mountPath: /var/jenkins_home
+      securityContext:
+        fsGroup: 1000
+      volumes:
+      - name: jenkins-home
+        persistentVolumeClaim:
+          claimName: jenkins-pvc
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
@@ -263,7 +273,7 @@ jenkins	60 IN A 10.0.0.50
 在管理机上
 
 ```bash
-WORK_DIR=/data/nfs-volume/jenkins_home
+WORK_DIR=/data/nfs-volume/jenkins/jenkins-home
 sed -i.bak 's#http://updates.jenkins-ci.org/download#https://mirrors.tuna.tsinghua.edu.cn/jenkins#g;s#http://www.google.com#https://www.baidu.com#g' ${WORK_DIR}/updates/default.json
 ```
 
@@ -282,9 +292,11 @@ kubectl apply -f  deployment.yaml
 $ cat ${WORK_DIR}/secrets/initialAdminPassword
 ```
 
-然后选择安装推荐的插件即可。![setup plugin](acess/image-20200622074852477.png)   
+然后选择安装基础的插件即可。![image-20210116083928201](acess/image-20210116083928201.png)   
 
-安装完成后添加管理员帐号即可进入到 jenkins 主界面：![jenkins home](acess/image-20200622075706388.png)
+安装完成后添加管理员帐号即可进入到 jenkins 主界面：
+
+![jenkins home](acess/image-20210116092054090.png)
 
 ### 调整安全选项
 
@@ -402,6 +414,72 @@ docker build . -t harbor.wzxmt.com/infra/jenkins-slave:latest
 docker push harbor.wzxmt.com/infra/jenkins-slave:latest
 ```
 
+## 测试jenkins-slave
+
+构建一次，测试jenkins-slave连通性
+
+```yaml
+pipeline {
+  agent {
+    kubernetes {
+    label "jenkins-slave"
+    yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-slave
+  namespace: infra
+spec:
+  nodeName: n2
+  containers:
+  - name: jnlp
+    image: harbor.wzxmt.com/infra/jenkins-slave:v4.3-4
+    tty: true
+    imagePullPolicy: Always
+    volumeMounts:
+      - name: docker-cmd
+        mountPath: /usr/bin/docker
+      - name: docker-socker
+        mountPath: /run/docker.sock
+      - name: date
+        mountPath: /etc/localtime
+      - name: jenkins-maven
+        subPath: maven-cache
+        mountPath: /root/.m2
+  restartPolicy: Never
+  imagePullSecrets:
+    - name: harborlogin
+  volumes:
+    - name: date
+      hostPath:
+        path: /etc/localtime
+        type: ''
+    - name: docker-cmd
+      hostPath:
+        path: /usr/bin/docker
+        type: ''
+    - name: docker-socker
+      hostPath:
+        path: /run/docker.sock
+        type: ''
+    - name: jenkins-maven
+      persistentVolumeClaim:
+        claimName: jenkins-pvc
+"""
+   }
+} 
+stages {
+      stage('test') { 
+        steps {
+          sh "pwd"
+        }
+     }
+  }
+}
+```
+
+出现success，表示jenkins slave搭建成功![image-20210116091850454](acess/image-20210116091850454.png)
+
 ## 发布准备
 
 ### 制作dubbo微服务的底包镜像
@@ -463,7 +541,7 @@ docker push harbor.wzxmt.com/base/jre8:8u112
 
 ### 创建docker-registry
 
-```
+```bash
 kubectl create ns app
 kubectl create secret docker-registry harborlogin \
 --namespace=app  \
@@ -582,6 +660,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: jenkins-slave
+  namespace: infra
 spec:
   nodeName: n2
   containers:
@@ -596,28 +675,28 @@ spec:
         mountPath: /run/docker.sock
       - name: date
         mountPath: /etc/localtime
-      - name: maven-cache
+      - name: jenkins-maven
+        subPath: maven-cache
         mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
   volumes:
     - name: date
-      hostPath: 
+      hostPath:
         path: /etc/localtime
         type: ''
     - name: docker-cmd
-      hostPath: 
+      hostPath:
         path: /usr/bin/docker
         type: ''
     - name: docker-socker
-      hostPath: 
+      hostPath:
         path: /run/docker.sock
         type: ''
-    - name: maven-cache
-      nfs: 
-        server: 10.0.0.20
-        path: /data/nfs-volume/maven-cache
+    - name: jenkins-maven
+      persistentVolumeClaim:
+        claimName: jenkins-pvc
 """
    }
 } 
@@ -682,6 +761,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: jenkins-slave
+  namespace: infra
 spec:
   nodeName: n2
   containers:
@@ -696,28 +776,28 @@ spec:
         mountPath: /run/docker.sock
       - name: date
         mountPath: /etc/localtime
-      - name: maven-cache
+      - name: jenkins-maven
+        subPath: maven-cache
         mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
   volumes:
     - name: date
-      hostPath: 
+      hostPath:
         path: /etc/localtime
         type: ''
     - name: docker-cmd
-      hostPath: 
+      hostPath:
         path: /usr/bin/docker
         type: ''
     - name: docker-socker
-      hostPath: 
+      hostPath:
         path: /run/docker.sock
         type: ''
-    - name: maven-cache
-      nfs: 
-        server: 10.0.0.20
-        path: /data/nfs-volume/maven-cache
+    - name: jenkins-maven
+      persistentVolumeClaim:
+        claimName: jenkins-pvc
 """
    }
 } 
@@ -792,6 +872,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: jenkins-slave
+  namespace: infra
 spec:
   nodeName: n2
   containers:
@@ -806,28 +887,28 @@ spec:
         mountPath: /run/docker.sock
       - name: date
         mountPath: /etc/localtime
-      - name: maven-cache
+      - name: jenkins-maven
+        subPath: maven-cache
         mountPath: /root/.m2
   restartPolicy: Never
   imagePullSecrets:
     - name: harborlogin
   volumes:
     - name: date
-      hostPath: 
+      hostPath:
         path: /etc/localtime
         type: ''
     - name: docker-cmd
-      hostPath: 
+      hostPath:
         path: /usr/bin/docker
         type: ''
     - name: docker-socker
-      hostPath: 
+      hostPath:
         path: /run/docker.sock
         type: ''
-    - name: maven-cache
-      nfs: 
-        server: 10.0.0.20
-        path: /data/nfs-volume/maven-cache
+    - name: jenkins-maven
+      persistentVolumeClaim:
+        claimName: jenkins-pvc
 """
    }
 } 
@@ -880,7 +961,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 dubbo-demo-service
 
-```
+```yaml
 cat << 'EOF' >dubbo-demo-service.yaml
 kind: Deployment
 apiVersion: apps/v1
