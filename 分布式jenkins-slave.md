@@ -28,7 +28,7 @@
 > [jenkins官网](https://jenkins.io/download/)
 > [jenkins镜像](https://hub.docker.com/r/jenkins/jenkins)
 
-在运维主机下载官网上的稳定版
+下载官网上的稳定版
 
 ```bash
 docker pull jenkins/jenkins:lts
@@ -36,40 +36,13 @@ docker tag jenkins/jenkins:lts harbor.wzxmt.com/infra/jenkins:latest
 docker push harbor.wzxmt.com/infra/jenkins:latest
 ```
 
-#### 准备资源配置清单
+nfs(10.0.0.20)上创建共享资源路径
 
-PVC
-
-```yaml
-cat << 'EOF' >pvc.yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: jenkins-pv
-spec:
-  capacity:
-    storage: 20Gi
-  accessModes:
-  - ReadWriteMany
-  persistentVolumeReclaimPolicy: Delete
-  nfs:
-    server: 10.0.0.20
-    path: /data/nfs-volume/jenkins
-
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: jenkins-pvc
-  namespace: infra
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 20Gi
-EOF
+```bash
+mkdir -p /data/nfs-volume/jenkins
 ```
+
+#### 准备资源配置清单
 
 RBAC
 
@@ -117,6 +90,38 @@ subjects:
   - kind: ServiceAccount
     name: jenkins
     namespace: infra
+EOF
+```
+
+PVC
+
+```yaml
+cat << 'EOF' >pvc.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jenkins-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Delete
+  nfs:
+    server: 10.0.0.20
+    path: /data/nfs-volume/jenkins
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins-pvc
+  namespace: infra
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
 EOF
 ```
 
