@@ -11,15 +11,6 @@ uname -sr
 > Linux 3.10.0-1127.13.1.el7.x86_64
 ```
 
-运行yum命令升级软件版本
-
-```bash
- yum clean all
- yum makecache fast   #(一定要记得，不然重启机器，容易导致磁盘损坏，从而机器重启失败)
- yum update -y   #(这个操作一定要等弄完以后才能重启，否则更新途中容易出错的)
- reboot
-```
-
 升级 CentOS 7.× 内核,启用 ELRepo
 
 ```bash
@@ -53,20 +44,22 @@ kernel-ml-tools-libs-devel.x86_64                                5.9.0-1.el7.elr
 在yum的ELRepo源中，有mainline颁布的，可以这样安装：
 
 ```bash
-yum --enablerepo=elrepo-kernel install  kernel-ml* -y
+yum --enablerepo=elrepo-kernel install  kernel-ml* --skip-broken -y
 ```
 
 当然也可以安装long term的：
 
 ```bash
-yum --enablerepo=elrepo-kernel  install  kernel-lt* -y
+yum --enablerepo=elrepo-kernel  install  kernel-lt* --skip-broken -y
 ```
 
 **设置 GRUB 默认的内核版本**
 设置新安装的内核成为默认启动项，初始化页面时第一个内核将作为默认内核,需修改/etc/default/grub, 设置 GRUB_DEFAULT=0.
 
 ```bash
-# vi /etc/default/grub
+sed -ri "s#(^GRUB_DEFAULT=)(.*)#\10#g" /etc/default/grub
+cat /etc/default/grub
+
 GRUB_TIMEOUT=1
 GRUB_DISTRIBUTOR="$(sed 's, release .*$,,g' /etc/system-release)"
 GRUB_DEFAULT=0 #设置 GRUB 默认的内核版本

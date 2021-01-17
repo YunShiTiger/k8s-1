@@ -444,82 +444,45 @@ rook可以提供以下3类型的存储：
 
 通过rook创建Ceph Cluster之后，rook自身提供了rbd-provisioner服务，所以我们不需要再部署其provisioner。
 
-创建pool和StorageClass：
+创建pool
 
 ```yaml
-cat << 'EOF' >storageclass.yaml
-# 定义一个块存储池
+cat << 'EOF' >cepg-rbd-pool.yaml
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: replicapool
   namespace: rook-ceph
 spec:
-  # 每个数据副本必须跨越不同的故障域分布，如果设置为host，则保证每个副本在不同机器上
   failureDomain: host
-  # 副本数量
   replicated:
     size: 3
-    # Disallow setting pool with replica 1, this could lead to data loss without recovery.
-    # Make sure you're *ABSOLUTELY CERTAIN* that is what you want
     requireSafeReplicaSize: true
-    # gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool
-    # for more info: https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size
-    #targetSizeRatio: .5
----
-# 定义一个StorageClass
+EOF
+kubectl apply -f cepg-rbd-pool.yaml
+```
+
+定义一个StorageClass
+
+```yaml
+cat << 'EOF' >ceph-rdb-storage.yaml
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-ceph-block
-# 该SC的Provisioner标识，rook-ceph前缀即当前命名空间
 provisioner: rook-ceph.rbd.csi.ceph.com
 parameters:
-    # clusterID 就是集群所在的命名空间名
-    # If you change this namespace, also change the namespace below where the secret namespaces are defined
-    clusterID: rook-ceph
-
-    # If you want to use erasure coded pool with RBD, you need to create
-    # two pools. one erasure coded and one replicated.
-    # You need to specify the replicated pool here in the `pool` parameter, it is
-    # used for the metadata of the images.
-    # The erasure coded pool must be set as the `dataPool` parameter below.
-    #dataPool: ec-data-pool
-    # RBD镜像在哪个池中创建
-    pool: replicapool
-
-    # RBD image format. Defaults to "2".
-    imageFormat: "2"
-
-    # 指定image特性，CSI RBD目前仅仅支持layering
-    imageFeatures: layering
-
-    # Ceph admin 管理凭证配置,由operator 自动生成
-    # in the same namespace as the cluster.
-    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
-    csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
-    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
-    # 卷的文件系统类型，默认ext4，不建议xfs，因为存在潜在的死锁问题（超融合设置下卷被挂载到相同节点作为OSD时）
-    csi.storage.k8s.io/fstype: ext4
-# uncomment the following to use rbd-nbd as mounter on supported nodes
-# **IMPORTANT**: If you are using rbd-nbd as the mounter, during upgrade you will be hit a ceph-csi
-# issue that causes the mount to be disconnected. You will need to follow special upgrade steps
-# to restart your application pods. Therefore, this option is not recommended.
-#mounter: rbd-nbd
-allowVolumeExpansion: true
-reclaimPolicy: Delete
+  clusterID: rook-ceph
+  pool: replicapool
+  imageFormat: "2"
+  imageFeatures: layering
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+  csi.storage.k8s.io/fstype: ext4
 EOF
-```
-
-配置文件中包含了一个名为replicapool的存储池和rook-ceph-block的storageClass。
-
-运行yaml文件
-
-```shell
-kubectl apply -f storageclass.yaml
+kubectl apply -f ceph-rdb-storage.yaml
 ```
 
 查看创建的storageclass:
@@ -536,45 +499,46 @@ demo示例
 
 ```yaml
 cat << 'EOF' >rbd-test.yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: rbd-demo-pvc
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: rook-ceph-block
----
+kind: StatefulSet
 apiVersion: apps/v1
-kind: Deployment
 metadata:
-  name: csirbd-demo-pod
+  name: storageclass-rbd-test
+  namespace: default
   labels:
-    test-cephrbd: "true"
+    app: storageclass-rbd-test
 spec:
-  replicas: 1
+  replicas: 2
+  serviceName: storageclass-rbd-test
   selector:
     matchLabels:
-      test-cephrbd: "true"
+      app: storageclass-rbd-test
   template:
     metadata:
       labels:
-        test-cephrbd: "true"
+        app: storageclass-rbd-test
     spec:
+      restartPolicy: Always
       containers:
-       - name: web-server-rbd
-         image: wangyanglinux/myapp:v2
-         volumeMounts:
-           - name: mypvc
-             mountPath: /usr/share/nginx/html
-      volumes:
-       - name: mypvc
-         persistentVolumeClaim:
-           claimName: rbd-demo-pvc
-           readOnly: false
+        - name: storageclass-rbd-test
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          image: 'centos:7'
+          args:
+            - 'sh'
+            - '-c'
+            - 'sleep 3600'
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        storageClassName: rook-ceph-block
 EOF
 kubectl apply -f rbd-test.yaml
 ```
