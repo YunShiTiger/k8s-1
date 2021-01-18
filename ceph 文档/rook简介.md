@@ -77,6 +77,35 @@ lsblk
 无另外说明，以下全部操作都在master节点执行。
 ```
 
+节点升级内核（内核要求大于4.17）
+
+```bash
+#检查内核
+uname -sr
+#添加内核ELRepo
+rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+#安装最新版内核
+yum --enablerepo=elrepo-kernel install  kernel-ml* --skip-broken -y
+#修改默认内核
+sed -ri "s#(^GRUB_DEFAULT=)(.*)#\10#g" /etc/default/grub
+#加载配置
+grub2-mkconfig -o /boot/grub2/grub.cfg
+#重启
+reboot
+```
+
+加载ceph内核
+
+```bash
+cat<< 'EOF' > /etc/sysconfig/modules/rbd.modules
+#!/bin/bash
+modprobe rbd
+EOF
+chmod 755 /etc/sysconfig/modules/rbd.modules
+bash /etc/sysconfig/modules/rbd.modules
+lsmod | grep rbd
+```
+
 ## 部署Rook Operator
 
 #### 克隆rook github仓库到本地
@@ -105,10 +134,22 @@ cp operator.yaml{,.bak}
   ROOK_CSI_PROVISIONER_IMAGE: "harbor.wzxmt.com/infra/csi-provisioner:v2.0.0"
   ROOK_CSI_SNAPSHOTTER_IMAGE: "harbor.wzxmt.com/infra/csi-snapshotter:v3.0.0"
   ROOK_CSI_ATTACHER_IMAGE: "harbor.wzxmt.com/infra/csi-attacher:v3.0.0"
-#内核低于4.17，需要启用FUSE客户端
-CSI_FORCE_CEPHFS_KERNEL_CLIENT: "false"
+#plugin和provisioner分开
+  CSI_PROVISIONER_NODE_AFFINITY: "app.rook.role=csi-provisioner"
+  CSI_PLUGIN_NODE_AFFINITY: "app.rook.plugin=csi"
 # 修改rook镜像，加速部署时间
-image: harbor.wzxmt.com/infra/rook/ceph:v1.5.1
+        image: harbor.wzxmt.com/infra/rook/ceph:v1.5.1
+# 指定节点做存储
+        - name: DISCOVER_AGENT_NODE_AFFINITY
+          value: "app.role=storage"
+# 开启设备自动发现
+        - name: ROOK_ENABLE_DISCOVERY_DAEMON
+          value: "true"
+#如果k8s master设置了污点，需要添加这一行，详细见 https://www.cnblogs.com/lswweb/p/13860186.html
+  CSI_PLUGIN_TOLERATIONS: |
+    - effect: NoSchedule
+      key: node-role.kubernetes.io/master
+      operator: Exists
 ```
 
 拉取镜像，并推送至私有仓库
@@ -196,37 +237,104 @@ kubectl apply -f operator.yaml
 
 ```yaml
 cp cluster.yaml{,.bak}
+cat << EOF >cluster.yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+# 命名空间的名字，同一个命名空间只支持一个集群
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+# ceph版本说明
+# v13 is mimic, v14 is nautilus, and v15 is octopus.
+  cephVersion:
 #修改ceph镜像，加速部署时间
     image: harbor.wzxmt.com/infra/ceph/ceph:v15.2.5
+# 是否允许不支持的ceph版本
+    allowUnsupported: false
 #指定rook数据在节点的保存路径
   dataDirHostPath: /data/rook
-#开启monitoring
-  monitoring:
-    enabled: true
-    rulesNamespace: rook-ceph
+# 升级时如果检查失败是否继续
+  skipUpgradeChecks: false
+# 从1.5开始，mon的数量必须是奇数
+  mon:
+    count: 3
+# 是否允许在单个节点上部署多个mon pod
+    allowMultiplePerNode: false
+  mgr:
+    modules:
+    - name: pg_autoscaler
+      enabled: true
 # 开启dashboard，禁用ssl，指定端口是7000，你可以默认https配置。我是为了ingress配置省事。
   dashboard:
     enabled: true
     port: 7000
     ssl: false
+# 开启prometheusRule
+  monitoring:
+    enabled: true
+# 部署PrometheusRule的命名空间，默认此CR所在命名空间
+    rulesNamespace: rook-ceph
+# 开启网络为host模式，解决无法使用cephfs pvc的bug
+  network:
+    provider: host
+# 开启crash collector，每个运行了Ceph守护进程的节点上创建crash collector pod
+  crashCollector:
+    disable: false
 # 设置node亲缘性，指定节点安装对应组件
   placement:
-    all:
+    mon:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
           - matchExpressions:
-            - key: role
+            - key: ceph-mon
               operator: In
               values:
-              - storage-node
+              - enabled
+    osd:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: ceph-osd
+              operator: In
+              values:
+              - enabled
+    mgr:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: ceph-mgr
+              operator: In
+              values:
+              - enabled 
+# 存储的设置，默认都是true，意思是会把集群所有node的设备清空初始化。
+  storage: # cluster level storage configuration and selection
+    useAllNodes: false     #关闭使用所有Node
+    useAllDevices: false   #关闭使用所有设备
+    nodes:
+    - name: "n1"  #指定存储节点主机(k8s node name)
+      devices:
+      - name: "sdb"  #指定磁盘为sdb
+    - name: "n2"
+      devices:
+      - name: "sdb"
+    - name: "n3"
+      devices:
+      - name: "sdb"
+EOF
 ```
 
 节点添加label
 
 ```bash
-for n in n{1..3};do kubectl label nodes $n app=csi-rbdplugin-provisioner;done
-for n in n{1..3};do kubectl label nodes $n role=storage-node;done
+for n in n{1..3};do kubectl label nodes $n ceph-mgr=enabled;done
+for n in n{1..3};do kubectl label nodes $n ceph-osd=enabled;done
+for n in n{1..3};do kubectl label nodes $n ceph-mon=enabled;done
+for n in n{1..3};do kubectl label nodes $n app.rook.role=csi-provisioner;done
+for n in n{1..3};do ssh $n "mkdir -p /var/lib/kubelet/{pods,plugins_registry}";done
 ```
 
 创建Ceph集群
@@ -240,30 +348,24 @@ Ceph集群部署成功后，可以查看到的pods如下，其中osd数量取决
 ```shell
 [root@supper ceph]# kubectl get pod -n rook-ceph
 NAME                                            READY   STATUS      RESTARTS   AGE
-csi-cephfsplugin-k6jtg                          3/3     Running     0          10m
-csi-cephfsplugin-provisioner-7748b59c46-748vb   6/6     Running     0          10m
-csi-cephfsplugin-provisioner-7748b59c46-n8jfx   6/6     Running     0          10m
-csi-cephfsplugin-qvqfl                          3/3     Running     0          10m
-csi-cephfsplugin-vjw2x                          3/3     Running     0          10m
-csi-rbdplugin-clshf                             3/3     Running     0          10m
-csi-rbdplugin-nbw7m                             3/3     Running     0          10m
-csi-rbdplugin-provisioner-84b8667665-x7nzt      6/6     Running     0          10m
-csi-rbdplugin-provisioner-84b8667665-zprfk      6/6     Running     0          10m
-csi-rbdplugin-zmpxl                             3/3     Running     0          10m
-rook-ceph-crashcollector-n1-7848cf5b54-wlrjl    1/1     Running     0          2m56s
-rook-ceph-crashcollector-n2-7dbf98d7b5-zj99r    1/1     Running     0          2m26s
-rook-ceph-crashcollector-n3-666bbdbf7b-hx9b6    1/1     Running     0          3m8s
-rook-ceph-mgr-a-558776dd67-znzfs                1/1     Running     0          2m44s
-rook-ceph-mon-a-7d5bb87567-qpmp8                1/1     Running     0          3m58s
-rook-ceph-mon-b-5fb8f48f58-78rdk                1/1     Running     0          3m8s
-rook-ceph-mon-c-77cdb9fcb4-xsh2l                1/1     Running     0          2m56s
-rook-ceph-operator-6f4dbd955d-lsrtw             1/1     Running     0          11m
-rook-ceph-osd-0-869dffdb9c-gfppq                1/1     Running     0          2m29s
-rook-ceph-osd-1-7fc57d55bb-lb249                1/1     Running     0          2m26s
-rook-ceph-osd-2-5f4b6ff6cc-h8fm4                1/1     Running     0          2m23s
-rook-ceph-osd-prepare-n1-nhm7m                  0/1     Completed   0          2m43s
-rook-ceph-osd-prepare-n2-wx498                  0/1     Completed   0          2m43s
-rook-ceph-osd-prepare-n3-hflwh                  0/1     Completed   0          2m42s
+csi-cephfsplugin-provisioner-85d6b465fb-bd8wv   6/6     Running     0          2m31s
+csi-cephfsplugin-provisioner-85d6b465fb-xpwjw   6/6     Running     0          2m31s
+csi-rbdplugin-provisioner-564ffb8599-chrbh      6/6     Running     0          2m32s
+csi-rbdplugin-provisioner-564ffb8599-snjzc      6/6     Running     0          2m32s
+rook-ceph-crashcollector-n1-649774595c-ddcml    1/1     Running     0          81s
+rook-ceph-crashcollector-n2-775dcc5d64-nt4sl    1/1     Running     0          2m18s
+rook-ceph-crashcollector-n3-76dbb4646c-2n6l4    1/1     Running     0          111s
+rook-ceph-mgr-a-7f4954df64-vmlxh                1/1     Running     0          94s
+rook-ceph-mon-a-5d698b5548-cm5bt                1/1     Running     0          2m27s
+rook-ceph-mon-b-f9c98bb79-b7f6f                 1/1     Running     0          2m18s
+rook-ceph-mon-c-6d44cfb4bb-gk2zn                1/1     Running     0          2m7s
+rook-ceph-operator-6d675bf648-rx2sz             1/1     Running     0          2m59s
+rook-ceph-osd-0-54d7455c77-m44fn                1/1     Running     0          82s
+rook-ceph-osd-1-8575fd89fb-sqw58                1/1     Running     0          81s
+rook-ceph-osd-2-6ff9f958b8-26zjq                1/1     Running     0          80s
+rook-ceph-osd-prepare-n1-mfl28                  0/1     Completed   0          93s
+rook-ceph-osd-prepare-n2-q768n                  0/1     Completed   0          93s
+rook-ceph-osd-prepare-n3-5sln9                  0/1     Completed   0          92s
 ```
 
 **删除Ceph集群**
@@ -295,13 +397,10 @@ done
 ```shell
 [root@supper ceph]# kubectl get service -n rook-ceph
 NAME                       TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
-csi-cephfsplugin-metrics   ClusterIP   10.96.203.161   <none>        8080/TCP,8081/TCP   11m
-csi-rbdplugin-metrics      ClusterIP   10.96.178.253   <none>        8080/TCP,8081/TCP   11m
-rook-ceph-mgr              ClusterIP   10.96.190.116   <none>        9283/TCP            3m19s
-rook-ceph-mgr-dashboard    ClusterIP   10.96.188.208   <none>        7000/TCP            3m19s
-rook-ceph-mon-a            ClusterIP   10.96.109.163   <none>        6789/TCP,3300/TCP   4m34s
-rook-ceph-mon-b            ClusterIP   10.96.115.97    <none>        6789/TCP,3300/TCP   3m44s
-rook-ceph-mon-c            ClusterIP   10.96.77.104    <none>        6789/TCP,3300/TCP   3m33s
+csi-cephfsplugin-metrics   ClusterIP   10.96.148.204   <none>        8080/TCP,8081/TCP   3m6s
+csi-rbdplugin-metrics      ClusterIP   10.96.144.241   <none>        8080/TCP,8081/TCP   3m7s
+rook-ceph-mgr              ClusterIP   10.96.14.144    <none>        9283/TCP            2m10s
+rook-ceph-mgr-dashboard    ClusterIP   10.96.135.70    <none>        7000/TCP            2m10s
 ```
 
 使用ingress的方式来暴露以便集群外部访问。
@@ -344,7 +443,7 @@ kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['dat
 
 ```bash
 user：admin
-passwd：[8IPQ6Sxc70xQYIa3C_,
+passwd：-(3Y8BV'_@P7'f7l20yH
 ```
 
 浏览器访问
@@ -369,33 +468,25 @@ passwd：[8IPQ6Sxc70xQYIa3C_,
 kubectl apply -f toolbox.yaml
 ```
 
-部署成功后，pod如下：
-
-```shell
-[root@supper ceph]# kubectl -n rook-ceph get pods | grep ceph-tools
-rook-ceph-tools-79d8b97bdc-44l5v                1/1     Running     0          98s
-```
-
 然后可以登陆该pod后，执行Ceph CLI命令：
 
 ```shell
 POD=`kubectl -n rook-ceph get pods | grep ceph-tools|awk '{print $1}'`
-[root@supper ceph]# kubectl -n rook-ceph exec -it $POD bash
-[root@rook-ceph-tools-79d8b97bdc-44l5v /]#
+kubectl -n rook-ceph exec -it $POD bash
 ```
 
 查看ceph集群状态
 
 ```shell
-[root@rook-ceph-tools-79d8b97bdc-44l5v /]# ceph status
+[root@rook-ceph-tools-79d8b97bdc-dttd7 /]# ceph status
   cluster:
-    id:     297a57f5-20df-4e25-8c3c-2fe24deb186c
+    id:     333cd408-3a00-4ca0-be4a-bea261cf0bf1
     health: HEALTH_OK
 
   services:
-    mon: 3 daemons, quorum a,b,c (age 13m)
-    mgr: a(active, since 13m)
-    osd: 3 osds: 3 up (since 13m), 3 in (since 13m)
+    mon: 3 daemons, quorum a,b,c (age 6m)
+    mgr: a(active, since 5m)
+    osd: 3 osds: 3 up (since 5m), 3 in (since 5m)
 
   data:
     pools:   1 pools, 1 pgs
@@ -408,22 +499,21 @@ POD=`kubectl -n rook-ceph get pods | grep ceph-tools|awk '{print $1}'`
 查看ceph配置文件
 
 ```shell
-[root@rook-ceph-tools-79d8b97bdc-44l5v /]# ls -l /etc/ceph/
+[root@rook-ceph-tools-79d8b97bdc-dttd7 /]# ls -l /etc/ceph/
 total 8
--rw-r--r-- 1 root root 119 Jan 16 15:43 ceph.conf
--rw-r--r-- 1 root root  62 Jan 16 15:43 keyring
+-rw-r--r-- 1 root root 109 Jan 18 15:12 ceph.conf
+-rw-r--r-- 1 root root  62 Jan 18 15:12 keyring
 
-[root@rook-ceph-tools-79d8b97bdc-44l5v /]# cat /etc/ceph/ceph.conf
+[root@rook-ceph-tools-79d8b97bdc-dttd7 /]# cat /etc/ceph/ceph.conf
 [global]
-mon_host = 10.96.109.163:6789,10.96.115.97:6789,10.96.77.104:6789
+mon_host = 10.0.0.41:6789,10.0.0.42:6789,10.0.0.43:6789
 
 [client.admin]
 keyring = /etc/ceph/keyring
-[root@rook-ceph-tools-79d8b97bdc-44l5v /]#
 
-[root@rook-ceph-tools-79d8b97bdc-44l5v /]# cat /etc/ceph/keyring
+[root@rook-ceph-tools-79d8b97bdc-dttd7 /]# cat /etc/ceph/keyring
 [client.admin]
-key = AQAYBwNgpXJHChAAiyhaqPTLsrxi/4dMTrNuXg==
+key = AQA0pAVg5udsBRAA/3PT/sTgTeiFoC0pZIJ6hQ==
 ```
 
 ## rook提供RBD服务
@@ -465,22 +555,26 @@ kubectl apply -f cepg-rbd-pool.yaml
 定义一个StorageClass
 
 ```yaml
-cat << 'EOF' >ceph-rdb-storage.yaml
+cat << 'EOF' >ceph-rdb-storage.yaml 
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-ceph-block
 provisioner: rook-ceph.rbd.csi.ceph.com
 parameters:
-  clusterID: rook-ceph
-  pool: replicapool
-  imageFormat: "2"
-  imageFeatures: layering
-  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
-  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
-  csi.storage.k8s.io/fstype: ext4
+    clusterID: rook-ceph
+    pool: replicapool
+    imageFormat: "2"
+    imageFeatures: layering
+    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+    csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+    csi.storage.k8s.io/fstype: ext4
+allowVolumeExpansion: true
+reclaimPolicy: Delete
 EOF
 kubectl apply -f ceph-rdb-storage.yaml
 ```
