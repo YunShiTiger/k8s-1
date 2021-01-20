@@ -74,7 +74,6 @@ for scsi_device in $(ls /sys/class/scsi_device/); do echo 1 > /sys/class/scsi_de
 
 #查看已添加的磁盘，能够看到sdb说明添加成功
 lsblk
-无另外说明，以下全部操作都在master节点执行。
 ```
 
 节点升级内核（内核要求大于4.17）
