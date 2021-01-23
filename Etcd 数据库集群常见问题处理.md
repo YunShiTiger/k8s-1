@@ -9,7 +9,7 @@ ETCD是一个高可用的分布式Key/Value存储系统。它使用Raft算法，
 ### 1、单机备份
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
@@ -39,9 +39,9 @@ etcdctl  snapshot restore snapshot.db \
 --initial-advertise-peer-urls=https://10.0.0.31:2380 \
 --initial-cluster etcd01=https://10.0.0.31:2380 \
 --initial-cluster-token=etcd-cluster \
---cacert=/etc/kubernetes/ssl/peer-ca.pem \
---cert=/etc/etcd/ssl/etcd.pem \
---key=/etc/etcd/ssl/etcd-key.pem
+--cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem
 ```
 
 启动服务
@@ -57,7 +57,7 @@ systemctl start etcd
 使用API 3写入数据库
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -67,7 +67,7 @@ put /name/1 test
 读取数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -77,7 +77,7 @@ get  /name/1
 使用API 2写入数据库
 
 ```bash
-ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/peer-ca.pem \
+ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/ca.pem \
 --cert-file /etc/kubernetes/pki/etcd.pem \
 --key-file /etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -87,7 +87,7 @@ set /name1 test01
 读取API 2写入数据
 
 ```bash
-ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/peer-ca.pem \
+ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/ca.pem \
 --cert-file /etc/kubernetes/pki/etcd.pem \
 --key-file /etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -97,7 +97,7 @@ get /name1
 ### 2、备份etcd数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
@@ -109,7 +109,7 @@ snapshot save mysnapshot.db
 查看状态
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -125,7 +125,7 @@ systemctl stop etcd
 停掉Leader 10.0.0.33， 查看集群状况，重新选举出了leader，集群可正常使用
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -143,7 +143,7 @@ Failed to get the status of endpoint https://10.0.0.33:2379 (context deadline ex
 停掉10.0.0.32，查看集群状况，集群已经无法正常使用，说明3节点的Etcd容错为1
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -214,7 +214,7 @@ systemctl start etcd
 查看API 2写入数据
 
 ```bash
-ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/peer-ca.pem \
+ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/ca.pem \
 --cert-file /etc/kubernetes/pki/etcd.pem \
 --key-file /etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -224,7 +224,7 @@ get /name1
 查看API 3写入数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -263,7 +263,7 @@ ETCDCTL_API=2 etcdctl backup --data-dir /data/etcd/data --backup-dir etcd_backup
 ### 1）在正常节点上查看集群状态并摘除异常节点
 
 ```
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status
@@ -274,7 +274,7 @@ etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
 ### 2）摘除异常节点
 
 ```
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 member remove f1ec1f6015c9d4a4
@@ -287,7 +287,7 @@ member remove f1ec1f6015c9d4a4
 - 删除新增成员的旧数据目录，更改相关配置需将原etcd服务的旧数据目录删除，否则etcd会无法正常启动。将节点重新加入集群（name要与配置文件的--name一致）
 
   ```
-  etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+  etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
   --cert=/etc/kubernetes/pki/etcd.pem \
   --key=/etc/kubernetes/pki/etcd-key.pem \
   --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -341,7 +341,7 @@ systemctl start etcd
 ### 1）备份数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
@@ -351,7 +351,7 @@ snapshot save mysnapshot.db
 ### 2）获取reversion
 
 ```bash
-etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -361,7 +361,7 @@ endpoint status |grep -o '"revision":[0-9]*'
 ### 3）compact
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -371,7 +371,7 @@ compact $revision
 ### 4）defrag
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -381,7 +381,7 @@ defrag
 ### 5）删除报警(必需****删除，否则集群仍然无法使用)
 
 ```bash
-etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/peer-ca.pem \
+etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
@@ -389,3 +389,107 @@ alarm disarm
 ```
 
 以上就是对ETCD集群日常维护的总结，为了使服务更加稳定的运行，建议定时备份和压缩数据，并增加集群监控(与Prometheus配合使用)。
+
+## 4、etcd强制删除数据
+
+有时候通过以下删除数据时删除不掉，可能是之前删除顺序有问题，没有删干净pod，就删除命名空间，导致删除不掉.
+
+```bash
+# 删除POD
+kubectl delete pod PODNAME --force --grace-period=0
+# 删除NAMESPACE
+kubectl delete namespace NAMESPACENAME --force --grace-period=0
+```
+
+**直接从ETCD中删除源数据**
+
+```bash
+# 删除default namespace下的pod名为pod-to-be-deleted-0
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+del /registry/pods/default/pod-to-be-deleted-0
+# 删除需要删除的NAMESPACE
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+del /registry/namespaces/NAMESPACENAME
+```
+
+**查询都有哪些namespaces**
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+get /registry/namespaces/ --prefix --keys-only
+
+/registry/namespaces/default
+/registry/namespaces/ingress-system
+/registry/namespaces/kube-node-lease
+/registry/namespaces/kube-public
+/registry/namespaces/kube-system
+/registry/namespaces/test
+```
+
+**与kubectl查看的结果一致**
+
+```bash
+[root@supper ~]# kubectl get ns
+NAME                   STATUS        AGE
+default                Active        28d
+ingress-system         Active        28d
+kube-node-lease        Active        28d
+kube-public            Active        28d
+kube-system            Active        28d
+test                   Active        4h51m
+```
+
+**在查询default namespace中的pod**
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+get /registry/pods/default --prefix --keys-only
+
+/registry/pods/default/myapp-deploy-c7b5fb585-2zppw
+/registry/pods/default/myapp-deploy-c7b5fb585-p4m66
+/registry/pods/default/myapp-deploy-c7b5fb585-pb296
+```
+
+**kubectl命令看到结果与etcd中一致**
+
+```bash
+[root@supper ~]# kubectl get pods
+NAME                           READY   STATUS    RESTARTS   AGE
+myapp-deploy-c7b5fb585-2zppw   1/1     Running   0          6m26s
+myapp-deploy-c7b5fb585-p4m66   1/1     Running   0          8m11s
+myapp-deploy-c7b5fb585-pb296   1/1     Running   0          8m11s
+```
+
+**在etcd中删除pod testpod-t7ps7**
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+del /registry/pods/default/myapp-deploy-c7b5fb585-pb296    
+
+1
+```
+
+**再次查看pod，发现pod已经没有了**
+
+```bash
+[root@supper ~]# kubectl get pods
+NAME                           READY   STATUS    RESTARTS   AGE
+myapp-deploy-c7b5fb585-2zppw   1/1     Running   0          7m55s
+myapp-deploy-c7b5fb585-8gmff   1/1     Running   0          12s
+myapp-deploy-c7b5fb585-p4m66   1/1     Running   0          9m40s
+```
