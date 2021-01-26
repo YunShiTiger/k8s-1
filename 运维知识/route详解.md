@@ -8,7 +8,7 @@ route命令用于显示和操作IP路由表。要实现两个不同的子网之�
 
 ## 2.1 命令格式
 
-```bash
+```ceylon
 route [-CFvnee]
 route [-v] [-A family] add [-net|-host] target [netmask Nm] [gw Gw] [metric N] 
       [mss M] [window W] [irtt I] [reject] [mod] [dyn] [reinstate] [[dev] If]
