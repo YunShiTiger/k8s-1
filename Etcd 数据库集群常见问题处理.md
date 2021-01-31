@@ -1,6 +1,6 @@
 ETCD是一个高可用的分布式Key/Value存储系统。它使用Raft算法，通过选举来保持集群内各节点状态的一致性。虽然ETCD具有高可用的特点，但是也无法避免多个节点宕机，甚至全部宕机的情况发生。如何快速的恢复集群，就变得格外重要。本文将介绍在日常工作中，遇到的ETCD集群常见问题的处理方法。
 
-# etcd数据备份与恢复验证
+# [etcd](ETCDCTL_API=3)数据备份与恢复验证
 
 ## 一、单机
 
@@ -22,12 +22,6 @@ snapshot save snapshot.db
 
 ```bash
 systemctl stop etcd
-```
-
-使用ETCDCTL API 3
-
-```bash
-export ETCDCTL_API=3
 ```
 
 恢复数据
@@ -493,3 +487,7 @@ myapp-deploy-c7b5fb585-2zppw   1/1     Running   0          7m55s
 myapp-deploy-c7b5fb585-8gmff   1/1     Running   0          12s
 myapp-deploy-c7b5fb585-p4m66   1/1     Running   0          9m40s
 ```
+
+## 5、重置ETCD集群
+
+先通过 `--force-new-cluster` 强行拉起一个 etcd 集群，抹除了原有 data-dir 中原有集群的属性信息（内部猜测），然后通过加入新成员的方式扩展集群到指定的数目。

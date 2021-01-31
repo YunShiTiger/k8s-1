@@ -465,7 +465,7 @@ mongo	60 IN A 10.0.0.50
 
 4.4 添加slb上添加tcp转发(nginx.conf)
 
-```
+```bash
 ......
 stream {
 ......
@@ -473,6 +473,7 @@ stream {
         hash $remote_addr consistent;
         server 10.0.0.41:27017 max_fails=3 fail_timeout=10s;
         server 10.0.0.42:27017 max_fails=3 fail_timeout=10s;
+        server 10.0.0.43:27017 max_fails=3 fail_timeout=10s;
     }
     server {
        listen 27017;
