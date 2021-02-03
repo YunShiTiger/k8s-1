@@ -44,200 +44,16 @@ etcdctl  snapshot restore snapshot.db \
 systemctl start etcd
 ```
 
-## 二、集群
+## 二、持久化数据备份和恢复
 
-### 1、模拟写入数据到Etcd集群
-
-使用API 3写入数据库
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-put /name/1 test
-```
-
-读取数据
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-get  /name/1
-```
-
-使用API 2写入数据库
-
-```bash
-ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-set /name1 test01
-```
-
-读取API 2写入数据
-
-```bash
-ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-get /name1
-```
-
-### 2、备份etcd数据
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379" \
-snapshot save mysnapshot.db
-```
-
-### 3、停止etcd集群
-
-查看状态
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-endpoint status
-```
-
-停止方法：分别在3台etcd的宿主机上执行以下命令停止etcd服务
-
-```bash
-systemctl stop etcd
-```
-
-停掉Leader 10.0.0.33， 查看集群状况，重新选举出了leader，集群可正常使用
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-endpoint status --write-out=table
-
-Failed to get the status of endpoint https://10.0.0.33:2379 (context deadline exceeded)
-+------------------------+------------------+---------+---------+-----------+------------+-----------+------------+
-|        ENDPOINT        |        ID        | VERSION | DB SIZE | IS LEADER | IS LEARNER | RAFT TERM | RAFT INDEX | 
-+------------------------+------------------+---------+---------+-----------+------------+-----------+------------+
-| https://10.0.0.31:2379 | 1f46bee47a4f04aa |   3.4.7 |   66 MB |      true |      false |      3941 |   29854802 |         
-| https://10.0.0.32:2379 | 6443b97f5544707b |   3.4.7 |   65 MB |     false |      false |      3941 |   29854802 |           
-+------------------------+------------------+---------+---------+-----------+------------+-----------+------------+
-```
-
-停掉10.0.0.32，查看集群状况，集群已经无法正常使用，说明3节点的Etcd容错为1
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-endpoint status --write-out=table
-
-Failed to get the status of endpoint https://10.0.0.32:2379 (context deadline exceeded)
-Failed to get the status of endpoint https://10.0.0.33:2379 (context deadline exceeded)
-+------------------------+------------------+---------+---------+-----------+------------+-----------+------------+
-|        ENDPOINT        |        ID        | VERSION | DB SIZE | IS LEADER | IS LEARNER | RAFT TERM | RAFT INDEX | 
-+------------------------+------------------+---------+---------+-----------+------------+-----------+------------+
-| https://10.0.0.31:2379 | 1f46bee47a4f04aa |   3.4.7 |   66 MB |     false |      false |      3941 |   29854802 |         
-+------------------------+------------------+---------+---------+-----------+------------+-----------+------------+
-```
-
-删除etcd数据，方法：登录etcd所在主机执行：(注意：危险操作，请谨慎操作，确保在有数据备份并且确定Etcd集群无法正常工作后操作)
-
-```bash
-rm -rf /data/etcd/data
-```
-
-### 4、使用备份数据进行恢复
-
-将etcd数据文件分发给etcd主机，方便恢复数据
-
-恢复10.0.0.31节点数据
-
-```bash
-etcdctl  snapshot restore mysnapshot.db \
---name=etcd01 \
---data-dir=/data/etcd/data \
---initial-advertise-peer-urls=https://10.0.0.31:2380 \
---initial-cluster etcd01=https://10.0.0.31:2380,etcd02=https://10.0.0.32:2380,etcd03=https://10.0.0.33:2380 \
---initial-cluster-token=etcd-cluster
-```
-
-恢复10.0.0.32节点数据
-
-```bash
-etcdctl  snapshot restore mysnapshot.db \
---name=etcd02 \
---data-dir=/data/etcd/data \
---initial-advertise-peer-urls=https://10.0.0.32:2380 \
---initial-cluster etcd01=https://10.0.0.31:2380,etcd02=https://10.0.0.32:2380,etcd03=https://10.0.0.33:2380 \
---initial-cluster-token=etcd-cluster
-```
-
-恢复10.0.0.33节点数据
-
-```bash
-etcdctl  snapshot restore mysnapshot.db \
---name=etcd03 \
---data-dir=/data/etcd/data \
---initial-advertise-peer-urls=https://10.0.0.33:2380 \
---initial-cluster etcd01=https://10.0.0.31:2380,etcd02=https://10.0.0.32:2380,etcd03=https://10.0.0.33:2380 \
---initial-cluster-token=etcd-cluster
-```
-
-### 5、启动Etcd服务
-
-分别在etcd所在主机执行如下命令：
-
-```bash
-systemctl start etcd
-```
-
-### 6、验证数据完整性
-
-查看API 2写入数据
-
-```bash
-ETCDCTL_API=2 etcdctl --ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-get /name1
-```
-
-查看API 3写入数据
-
-```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
-get  /name/1
-```
-
-经过验证，使用ETCDCTL_API=2 存放的数据会丢失，使用ETCDCTL_API=3存放的数据能正常恢复,etcd v2 和 v3 的数据不能混合存放
-
-**若使用 v3 备份数据时存在 v2 的数据则不影响恢复
-若使用 v2 备份数据时存在 v3 的数据则恢复失败**
-
-### 7、 API 2 备份与恢复方法
-
-etcd的数据默认会存放在我们的命令工作目录中，我们发现数据所在的目录，会被分为两个文件夹中：
+etcd v2 和 v3 的数据不能混合存放。etcd的数据默认会存放在我们的命令工作目录中，我们发现数据所在的目录，会被分为两个文件夹中：
 
 - snap: 存放快照数据,etcd防止WAL文件过多而设置的快照，存储etcd数据状态。
 - wal: 存放预写式日志,最大的作用是记录了整个数据变化的全部历程。在etcd中，所有数据的修改在提交前，都要先写入到WAL中。
 
-测试数据
+##  API 2 备份与恢复方法
+
+### 1 模拟写入数据
 
 ```bash
 写入数据
@@ -256,16 +72,27 @@ ETCDCTL_API=2 etcdctl \
 get /test
 ```
 
-备份
+### 2 备份
 
 ```bash
 ETCDCTL_API=2 etcdctl backup --data-dir /data/etcd/data/ -backup-dir etcd_backup
 tar -zcvf backup.etcd.tar.gz etcd_backup
 ```
 
-恢复
+### 3 恢复
 
-将backup.etcd.tar.gz copy到要恢复的集群任意一个服务器上，集群默认配置为1中的配置，将第一个恢复的服务器的ETCD_INITIAL_CLUSTER_STATE设置为new，其他两个设置为exsiting
+#### （1） 恢复数据
+
+将backup.etcd.tar.gz 复制到要恢复的集群任意一个服务器上
+
+更新/usr//lib/systemd/system/etcd.service的配置
+
+```bash
+--initial-cluster etcd-m1=https://10.0.0.31:2380
+--initial-cluster-state=new 
+```
+
+修改数据
 
 ```bash
 tar -xvf backup.etcd.tar.gz
@@ -312,7 +139,7 @@ get /test
 7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
 ```
 
-添加节点
+#### （2）添加节点
 
 ```bash
 [root@m1 ~]# etcdctl member add etcd-m2 --peer-urls=https://10.0.0.32:2380
@@ -342,7 +169,7 @@ rm -rf /data/etcd/data
 systemctl daemon-reload && systemctl start etcd
 ```
 
-添加节点
+#### （3）添加节点
 
 ```bash
 [root@m1 ~]# etcdctl member add etcd-m3 --peer-urls=https://10.0.0.33:2380
@@ -381,7 +208,183 @@ systemctl daemon-reload && systemctl start etcd
 bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:2379, false
 ```
 
+### 4 验证数据完整性
+
+```bash
+ETCDCTL_API=2 etcdctl \
+--ca-file /etc/kubernetes/pki/ca.pem \
+--cert-file /etc/kubernetes/pki/etcd.pem \
+--key-file /etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+get /test
+```
+
 做好数据验证，如没问题，将所有节点的ETCD_INITIAL_CLUSTER更新为3个节点的，然后重启。
+
+## API 3 备份与恢复方法
+
+### 1 模拟写入数据
+
+使用API 3写入数据库
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+put /name/1 test
+```
+
+读取数据
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+get  /name/1
+```
+
+### 2 备份etcd数据
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379" \
+snapshot save mysnapshot.db
+```
+
+### 3 停止etcd集群
+
+查看状态
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+endpoint status
+```
+
+停止etcd服务
+
+```bash
+systemctl stop etcd
+```
+
+删除etcd数据
+
+```bash
+rm -rf /data/etcd/data
+```
+
+### 4 使用备份数据进行恢复
+
+恢复10.0.0.31节点数据
+
+```bash
+etcdctl  snapshot restore mysnapshot.db \
+--name=etcd01 \
+--data-dir=/data/etcd/data \
+--initial-advertise-peer-urls=https://10.0.0.31:2380 \
+--initial-cluster etcd01=https://10.0.0.31:2380,etcd02=https://10.0.0.32:2380,etcd03=https://10.0.0.33:2380 \
+--initial-cluster-token=etcd-cluster
+```
+
+恢复10.0.0.32节点数据
+
+```bash
+etcdctl  snapshot restore mysnapshot.db \
+--name=etcd02 \
+--data-dir=/data/etcd/data \
+--initial-advertise-peer-urls=https://10.0.0.32:2380 \
+--initial-cluster etcd01=https://10.0.0.31:2380,etcd02=https://10.0.0.32:2380,etcd03=https://10.0.0.33:2380 \
+--initial-cluster-token=etcd-cluster
+```
+
+恢复10.0.0.33节点数据
+
+```bash
+etcdctl  snapshot restore mysnapshot.db \
+--name=etcd03 \
+--data-dir=/data/etcd/data \
+--initial-advertise-peer-urls=https://10.0.0.33:2380 \
+--initial-cluster etcd01=https://10.0.0.31:2380,etcd02=https://10.0.0.32:2380,etcd03=https://10.0.0.33:2380 \
+--initial-cluster-token=etcd-cluster
+```
+
+### 5 启动Etcd服务
+
+分别在etcd所在主机执行如下命令：
+
+```bash
+systemctl start etcd
+```
+
+### 6 查看状态
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+endpoint status --write-out=table
+```
+
+停止etcd服务
+
+### 7 验证数据完整性
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+get  /name/1
+```
+
+## 备份脚本
+
+v2
+
+```bash
+cat << 'EOF' >etcd-backup-v2.sh
+#!/bin/bash
+timestamp=`date +%Y%m%d-%H%M%S`
+data_dir=/data/etcd/data
+back_dir=/data/backup/etcd
+mkdir -p ${back_dir} ${back_dir}
+ETCDCTL_API=2 etcdctl backup --data-dir ${data_dir} -backup-dir ${back_dir}/etcd-${timestamp}
+cd ${back_dir}
+tar zcvf etcd-${timestamp}.tar.gz etcd-${timestamp} --remove-files
+EOF
+```
+
+v3
+
+```bash
+cat << 'EOF' >etcd-backup-v3.sh
+#!/bin/bash
+timestamp=`date +%Y%m%d-%H%M%S`
+back_dir=/data/backup/etcd
+endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379"
+ssl_dir=/etc/kubernetes/pki
+cert_file=${ssl_dir}/etcd.pem
+key_file=${ssl_dir}/etcd-key.pem
+cacert_file=${ssl_dir}/ca.pem
+
+mkdir -p $back_dir
+ETCDCTL_API=3 etcdctl \
+--endpoints="${endpoints}" \
+--cert=${cert_file} \
+--key=${key_file} \
+--cacert=${cacert_file} \
+snapshot save ${back_dir}/snapshot_$timestamp.db
+EOF
+```
+
+
 
 #  三、ETCD常见问题
 
@@ -393,18 +396,18 @@ bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:23
 
 ### 1）在正常节点上查看集群状态并摘除异常节点
 
-```
+```bash
 etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status --write-out=table
 ```
 
 ![线上 Etcd 数据库集群常见问题处理](acess/image-20200809093633357.png)
 
 ### 2）摘除异常节点
 
-```
+```bash
 etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
@@ -417,7 +420,7 @@ member remove f1ec1f6015c9d4a4
 
 - 删除新增成员的旧数据目录，更改相关配置需将原etcd服务的旧数据目录删除，否则etcd会无法正常启动。将节点重新加入集群（name要与配置文件的--name一致）
 
-  ```
+  ```bash
   etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
   --cert=/etc/kubernetes/pki/etcd.pem \
   --key=/etc/kubernetes/pki/etcd-key.pem \
