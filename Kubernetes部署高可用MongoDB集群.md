@@ -498,3 +498,102 @@ Welcome to the MongoDB shell.
 ......
 MainRepSet:SECONDARY> 
 ```
+
+#### 4.5 带 TLS 证书的 TCP
+
+上面我们部署的 mongo 是一个普通的服务，然后用 Traefik 代理的，但是有时候为了安全 mongo 服务本身还会使用 TLS 证书的形式提供服务：
+
+安装go
+
+```bash
+yum install -y go
+```
+
+下载minica并编译
+
+```bash
+git clone https://github.com/jsha/minica.git
+cd minica
+go build
+mv minica /usr/bin/
+```
+
+生成 mongo tls 证书的脚本文件
+
+```shell
+mkdir -p mogo-tls && cd mogo-tls
+cat << 'EOF' >generate-certificates.sh
+#!/bin/bash
+# From https://medium.com/@rajanmaharjan/secure-your-mongodb-connections-ssl-tls-92e2addb3c89
+set -eu -o pipefail
+DOMAINS="${1}"
+CERTS_DIR="${2}"
+[ -d "${CERTS_DIR}" ]
+CURRENT_DIR="$(cd "$(dirname "${0}")" && pwd -P)"
+GENERATION_DIRNAME="$(echo "${DOMAINS}" | cut -d, -f1)"
+rm -rf "${CERTS_DIR}/${GENERATION_DIRNAME:?}" "${CERTS_DIR}/certs"
+echo "== Checking Requirements..."
+command -v go >/dev/null 2>&1 || echo "Golang is required"
+command -v minica >/dev/null 2>&1 || go get github.com/jsha/minica >/dev/null
+echo "== Generating Certificates for the following domains: ${DOMAINS}..."
+cd "${CERTS_DIR}"
+minica --ca-cert "${CURRENT_DIR}/minica.pem" --ca-key="${CURRENT_DIR}/minica-key.pem" --domains="${DOMAINS}"
+mv "${GENERATION_DIRNAME}" "certs"
+cat certs/key.pem certs/cert.pem > certs/mongo.pem
+EOF
+```
+
+生成证书
+
+```bash
+bash generate-certificates.sh mongo.wzxmt.com .
+== Checking Requirements...
+== Generating Certificates for the following domains: mongo.wzxmt.com...
+```
+
+生成secret
+
+```shell
+[root@supper mogo-tls]# kubectl -n mongo create secret tls traefik-mongo-certs --cert=certs/cert.pem --key=certs/key.pem
+secret/traefik-mongo-certs created
+```
+
+然后重新更新 `IngressRouteTCP` 对象，增加 TLS 配置：
+
+```yaml
+cat << 'EOF' >mongo-ingressroute-tcp-tls.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: mongo-traefik-tcp
+  namespace: mongo
+spec:
+  entryPoints:
+    - mongo
+  routes:
+  - match: HostSNI(`mongo.wzxmt.com`)
+    services:
+    - name: mongo
+      port: 27017
+  tls: 
+    secretName: traefik-mongo-certs
+EOF
+kubectl apply -f mongo-ingressroute-tcp-tls.yaml
+```
+
+带上证书来进行连接：
+
+```shell
+[root@supper test]# docker run --rm -it -v /root/test/mogo-tls/:/tmp/ mongo:4.0 /bin/bash
+root@879ef3caec5d:/# mongo --host mongo.wzxmt.com --port 27017 --ssl --sslCAFile=/tmp/minica.pem --sslPEMKeyFile=/tmp/certs/mongo.pem
+MongoDB shell version v4.0.22
+connecting to: mongodb://mongo.wzxmt.com:27017/?gssapiServiceName=mongodb
+Implicit session: session { "id" : UUID("b6e6fd52-f31a-4a6e-8ad0-45cf109afa87") }
+MongoDB server version: 4.0.22
+Server has startup warnings:
+...
+MainRepSet:PRIMARY>
+```
+
+
+
