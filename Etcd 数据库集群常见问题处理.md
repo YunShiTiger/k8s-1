@@ -349,7 +349,8 @@ get  /name/1
 v2
 
 ```bash
-cat << 'EOF' >etcd-backup-v2.sh
+mkdir -p /usr/local/scripts
+cat << 'EOF' >/usr/local/scripts/etcd-backup-v2.sh
 #!/bin/bash
 timestamp=`date +%Y%m%d-%H%M%S`
 data_dir=/data/etcd/data
@@ -359,16 +360,19 @@ ETCDCTL_API=2 etcdctl backup --data-dir ${data_dir} -backup-dir ${back_dir}/etcd
 cd ${back_dir}
 tar zcvf etcd-${timestamp}.tar.gz etcd-${timestamp} --remove-files
 EOF
+chmod +x /usr/local/scripts/*
+echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v2.sh" >>/var/spool/cron/root
 ```
 
 v3
 
 ```bash
-cat << 'EOF' >etcd-backup-v3.sh
+mkdir -p /usr/local/scripts
+cat << 'EOF' >/usr/local/scripts/etcd-backup-v3.sh
 #!/bin/bash
 timestamp=`date +%Y%m%d-%H%M%S`
 back_dir=/data/backup/etcd
-endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379"
+endpoints=https://10.0.0.31:2379
 ssl_dir=/etc/kubernetes/pki
 cert_file=${ssl_dir}/etcd.pem
 key_file=${ssl_dir}/etcd-key.pem
@@ -382,9 +386,9 @@ ETCDCTL_API=3 etcdctl \
 --cacert=${cacert_file} \
 snapshot save ${back_dir}/snapshot_$timestamp.db
 EOF
+chmod +x /usr/local/scripts/*
+echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v3.sh" >>/var/spool/cron/root
 ```
-
-
 
 #  三、ETCD常见问题
 
@@ -403,7 +407,7 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status --write-out=table
 ```
 
-![线上 Etcd 数据库集群常见问题处理](acess/image-20200809093633357.png)
+![image-20210210173210747](../../AppData/Roaming/Typora/typora-user-images/image-20210210173210747.png)
 
 ### 2）摘除异常节点
 
@@ -512,7 +516,7 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 defrag
 ```
 
-### 5）删除报警(必需****删除，否则集群仍然无法使用)
+### 5）删除报警(必需删除，否则集群仍然无法使用)
 
 ```bash
 etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
