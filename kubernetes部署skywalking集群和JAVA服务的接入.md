@@ -102,15 +102,29 @@ kubectl apply -f skywalking-ingress.yaml
 
 ###  1 部署es集群
 
-init
+拉取镜像并推送至私有仓库
 
-```yaml
-cat << 'EOF' >00-init.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: es
-EOF
+```bash
+docker pull apache/skywalking-oap-server:8.1.0-es7
+docker pull apache/skywalking-ui:8.1.0
+docker pull docker.elastic.co/elasticsearch/elasticsearch:7.5.1
+docker tag apache/skywalking-oap-server:8.1.0-es7 harbor.wzxmt.com/infra/skywalking-oap-server:8.1.0-es7
+docker tag apache/skywalking-ui:8.1.0 harbor.wzxmt.com/infra/skywalking-ui:8.1.0
+docker tag docker.elastic.co/elasticsearch/elasticsearch:7.5.1 harbor.wzxmt.com/infra/elasticsearch:7.5.1
+docker push harbor.wzxmt.com/infra/skywalking-oap-server:8.1.0-es7
+docker push harbor.wzxmt.com/infra/skywalking-ui:8.1.0
+docker push harbor.wzxmt.com/infra/elasticsearch:7.5.1
+```
+
+创建docker-registry
+
+```bash
+kubectl create namespace es
+kubectl create secret docker-registry harborlogin \
+--namespace=es  \
+--docker-server=https://harbor.wzxmt.com \
+--docker-username=admin \
+--docker-password=admin
 ```
 
 StorageClass
@@ -200,6 +214,8 @@ spec:
       labels:
         app: "elasticsearch-master"
     spec:
+      imagePullSecrets:
+      - name: harborlogin
       serviceAccountName: elasticsearch-admin
       securityContext:
         fsGroup: 1000
@@ -221,7 +237,7 @@ spec:
         securityContext:
           runAsUser: 0
           privileged: true
-        image: "docker.elastic.co/elasticsearch/elasticsearch:7.5.1"
+        image: harbor.wzxmt.com/infra/elasticsearch:7.5.1
         imagePullPolicy: "IfNotPresent"
         command: ["sysctl", "-w", "vm.max_map_count=262144"]
       containers:
@@ -232,7 +248,7 @@ spec:
             - ALL
           runAsNonRoot: true
           runAsUser: 1000
-        image: "docker.elastic.co/elasticsearch/elasticsearch:7.5.1"
+        image: harbor.wzxmt.com/infra/elasticsearch:7.5.1
         imagePullPolicy: "IfNotPresent"
         readinessProbe:
           failureThreshold: 3
@@ -387,7 +403,7 @@ metadata:
 spec:
   containers:
   - name: "skywalking-zpnfv-test"
-    image: "docker.elastic.co/elasticsearch/elasticsearch:7.5.1"
+    image: harbor.wzxmt.com/infra/elasticsearch:7.5.1
     command:
       - "sh"
       - "-c"
@@ -412,17 +428,6 @@ kubectl apply -f test-elasticsearch-health.yaml
 
 ### 2 部署skywalking集群
 
-拉取镜像并推送至私有仓库
-
-```bash
-docker pull apache/skywalking-oap-server:8.1.0-es7
-docker pull apache/skywalking-ui:8.1.0
-docker tag apache/skywalking-oap-server:8.1.0-es7 harbor.wzxmt.com/infra/skywalking-oap-server:8.1.0-es7
-docker tag apache/skywalking-ui:8.1.0 harbor.wzxmt.com/infra/skywalking-ui:8.1.0
-docker push harbor.wzxmt.com/infra/skywalking-oap-server:8.1.0-es7
-docker push harbor.wzxmt.com/infra/skywalking-ui:8.1.0
-```
-
 创建docker-registry
 
 ```bash
@@ -433,8 +438,6 @@ kubectl create secret docker-registry harborlogin \
 --docker-username=admin \
 --docker-password=admin
 ```
-
-#### 应用资源清单
 
 #### 准备oap资源清单
 
