@@ -196,34 +196,34 @@ logLevel: info
 部署 Harbor
 
 ```bash
-helm -n harbor install harbor .
+helm -n harbor install registry .
 ```
 
 装完成后，我们核实下安装情况：
 
 ```bash
-[root@supper harbor]# k get pod -n harbor
-NAME                                           READY   STATUS    RESTARTS   AGE
-harbor-harbor-chartmuseum-54dcdffc65-psqfl     1/1     Running   0          6m31s
-harbor-harbor-clair-55dccb7ff-txds5            2/2     Running   0          6m31s
-harbor-harbor-core-5847df9656-sqgpv            1/1     Running   3          6m31s
-harbor-harbor-database-0                       1/1     Running   0          6m31s
-harbor-harbor-jobservice-58cfc7df5b-vx8zq      1/1     Running   3          6m31s
-harbor-harbor-notary-server-c5867b899-ckdg9    1/1     Running   5          6m31s
-harbor-harbor-notary-signer-5899b7f9f6-s4x68   1/1     Running   5          6m31s
-harbor-harbor-portal-6667868cb5-5ln55          1/1     Running   0          6m31s
-harbor-harbor-redis-0                          1/1     Running   0          6m31s
-harbor-harbor-registry-6894b57978-d9m7x        2/2     Running   0          6m31s
-harbor-harbor-trivy-0                          1/1     Running   0          6m31s
+[root@supper ~]# k get pod -n harbor
+NAME                                             READY   STATUS    RESTARTS   AGE
+registry-harbor-chartmuseum-78b4dbdff6-hwqzp     1/1     Running   0          4m8s
+registry-harbor-clair-74d46796c5-pqbjm           2/2     Running   5          4m7s
+registry-harbor-core-54b4c64d77-6h8ww            1/1     Running   2          4m8s
+registry-harbor-database-0                       1/1     Running   0          4m7s
+registry-harbor-jobservice-7dd7d6cc58-2nvtf      1/1     Running   2          4m8s
+registry-harbor-notary-server-6f9dd9c548-jspls   1/1     Running   3          4m7s
+registry-harbor-notary-signer-6966978d45-rggxc   1/1     Running   4          4m8s
+registry-harbor-portal-698df85d7f-fjf8p          1/1     Running   0          4m8s
+registry-harbor-redis-0                          1/1     Running   0          4m7s
+registry-harbor-registry-765d896bd-lc5ch         2/2     Running   0          4m8s
+registry-harbor-trivy-0                          1/1     Running   0          4m7s
 ```
 
 查看 ingress:
 
 ```bash
-[root@supper harbor]#  kubectl get ingressroute -n harbor
-NAME                           AGE
-harbor-harbor-ingress          3m36s
-harbor-harbor-ingress-notary   14m
+[root@supper ~]# kubectl get ingress -n harbor
+NAME                             CLASS    HOSTS              ADDRESS   PORTS     AGE
+registry-harbor-ingress          <none>   harbor.wzxmt.com             80, 443   4m32s
+registry-harbor-ingress-notary   <none>   notary.wzxmt.com             80, 443   4m32s
 ```
 
 ### 3、Host 配置域名
@@ -316,8 +316,7 @@ update-ca-trust extract
 添加 Helm 仓库:
 
 ```bash
-helm repo add myrepo --username=admin --password=admin@123 https://hub.7d.com/chartrepo/library
-1
+helm repo add myrepo --username=admin --password=admin@123 https://harbor.wzxmt.com/chartrepo/library
 ```
 
 - `-username`：harbor仓库用户名
@@ -332,8 +331,7 @@ helm repo add myrepo --username=admin --password=admin@123 https://hub.7d.com/ch
 $ helm repo list
 
 NAME            URL                                                                                  
-myrepo          https://hub.7d.com/chartrepo/library 
-1234
+myrepo          https://harbor.wzxmt.com/chartrepo/library 
 ```
 
 ## 七、测试功能
@@ -347,22 +345,21 @@ myrepo          https://hub.7d.com/chartrepo/library
 docker pull hello-world:latest
 
 # 将下载的镜像使用 tag 命令改变镜像名
-docker tag hello-world:latest hub.7d.com/library/hello-world:latest
+docker tag hello-world:latest harbor.wzxmt.com/library/hello-world:latest
 
 # 推送镜像到镜像仓库
-docker push hub.7d.com/library/hello-world:latest
-12345678
+docker push harbor.wzxmt.com/library/hello-world:latest
 ```
 
-将之前的下载的镜像删除，然后测试从 `hub.7d.com` 下载镜像进行测试：
+将之前的下载的镜像删除，然后测试从 `harbor.wzxmt.com` 下载镜像进行测试：
 
 ```bash
 # 删除之前镜像
 docker rmi hello-world:latest
-docker rmi hello-world:latest hub.7d.com/library/hello-world:latest
+docker rmi hello-world:latest harbor.wzxmt.com/library/hello-world:latest
 
-# 测试从 `hub.7d.com` 下载新镜像
-docker pull hub.7d.com/library/hello-world:latest
+# 测试从 `harbor.wzxmt.com` 下载新镜像
+docker pull harbor.wzxmt.com/library/hello-world:latest
 123456
 ```
 
@@ -388,7 +385,7 @@ Pushing hello-0.1.0.tgz to myrepo...
 
 ## 八、遇到的问题
 
-### 1、Error response from daemon: Get https://hub.7d.com/v2/: x509: certificate signed by unknown authorit
+### 1、Error response from daemon: Get https://harbor.wzxmt.com/v2/: x509: certificate signed by unknown authorit
 
 需要到 `docker.service` 中修改下参数就可以了
 
@@ -414,8 +411,8 @@ sudo systemctl restart docker
 ### 2、413 Request Entity Too Large
 
 ```bash
-$ docker push hub.7d.com/mall_repo/mall-portal:1.0
-The push refers to repository [hub.7d.com/mall_repo/mall-portal]
+$ docker push harbor.wzxmt.com/mall_repo/mall-portal:1.0
+The push refers to repository [harbor.wzxmt.com/mall_repo/mall-portal]
 5a8f64cc7f4c: Pushing [==================================================>]  73.98MB/73.98MB
 35c20f26d188: Layer already exists 
 c3fe59dd9556: Preparing 
@@ -426,7 +423,6 @@ ce6c8756685b: Waiting
 0eb22bfb707d: Waiting 
 a2ae92ffcd29: Waiting 
 error parsing HTTP 413 response body: invalid character '<' looking for beginning of value: "<html>\r\n<head><title>413 Request Entity Too Large</title></head>\r\n<body>\r\n<center><h1>413 Request Entity Too Large</h1></center>\r\n<hr><center>nginx/1.17.3</center>\r\n</body>\r\n</html>\r\n"
-123456789101112
 ```
 
 解决办法是自定义参数文件增加：
@@ -435,7 +431,7 @@ error parsing HTTP 413 response body: invalid character '<' looking for beginnin
   ingress:
     hosts:
       ### 配置 Harbor 的访问域名，需要注意的是配置 notary 域名要和 core 处第一个单词外，其余保持一致
-      core: hub.7d.com
+      core: harbor.wzxmt.com
       notary: notary.7d.com
     controller: default
     annotations:
@@ -450,9 +446,4 @@ error parsing HTTP 413 response body: invalid character '<' looking for beginnin
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
       # 增加 Nignx配置，放开限制：A
       nginx.org/client-max-body-size: "0"
-123456789101112131415161718
 ```
-
-示例源码：
-
-- https://github.com/zuozewei/blog-example/tree/master/Kubernetes/k8s-harbor
