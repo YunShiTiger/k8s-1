@@ -360,7 +360,6 @@ docker rmi hello-world:latest harbor.wzxmt.com/library/hello-world:latest
 
 # 测试从 `harbor.wzxmt.com` 下载新镜像
 docker pull harbor.wzxmt.com/library/hello-world:latest
-123456
 ```
 
 ### 2、推送与拉取 Chart
@@ -380,7 +379,6 @@ helm package hello
 helm push hello-0.1.0.tgz myrepo
 
 Pushing hello-0.1.0.tgz to myrepo...
-123456789101112
 ```
 
 ## 八、遇到的问题
@@ -432,7 +430,7 @@ error parsing HTTP 413 response body: invalid character '<' looking for beginnin
     hosts:
       ### 配置 Harbor 的访问域名，需要注意的是配置 notary 域名要和 core 处第一个单词外，其余保持一致
       core: harbor.wzxmt.com
-      notary: notary.7d.com
+      notary: notary.wzxmt.com
     controller: default
     annotations:
       ingress.kubernetes.io/ssl-redirect: "true"
