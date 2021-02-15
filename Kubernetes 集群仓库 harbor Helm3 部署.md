@@ -57,81 +57,7 @@ Helm 现在具有一个安装程序脚本，该脚本将自动获取最新版本
 kubectl create namespace harbor
 ```
 
-## 四、创建自定义证书
-
-安装 Harbor 我们会默认使用 HTTPS 协议，需要 TLS 证书，如果我们没用自己设定自定义证书文件，那么 Harbor 将自动创建证书文件，不过这个有效期只有一年时间，所以这里我们生成自签名证书，为了避免频繁修改证书，将证书有效期为 10 年，操作如下：
-
-#### 1、生成CA证书私钥。
-
-```sh
-mkdir /root/harbor-ssl -p && cd /root/harbor-ssl
-openssl genrsa -out ca.key 4096
-```
-
-#### 2、生成CA证书。
-
-调整`-subj`选项中的值以反映您的组织。如果使用FQDN连接Harbor主机，则必须将其指定为通用名称（`CN`）属性。
-
-```shell
-openssl req -x509 -new -nodes -sha512 -days 3650 \
- -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=harbor.wzxmt.com" \
- -key ca.key \
- -out ca.crt
-```
-
-#### 3、生成服务器证书
-
-证书通常包含一个`.crt`文件和一个`.key`文件，例如`yourdomain.com.crt`和`yourdomain.com.key`。
-
-#### 4、生成私钥。
-
-```shell
-openssl genrsa -out tls.key 4096
-```
-
-#### 5、生成证书签名请求（CSR）。
-
-调整`-subj`选项中的值以反映您的组织。如果使用FQDN连接Harbor主机，则必须将其指定为通用名称（`CN`）属性，并在密钥和CSR文件名中使用它。
-
-```shell
-openssl req -sha512 -new \
-    -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=harbor.wzxmt.com" \
-    -key tls.key \
-    -out tls.csr
-```
-
-#### 6、生成一个x509 v3扩展文件。
-
-无论您使用FQDN还是IP地址连接到Harbor主机，都必须创建此文件，以便可以为您的Harbor主机生成符合主题备用名称（SAN）和x509 v3的证书扩展要求。替换`DNS`条目以反映您的域。
-
-```shell
-cat > v3.ext <<-EOF
-authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-extendedKeyUsage = serverAuth
-subjectAltName = @alt_names
-
-[alt_names]
-DNS.1=harbor.wzxmt.com
-DNS.2=wzxmt.com
-DNS.3=harbor
-EOF
-```
-
-#### 7、生成证书
-
-使用该`v3.ext`文件为您的Harbor主机生成证书。
-
-```shell
-openssl x509 -req -sha512 -days 3650 \
-    -extfile v3.ext \
-    -CA ca.crt -CAkey ca.key -CAcreateserial \
-    -in tls.csr \
-    -out tls.crt
-```
-
-## 五、设置自定义参数
+## 四、设置自定义参数
 
 ### 1、添加 Helm 仓库
 
@@ -146,13 +72,7 @@ helm fetch harbor/harbor --untar
 cd harbor
 ```
 
-#### 3、将生成的tls.crt与tls.key替换cert下的证书
-
-```bash
-\cp /root/harbor-ssl/* cert/
-```
-
-#### 4、修改values.yaml
+### 3、修改values.yaml
 
 ```yaml
 ...
@@ -250,26 +170,21 @@ notary  60 IN A 10.0.0.50
 
 ### 5、服务器配置镜像仓库
 
-#### 1、下载 Harbor 证书
+#### 1、配置docker信任仓库地址
 
-由于 Harbor 是基于 Https 的，故而需要提前配置 tls 证书，进入：Harobr主页->配置管理->系统配置->镜像库根证书
-![下载 Harbor 证书](https://img-blog.csdnimg.cn/20200827155332448.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3p1b3pld2Vp,size_16,color_FFFFFF,t_70#pic_center)
-
-#### 2、服务器 Docker 中配置 Harbor 证书
-
-然后进入服务器，在服务器上 `/etc/docker` 目录下创建 certs.d 文件夹，然后在 certs.d 文件夹下创建 Harobr 域名文件夹，可以输入下面命令创建对应文件夹：
+在etc/docker/daemon.json添加这两行
 
 ```bash
-mkdir -p /etc/docker/certs.d/harbor
+"insecure-registries": ["https://harbor.wzxmt.com"]
 ```
 
-然后再 /etc/docker/certs.d/hub.mydlq.club 目录下上床上面的 ca 证书文件。
+然后重启docker
 
-#### 3、登录 Harbor 仓库
+```bash
+systemctl restart docker.service
+```
 
-只有登录成功后才能将镜像推送到镜像仓库，所以配置完证书后尝试登录，测试是否能够登录成功：
-
-如果提示 ca 证书错误，则重建检测证书配置是否有误。
+#### 2、登录 Harbor 仓库
 
 ```bash
 docker login -u admin -p admin harbor.wzxmt.com
@@ -277,46 +192,56 @@ docker login -u admin -p admin harbor.wzxmt.com
 
 ### 6、服务器配置 Helm Chart 仓库
 
-#### 1、配置 Helm 证书
+#### 1、查看Ingress 中使用的 Secret 资源对象：
 
-跟配置 Docker 仓库一样，配置 Helm 仓库也得提前配置证书，上传 ca 签名到目录 `/etc/pki/ca-trust/source/anchors/`：
+```yaml
+[root@supper harbor]# kubectl get secret registry-harbor-ingress -n harbor -o yaml
 
-```bash
-$ cat /etc/pki/ca-trust/source/anchors/ca.crt
------BEGIN CERTIFICATE-----
-MIIC9TCCAd2gAwIBAgIRALztT/b8wlhjw50UECEOTR8wDQYJKoZIhvcNAQELBQAw
-FDESMBAGA1UEAxMJaGFyYm9yLWNhMB4XDTIwMDIxOTA3NTgwMFoXDTIxMDIxODA3
-NTgwMFowFDESMBAGA1UEAxMJaGFyYm9yLWNhMIIBIjANBgkqhkiG9w0BAQEFAAOC
-AQ8AMIIBCgKCAQEArYbsxYmNksU5eQhVIM3OKac4l6MV/5u5belAlWSdpbbQCwMF
-G/gAliTSQMgqcmhQ3odYTKImvx+5zrhP5b1CWXCQCVOlOFSLrs3ZLv68ZpKoDLkg
-6XhoQFVPLM0v5V+YzWCGAson81LfX3tDhltnOItSpe2KESABVH+5L/2vo25P7Mvw
-4bWEWMyY4AS/3toiDZjhwNMrMb2lpICrlH9Sc3dAOzUteyVznA5/WF8IyPI64aKn
-tl0gxLOZgUBTkBoxVhPj7dNNZu8lMnqAYXmhWt+oRr7t1HHp2lOtk2u/ndyV0kKL
-xufx5FYVJQel2yRBGc/C1QLN18nC1y6u5pITaQIDAQABo0IwQDAOBgNVHQ8BAf8E
-BAMCAqQwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMA8GA1UdEwEB/wQF
-MAMBAf8wDQYJKoZIhvcNAQELBQADggEBACFT92PWBFeCT7By8y8+EkB2TD1QVMZm
-NDpBS75q5s2yIumFwJrbY6YsHtRkN1Zx9jc4LiJFHC6r0ES3tbCDapsxocvzn7dW
-XLNTtnSx0zPxNXZzgmTsamfunBd4gszdXMshJ+bKsEoTXhJEXVjZq/k0EZS8L4Mp
-NZ7ciPqwAI1Tg+mFGp5UOvzxYLyW8nCLPykC73y3ob1tiO6xdyD/orTAbA6pIMc9
-7ajTfwYj4Q6JPY/QAmu0S+4hJHs724IrC6hiXUlQNVVRW/d3k+nXbYttnnmPnQXC
-RyK2ru7R8H43Zlwj26kQJo6naQoQ0+Xcjcyk5llPqJxCrk3uoHF0r4U=
------END CERTIFICATE-----
+apiVersion: v1
+data:
+  ca.crt: ...
+  tls.crt: ...
+  tls.key: ...
+kind: Secret
+metadata:
+  annotations:
+    meta.helm.sh/release-name: registry
+    meta.helm.sh/release-namespace: harbor
+  creationTimestamp: "2021-02-15T14:10:34Z"
+  labels:
+    app: harbor
+    app.kubernetes.io/managed-by: Helm
+    chart: harbor
+    heritage: Helm
+    release: registry
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    manager: Go-http-client
+    operation: Update
+    time: "2021-02-15T14:10:34Z"
+  name: registry-harbor-ingress
+  namespace: harbor
+  resourceVersion: "893005"
+  selfLink: /api/v1/namespaces/harbor/secrets/registry-harbor-ingress
+  uid: 6024dbdd-9ef3-4656-a663-057c40d56eb9
+type: kubernetes.io/tls
 ```
 
-> 如果下面执行的目录不存在，请用 yum 安装 ca-certificates 包。
-
-执行更新命令，使证书生效:
+#### 2、获取ca,私钥与公钥
 
 ```bash
-update-ca-trust extract 
+kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.ca\.crt}"|base64 --decode >ca.crt
+kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.crt}"|base64 --decode >tls.crt
+kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.key}"|base64 --decode >tls.key
 ```
 
-#### 2、添加 Helm 仓库
+#### 3、添加 Helm 仓库
 
 添加 Helm 仓库:
 
 ```bash
-helm repo add myrepo --username=admin --password=admin@123 https://harbor.wzxmt.com/chartrepo/library
+helm repo add myrepo --ca-file=ca.crt --cert-file=tls.crt --key-file=tls.key --username=admin --password=admin https://harbor.wzxmt.com/chartrepo
 ```
 
 - `-username`：harbor仓库用户名
@@ -392,35 +317,28 @@ Pushing hello-0.1.0.tgz to myrepo...
 ```bash
 # ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
 ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix://var/run/docker.sock
-12
 ```
 
 重启docker：
 
 ```bash
 ## 守护进程重启
-sudo systemctl daemon-reload
-
+systemctl daemon-reload
 ## 重启docker服务
-sudo systemctl restart docker
-12345
+systemctl restart docker
 ```
 
 ### 2、413 Request Entity Too Large
 
 ```bash
-$ docker push harbor.wzxmt.com/mall_repo/mall-portal:1.0
-The push refers to repository [harbor.wzxmt.com/mall_repo/mall-portal]
-5a8f64cc7f4c: Pushing [==================================================>]  73.98MB/73.98MB
-35c20f26d188: Layer already exists 
-c3fe59dd9556: Preparing 
-6ed1a81ba5b6: Layer already exists 
-a3483ce177ce: Layer already exists 
-ce6c8756685b: Waiting 
-30339f20ced0: Waiting 
-0eb22bfb707d: Waiting 
-a2ae92ffcd29: Waiting 
-error parsing HTTP 413 response body: invalid character '<' looking for beginning of value: "<html>\r\n<head><title>413 Request Entity Too Large</title></head>\r\n<body>\r\n<center><h1>413 Request Entity Too Large</h1></center>\r\n<hr><center>nginx/1.17.3</center>\r\n</body>\r\n</html>\r\n"
+[root@supper ~]# docker push harbor.wzxmt.com/infra/myapp:v2
+The push refers to repository [harbor.wzxmt.com/infra/myapp]
+05a9e65e2d53: Layer already exists
+68695a6cfd7d: Layer already exists
+c1dc81a64903: Layer already exists
+8460a579ab63: Pushing [==================================================>]  11.51MB/11.51MB
+d39d92664027: Pushing [==================================================>]  3.991MB/3.991MB
+error parsing HTTP 413 response body: invalid character '<' looking for beginning of value: "<html>\r\n<head><title>413 Request Entitarge</h1></center>\r\n<hr><center>nginx/1.18.0</center>\r\n</body>\r\n</html>\r\n"
 ```
 
 解决办法是自定义参数文件增加：
@@ -445,3 +363,11 @@ error parsing HTTP 413 response body: invalid character '<' looking for beginnin
       # 增加 Nignx配置，放开限制：A
       nginx.org/client-max-body-size: "0"
 ```
+
+如果使用nginx代理转发traefik，需要在nginx上修改上传大小限制
+
+```nginx
+#nginx 默认的request body为1M
+client_max_body_size 1024m;
+```
+
