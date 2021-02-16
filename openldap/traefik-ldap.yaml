@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ldap-ui
+  namespace: ldap
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: ldap.wzxmt.com
+    http:
+      paths:
+      - backend:
+          serviceName: phpldapadmin
+          servicePort: 8080
+   

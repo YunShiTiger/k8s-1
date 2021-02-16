@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: ldap
+  name: ldap
+  labels:
+    app: ldap
+spec:
+  replicas: 1
+  selector:    
+    matchLabels:      
+      app: ldap
+  template:
+    metadata:
+      labels:
+        app: ldap
+    spec:
+      containers:
+        - name: ldap
+          image: osixia/openldap:1.2.2
+          args: ["--copy-service"]
+          volumeMounts:
+            - name: openldap-data
+              mountPath: /var/lib/ldap
+              subPath: data
+            - name: openldap-data
+              mountPath: /etc/ldap/slapd.d
+              subPath: config
+            - name: openldap-data
+              mountPath: /container/service/slapd/assets/certs
+              subPath: certs
+            - name: secret-volume
+              mountPath: /container/environment/01-custom
+            - name: container-run
+              mountPath: /container/run
+          ports:
+            - containerPort: 389
+              name: openldap
+            - name: ssl-ldap-port
+              containerPort: 636
+          livenessProbe:
+            tcpSocket:
+              port: openldap
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 10
+          readinessProbe:
+            tcpSocket:
+              port: openldap
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 10
+      volumes:
+        - name: openldap-data
+          persistentVolumeClaim:
+            claimName: openldap-data
+        - name: "secret-volume"
+          secret:
+            secretName: "ldap-secret"
+        - name: container-run
+          emptyDir: {}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  namespace: ldap
+  name: openldap-data
+spec:
+  accessModes: [ "ReadWriteMany" ]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ldap-pv
+spec:
+  storageClassName: nfs
+  nfs:
+    path: /data/nfs-volume/ldap
+    server: 10.0.0.20
+  persistentVolumeReclaimPolicy: Recycle
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
