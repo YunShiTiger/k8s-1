@@ -57,7 +57,121 @@ Helm 现在具有一个安装程序脚本，该脚本将自动获取最新版本
 kubectl create namespace harbor
 ```
 
-## 四、设置自定义参数
+## 四、创建自定义证书
+
+安装 Harbor 我们会默认使用 HTTPS 协议，需要 TLS 证书，如果我们没用自己设定自定义证书文件，那么 Harbor 将自动创建证书文件，不过这个有效期只有一年时间，所以这里我们生成自签名证书，为了避免频繁修改证书，将证书有效期为 10 年，操作如下：
+
+#### 1、生成CA证书私钥。
+
+```sh
+mkdir /root/harbor-ssl -p && cd /root/harbor-ssl
+openssl genrsa -out ca.key 4096
+```
+
+#### 2、生成CA证书。
+
+调整`-subj`选项中的值以反映您的组织。如果使用FQDN连接Harbor主机，则必须将其指定为通用名称（`CN`）属性。
+
+```shell
+openssl req -x509 -new -nodes -sha512 -days 3650 \
+ -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=harbor.wzxmt.com" \
+ -key ca.key \
+ -out ca.crt
+```
+
+#### 3、生成服务器证书
+
+证书通常包含一个`.crt`文件和一个`.key`文件，例如`yourdomain.com.crt`和`yourdomain.com.key`。
+
+#### 4、生成私钥。
+
+```shell
+openssl genrsa -out tls.key 4096
+```
+
+#### 5、生成证书签名请求（CSR）。
+
+调整`-subj`选项中的值以反映您的组织。如果使用FQDN连接Harbor主机，则必须将其指定为通用名称（`CN`）属性，并在密钥和CSR文件名中使用它。
+
+```shell
+openssl req -sha512 -new \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=example/OU=Personal/CN=harbor.wzxmt.com" \
+    -key tls.key \
+    -out tls.csr
+```
+
+#### 6、生成一个x509 v3扩展文件。
+
+无论您使用FQDN还是IP地址连接到Harbor主机，都必须创建此文件，以便可以为您的Harbor主机生成符合主题备用名称（SAN）和x509 v3的证书扩展要求。替换`DNS`条目以反映您的域。
+
+```shell
+cat > v3.ext <<-EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1=harbor.wzxmt.com
+DNS.2=wzxmt.com
+DNS.3=harbor
+EOF
+```
+
+#### 7、生成证书
+
+使用该`v3.ext`文件为您的Harbor主机生成证书。
+
+```shell
+openssl x509 -req -sha512 -days 3650 \
+    -extfile v3.ext \
+    -CA ca.crt -CAkey ca.key -CAcreateserial \
+    -in tls.csr \
+    -out tls.crt
+```
+
+#### 8、生成服务器证书
+
+```bash
+openssl x509 -inform PEM -in tls.crt -out tls.cert
+```
+
+#### 9、将服务器证书，密钥和CA文件Docker证书文件夹中
+
+```bash
+mkdir -p /etc/docker/certs.d/harbor.wzxmt.com:443
+cp tls.cert ca.crt tls.key /etc/docker/certs.d/harbor.wzxmt.com:443
+```
+
+#### 10、生成 secret 对象
+
+```yaml
+cat << EOF >secret.yaml
+apiVersion: v1
+data:
+  ca.crt: `cat ca.crt|base64 -w 0`
+  tls.crt: `cat tls.crt|base64 -w 0`
+  tls.key: `cat tls.key|base64 -w 0`
+kind: Secret
+metadata:
+  name: registry-harbor-ingress
+  namespace: harbor
+  labels:
+    app: harbor
+    app.kubernetes.io/managed-by: Helm
+    chart: harbor
+    heritage: Helm
+    release: registry
+  annotations:
+    meta.helm.sh/release-name: registry
+    meta.helm.sh/release-namespace: harbor
+type: kubernetes.io/dockerconfigjsonkubernetes.io/tls
+EOF
+kubectl apply -f secret.yaml
+```
+
+## 五、设置自定义参数
 
 ### 1、添加 Helm 仓库
 
@@ -72,7 +186,7 @@ helm fetch harbor/harbor --untar
 cd harbor
 ```
 
-### 3、修改values.yaml
+#### 3、修改values.yaml
 
 ```yaml
 ...
@@ -113,7 +227,7 @@ logLevel: info
 
 ## 六、安装 Harbor
 
-部署 Harbor
+### 1、部署 Harbor
 
 ```bash
 helm -n harbor install registry .
@@ -146,7 +260,7 @@ registry-harbor-ingress          <none>   harbor.wzxmt.com             80, 443  
 registry-harbor-ingress-notary   <none>   notary.wzxmt.com             80, 443   4m32s
 ```
 
-### 3、Host 配置域名
+### 2、Host 配置域名
 
 接下来配置 Hosts，客户端想通过域名访问服务，必须要进行 DNS 解析，由于这里没有 DNS 服务器进行域名解析，所以修改 hosts 文件将 Harbor 指定节点的 IP 和自定义 host 绑定。
 
@@ -157,7 +271,7 @@ harbor	60 IN A 10.0.0.50
 notary  60 IN A 10.0.0.50
 ```
 
-### 4、访问 harbor
+### 3、访问 harbor
 
 输入地址 [https://harbor.wzxmt.com](https://harbor.wzxmt.com) 访问 Harbor 仓库。
 
@@ -192,48 +306,29 @@ docker login -u admin -p admin harbor.wzxmt.com
 
 ### 6、服务器配置 Helm Chart 仓库
 
-#### 1、查看Ingress 中使用的 Secret 资源对象：
-
-```yaml
-[root@supper harbor]# kubectl get secret registry-harbor-ingress -n harbor -o yaml
-
-apiVersion: v1
-data:
-  ca.crt: ...
-  tls.crt: ...
-  tls.key: ...
-kind: Secret
-metadata:
-  annotations:
-    meta.helm.sh/release-name: registry
-    meta.helm.sh/release-namespace: harbor
-  creationTimestamp: "2021-02-15T14:10:34Z"
-  labels:
-    app: harbor
-    app.kubernetes.io/managed-by: Helm
-    chart: harbor
-    heritage: Helm
-    release: registry
-  managedFields:
-  - apiVersion: v1
-    fieldsType: FieldsV1
-    manager: Go-http-client
-    operation: Update
-    time: "2021-02-15T14:10:34Z"
-  name: registry-harbor-ingress
-  namespace: harbor
-  resourceVersion: "893005"
-  selfLink: /api/v1/namespaces/harbor/secrets/registry-harbor-ingress
-  uid: 6024dbdd-9ef3-4656-a663-057c40d56eb9
-type: kubernetes.io/tls
-```
-
-#### 2、获取ca,私钥与公钥
+#### 1、获取ca,私钥与公钥
 
 ```bash
 kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.ca\.crt}"|base64 --decode >ca.crt
 kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.crt}"|base64 --decode >tls.crt
 kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.key}"|base64 --decode >tls.key
+```
+
+#### 2、配置 Helm 证书
+
+跟配置 Docker 仓库一样，配置 Helm 仓库也得提前配置证书，上传 ca 签名到目录 `/etc/pki/ca-trust/source/anchors/`：
+
+```bash
+mkdir -p /etc/pki/ca-trust/source/anchors
+cp ca.crt /etc/pki/ca-trust/source/anchors
+```
+
+> 如果下面执行的目录不存在，请用 yum 安装 ca-certificates 包。
+
+执行更新命令，使证书生效:
+
+```bash
+update-ca-trust extract 
 ```
 
 #### 3、添加 Helm 仓库
@@ -370,4 +465,3 @@ error parsing HTTP 413 response body: invalid character '<' looking for beginnin
 #nginx 默认的request body为1M
 client_max_body_size 1024m;
 ```
-
