@@ -385,6 +385,7 @@ ETCDCTL_API=3 etcdctl \
 --key=${key_file} \
 --cacert=${cacert_file} \
 snapshot save ${back_dir}/snapshot_$timestamp.db
+gzip ${back_dir}/snapshot_$timestamp.db
 EOF
 chmod +x /usr/local/scripts/*
 echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v3.sh" >>/var/spool/cron/root

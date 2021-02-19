@@ -142,14 +142,19 @@ spec:
 【参考链接】
 实用技巧：Spring Cloud 中，如何优雅下线微服务？
 [http://www.itmuch.com/spring-cloud-sum/how-to-unregister-service-in-eureka/](http://www.itmuch.com/spring-cloud-sum/how-to-unregister-service-in-eureka/?utm_source=ld246.com)
+
 Spring Cloud 服务优雅下线
 [https://www.jianshu.com/p/1e628a74ac90](https://www.jianshu.com/p/1e628a74ac90?utm_source=ld246.com)
+
 在 k8s 中使用 eureka 的几种姿势
 [https://gitee.com/sunshanpeng/blog/blob/master/在k8s中使用eureka的几种姿势.md?utm_source=ld246.com](https://gitee.com/sunshanpeng/blog/blob/master/在k8s中使用eureka的几种姿势.md?utm_source=ld246.com)
+
 Kubernetes Pod Hook
 [https://i4t.com/4424.html](https://i4t.com/4424.html?utm_source=ld246.com)
+
 使用 k8s 部署 SpringCloud 解决三大问题
 [https://www.cnblogs.com/sanduzxcvbnm/p/13212718.html](https://www.cnblogs.com/sanduzxcvbnm/p/13212718.html?utm_source=ld246.com)
+
 Eureka 客户端下线的几种方式比较
 [https://blog.csdn.net/CSDN_WYL2016/article/details/107336260](https://blog.csdn.net/CSDN_WYL2016/article/details/107336260?utm_source=ld246.com)
 [https://www.cnblogs.com/sanduzxcvbnm/category/1580444.html](https://www.cnblogs.com/sanduzxcvbnm/category/1580444.html?utm_source=ld246.com)
