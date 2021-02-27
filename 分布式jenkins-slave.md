@@ -54,47 +54,11 @@ metadata:
   name: jenkins
   namespace: infra
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: jenkins
-  namespace: infra
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["create","delete","get","list","patch","update","watch"]
-- apiGroups: [""]
-  resources: ["pods/exec"]
-  verbs: ["create","delete","get","list","patch","update","watch"]
-- apiGroups: [""]
-  resources: ["pods/log"]
-  verbs: ["get","list","watch"]
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get"]
-- apiGroups: [""]
-  resources: ["events"]
-  verbs: ["get","list","watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: jenkins
-  namespace: infra
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: jenkins
-subjects:
-- apiGroup: rbac.authorization.k8s.io
-  kind: User
-  namespace: infra
-  name: system:serviceaccount:infra:jenkins
----
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: jenkins
+  namespace: infra
 rules:
   - apiGroups: ["extensions", "apps"]
     resources: ["deployments"]
@@ -119,6 +83,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
   name: jenkins
+  namespace: infra
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -137,7 +102,7 @@ cat << 'EOF' >pvc.yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: jenkins-pv
+  name: jenkins-slave-pv
 spec:
   capacity:
     storage: 20Gi
@@ -151,7 +116,7 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: jenkins-pvc
+  name: jenkins-slave-pvc
   namespace: infra
 spec:
   accessModes:
@@ -174,7 +139,7 @@ metadata:
   labels: 
     name: jenkins
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels: 
       name: jenkins
@@ -211,14 +176,14 @@ spec:
           privileged: true #拥有特权
         volumeMounts:
         - name: jenkins-home
-          subPath: jenkins-home
           mountPath: /var/jenkins_home
       securityContext:
         fsGroup: 1000
       volumes:
       - name: jenkins-home
-        persistentVolumeClaim:
-          claimName: jenkins-pvc
+        nfs:
+          path: /data/nfs-volume/jenkins/jenkins-home
+          server: 10.0.0.20
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
@@ -331,7 +296,7 @@ kubectl apply -f  deployment.yaml
 等到服务启动成功后，我们就可以通过[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)访问 jenkins 服务了，可以根据提示信息进行安装配置即可：![setup jenkins](acess/image-20200622074600136.png)初始化的密码我们可以在 jenkins 的容器的日志中进行查看，也可以直接在 nfs 的共享数据目录中查看：
 
 ```shell
-$ cat ${WORK_DIR}/secrets/initialAdminPassword
+cat ${WORK_DIR}/secrets/initialAdminPassword
 ```
 
 然后选择安装基础的插件即可。![image-20210116083928201](acess/image-20210116083928201.png)   
@@ -540,7 +505,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-pvc
+        claimName: jenkins-slave-pvc
 """
    }
 } 
@@ -570,6 +535,8 @@ stages {
 Pipeline Script
 
 ```yaml
+#!/usr/bin/env groovy
+def harbor_registry_auth = "68c13df1-8979-42a2-9bfc-eecb8491212d"
 pipeline {
   agent {
     kubernetes {
@@ -614,7 +581,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-pvc
+        claimName: jenkins-slave-pvc
 """
    }
 } 
@@ -651,9 +618,16 @@ stages {
         steps {
           writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
 ADD ${params.target_dir}/project_dir /opt/project_dir"""
-          sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
-        }
-      }
+          withCredentials([usernamePassword(credentialsId: "${harbor_registry_auth}", passwordVariable: 'password', usernameVariable: 'username')]) {
+          sh """
+          echo "\${password}" | docker login --username admin --password-stdin ${registry} && \
+          cd ${params.app_name}/${env.BUILD_NUMBER} && \
+          docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
+          docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}
+          """
+         }
+       }
+     }
    }
 }
 ```
@@ -714,7 +688,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-pvc
+        claimName: jenkins-slave-pvc
 """
    }
 } 
@@ -824,7 +798,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-pvc
+        claimName: jenkins-slave-pvc
 """
    }
 } 
