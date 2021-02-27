@@ -139,7 +139,7 @@ metadata:
   labels: 
     name: jenkins
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels: 
       name: jenkins
@@ -176,14 +176,14 @@ spec:
           privileged: true #拥有特权
         volumeMounts:
         - name: jenkins-home
+          subPath: jenkins-home
           mountPath: /var/jenkins_home
       securityContext:
         fsGroup: 1000
       volumes:
       - name: jenkins-home
-        nfs:
-          path: /data/nfs-volume/jenkins/jenkins-home
-          server: 10.0.0.20
+        persistentVolumeClaim:
+          claimName: jenkins-slave-pvc
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
