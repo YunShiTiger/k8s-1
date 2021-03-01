@@ -17,6 +17,12 @@ uname -sr
 rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
 ```
 
+生成缓存
+
+```bash
+yum makecache fast
+```
+
 仓库启用后，你可以使用下面的命令列出可用的系统内核相关包:
 
 ```bash
@@ -74,6 +80,26 @@ GRUB_DISABLE_RECOVERY="true"
 
 ```bash
 grub2-mkconfig -o /boot/grub2/grub.cfg
+```
+
+查看内核
+
+```bash
+[root@supper ~]# rpm -qa|grep ^kernel
+kernel-lt-4.4.240-1.el7.elrepo.x86_64
+kernel-3.10.0-1127.19.1.el7.x86_64
+kernel-headers-3.10.0-1127.19.1.el7.x86_64
+kernel-3.10.0-1127.el7.x86_64
+kernel-devel-3.10.0-1127.19.1.el7.x86_64
+kernel-devel-3.10.0-1127.el7.x86_64
+kernel-tools-libs-3.10.0-1127.19.1.el7.x86_64
+kernel-tools-3.10.0-1127.19.1.el7.x86_64
+```
+
+卸载内核
+
+```
+rpm -e kernel-lt-4.4.240-1.el7.elrepo.x86_64
 ```
 
 **重启系统**

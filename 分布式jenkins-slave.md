@@ -7,7 +7,7 @@
 - 资源分配不均衡，有的 Slave 要运行的 job 出现排队等待，而有的 Slave 处于空闲状态
 - 资源有浪费，每台 Slave 可能是物理机或者虚拟机，当 Slave 处于空闲状态时，也不会完全释放掉资源。
 
-正因为上面的这些种种痛点，我们渴望一种更高效更可靠的方式来完成这个 CI/CD 流程，而 Docker 虚拟化容器技术能很好的解决这个痛点，又特别是在 Kubernetes 集群环境下面能够更好来解决上面的问题，下图是基于 Kubernetes 搭建 Jenkins 集群的简单示意图：![k8s-jenkins](acess/k8s-jenkins-slave.png)
+正因为上面的这些种种痛点，我们渴望一种更高效更可靠的方式来完成这个 CI/CD 流程，而 Docker 虚拟化容器技术能很好的解决这个痛点，又特别是在 Kubernetes 集群环境下面能够更好来解决上面的问题，下图是基于 Kubernetes 搭建 Jenkins 集群的简单示意图：![k8s-jenkins](acess/k8s-jenkins.png)
 
 从图上可以看到 Jenkins Master 和 Jenkins Slave 以 Pod 形式运行在 Kubernetes 集群的 Node 上，Master 运行在其中一个节点，并且将其配置数据存储到一个 Volume 上去，Slave 运行在各个节点上，并且它不是一直处于运行状态，它会按照需求动态的创建并自动删除。
 
@@ -102,7 +102,7 @@ cat << 'EOF' >pvc.yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: jenkins-slave-pv
+  name: jenkins-pv
 spec:
   capacity:
     storage: 20Gi
@@ -116,7 +116,7 @@ spec:
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: jenkins-slave-pvc
+  name: jenkins-pvc
   namespace: infra
 spec:
   accessModes:
@@ -183,7 +183,7 @@ spec:
       volumes:
       - name: jenkins-home
         persistentVolumeClaim:
-          claimName: jenkins-slave-pvc
+          claimName: jenkins-pvc
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
@@ -359,9 +359,9 @@ git的用户名和密码
 最后进行测试发布在pipeline的配置指定发布的服务进行发布
 查看pod的状态
 
-## 部署jenkins-slave
+## 部署jenkins
 
-#### jenkins-slave dockerfile结构
+#### jenkins dockerfile结构
 
 ```bash
 ├── Dockerfile（见下面）
@@ -452,13 +452,13 @@ EOF
 #### 构建镜像
 
 ```bash
-docker build . -t harbor.wzxmt.com/infra/jenkins-slave:latest
-docker push harbor.wzxmt.com/infra/jenkins-slave:latest
+docker build . -t harbor.wzxmt.com/infra/jenkins:latest
+docker push harbor.wzxmt.com/infra/jenkins:latest
 ```
 
-## 测试jenkins-slave
+## 测试jenkins
 
-构建一次，测试jenkins-slave连通性
+构建一次，测试jenkins连通性
 
 ```yaml
 pipeline {
@@ -468,13 +468,13 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jenkins-slave
+  name: jenkins
   namespace: infra
 spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:latest
+    image: harbor.wzxmt.com/infra/jenkins:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -505,7 +505,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-slave-pvc
+        claimName: jenkins-pvc
 """
    }
 } 
@@ -544,13 +544,13 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jenkins-slave
+  name: jenkins
   namespace: infra
 spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:latest
+    image: harbor.wzxmt.com/infra/jenkins:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -581,7 +581,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-slave-pvc
+        claimName: jenkins-pvc
 """
    }
 } 
@@ -651,13 +651,13 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jenkins-slave
+  name: jenkins
   namespace: infra
 spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:latest
+    image: harbor.wzxmt.com/infra/jenkins:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -688,7 +688,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-slave-pvc
+        claimName: jenkins-pvc
 """
    }
 } 
@@ -761,13 +761,13 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jenkins-slave
+  name: jenkins
   namespace: infra
 spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins-slave:latest
+    image: harbor.wzxmt.com/infra/jenkins:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -798,7 +798,7 @@ spec:
         type: ''
     - name: jenkins-maven
       persistentVolumeClaim:
-        claimName: jenkins-slave-pvc
+        claimName: jenkins-pvc
 """
    }
 } 
