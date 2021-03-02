@@ -44,7 +44,7 @@ int pid = clone(main_function, stack_size, CLONE_NEWPID | SIGCHLD, NULL);
 
 这时，新创建的这个进程将会“看到”一个全新的进程空间，在这个进程空间里，它的 PID 是 1。之所以说“看到”，是因为这只是一个“障眼法”，在宿主机真实的进程空间里，这个进程的 PID 还是真实的数值，比如 100。
 
-**除了 PID Namespace，Linux 操作系统还提供了 Mount、UTS、IPC、Network 和 User 这些 Namespace，用来对各种不同的进程上下文进行“障眼法”操作。**
+**除了 PID Namespace，Linux 操作系统还提供了 Mount、UTS、IPC、Network 和 User 这些 Namespace，另外，Linux 在 4.6 版本，5.6 版本，分别加入了 cgroups 和 Time 两种隔离类型用来对各种不同的进程上下文进行“障眼法”操作。**
 
 > **IPC：**隔离System V IPC和POSIX消息队列。
 > **Network：**隔离网络资源。
@@ -52,10 +52,68 @@ int pid = clone(main_function, stack_size, CLONE_NEWPID | SIGCHLD, NULL);
 > **PID：**隔离进程ID。
 > **UTS：**隔离主机名和域名。
 > **User：**隔离用户ID和组ID。
+> **Control group (cgroup) Namespace:** 隔离 Cgroups 根目录 (4.6版本加入)
+> **Time Namespace:** 隔离系统时间 (5.6版本加入)
 
 **这，就是 Linux 容器最基本的实现原理，容器，其实就是一种特殊的进程。**
 
+### unshare命令实现隔离
 
+通过`unshare`命令，可以快速建立一些隔离的例子，我们拿最简单直观的`pid namespace`来看一下它的效果。
+
+众所周知，Linux 进程号为`1`的，叫做`systemd`进程。但在 Docker 中，我们通过执行`ps`命令，却只能看到非常少的进程列表。
+
+执行下面的命令，进入隔离环境，并将 bash 作为根进程：
+
+- 
+
+```
+unshare --pid --fork --mount-proc /bin/bash
+```
+
+效果如图所示。可以看到，我们的 bash，已经成为了1号进程，而宿主机和其他隔离环境的进程信息，在这里是不可见的。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/cvQbJDZsKLrPNWwanJk9hKK7nFTko44SXibjGtARglP2nDIfBfBtXjgNOmKOehflCFHxYKFc4uUvVC3rqkomYHQ/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+先在隔离环境中，执行`sleep 1000`。再开一个终端，在宿主机上执行pstree，我们将会看到这个隔离环境的进行信息。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/cvQbJDZsKLrPNWwanJk9hKK7nFTko44S2wm0CV6hpDoa2nGqNWxfuiay7mcpY7KaibZpiaoZia96UhN39mXLhvZVPw/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+接下来，在宿主机上，把 sleep 对应进程的命名空间信息，和宿主机的命名空间信息作一下对比。可以看到，它们的`pid namespace`，对应的数值是不同的。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/cvQbJDZsKLrPNWwanJk9hKK7nFTko44SNcia1or0NUqwYOtiaAkrIf9x5WeaVewIUWGh95lXjAjj6M1vVdiaDb4hQ/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+下面给出其他 namespace 的实验性命令，你可以实际操作一下。
+
+```
+unshare --mount --fork /bin/bash
+```
+
+创建`mount namespace`，并在每个不同的环境中，使用不同的挂载目录。
+
+```
+unshare --uts --fork /bin/bash
+```
+
+uts 可以用来隔离主机名称，允许每个 namespace 拥有一个独立的主机名，你可以通过`hostname`命令进行修改。
+
+```
+unshare --ipc --fork /bin/bash
+```
+
+IPC Namespace 主要是用来隔离进程间通信的。Linux 的进程间通信，有管道、信号、报文、共享内存、信号量、套接口等方式。使用了 IPC 命名空间，意味着跨 Namespace 的这些通信方式将全部失效！不过，这也正是我们所希望的到的。
+
+```
+unshare --user -r /bin/bash
+```
+
+用户命名空间，就非常好理解了。我们可以在一个 Namespace 中建立 xjjdog 账号，也可以在另外一个 Namespace 中建立 xjjdog 账号，而且它们是相互不影响的。
+
+```
+unshare --net --fork /bin/bash
+```
+
+`net namespace`，这个就非常有用了。它可以用来隔离网络设备、IP 地址和端口等信息。
 
 ### 关于namespace
 

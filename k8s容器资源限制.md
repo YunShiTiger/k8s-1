@@ -115,7 +115,7 @@ kubectl apply -f limit-memory-pod.yaml
 ```bash
 [root@supper ~]# kubectl get pod
 NAME                          READY   STATUS             RESTARTS   AGE
-memory-demo-8df545dc9-27tjj   0/1     CrashLoopBackOff   1          2m44s
+memory-demo-8df545dc9-27tjj   1/1     Running                0      2m44s
 ```
 
 查看日志
@@ -356,7 +356,7 @@ metadata:
   name: pod-demo
   namespace: test
 spec:  
-  replicas: 1
+  replicas: 2
   selector:    
     matchLabels:      
       app: pod-demo  
@@ -386,36 +386,27 @@ pods        2     2
 再增加2个pod
 
 ```yaml
-cat<< EOF >limit-pod.yaml
-apiVersion: apps/v1
-kind: Deployment
+cat<< EOF >limit-test-pod.yaml
+apiVersion: v1
+kind: Pod
 metadata:  
   name: pod-demo-test
-  namespace: test
+  namespace: test  
+  labels:    
+    app: pod-demo-test
 spec:  
-  replicas: 2
-  selector:    
-    matchLabels:      
-      app: pod-demo-test  
-  template:    
-    metadata:      
-      labels:        
-        app: pod-demo-test    
-    spec:      
-      containers:      
-      - name: limit-pod-test        
-        image: nginx:latest
+  containers:  
+  - name: pod-demo-test    
+    image: nginx:latest
 EOF
-kubectl apply -f limit-pod.yaml
 ```
 
-查看pod
+创建pod
 
 ```bash
-[root@supper ~]# k get pod -n test
-NAME                             READY   STATUS    RESTARTS   AGE
-pod-demo-687dcf7dd6-g6mbb        1/1     Running   0          63s
-pod-demo-test-6bd7cb54f6-jf9hw   1/1     Running   0          81s
+[root@supper ~]# kubectl apply -f limit-test-pod.yaml
+Error from server (Forbidden): error when creating "limit-test-pod.yaml": pods "pod-demo-test" is forbidden: exceeded quota: pod-demo, requested: pods=1, used: pods=2, limited: pods=2
 ```
 
-可以看到只有两个pod，因为在当前的namespace中限制两个pod
+再创建一个pod时，会发生错误，因为在当前的namespace中限制两个pod
+
