@@ -96,10 +96,30 @@ kernel-tools-libs-3.10.0-1127.19.1.el7.x86_64
 kernel-tools-3.10.0-1127.19.1.el7.x86_64
 ```
 
+要卸载的内核
+
+```bash
+rpm -qa|grep ^kernel|grep 3.10.0
+```
+
 卸载内核
 
+```bash
+for n in `rpm -qa|grep ^kernel|grep 3.10.0`;do yum remove -y $n;done
 ```
-rpm -e kernel-lt-4.4.240-1.el7.elrepo.x86_64
+
+**再重装一遍内核**
+
+mainline源
+
+```bash
+yum --enablerepo=elrepo-kernel install  kernel-ml* --skip-broken -y
+```
+
+long term源
+
+```
+yum --enablerepo=elrepo-kernel  install  kernel-lt* --skip-broken -y
 ```
 
 **重启系统**
