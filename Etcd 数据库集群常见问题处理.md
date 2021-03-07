@@ -1,47 +1,225 @@
-ETCD是一个高可用的分布式Key/Value存储系统。它使用Raft算法，通过选举来保持集群内各节点状态的一致性。虽然ETCD具有高可用的特点，但是也无法避免多个节点宕机，甚至全部宕机的情况发生。如何快速的恢复集群，就变得格外重要。本文将介绍在日常工作中，遇到的ETCD集群常见问题的处理方法。
+[ETCD](https://etcd.io/docs/v3.4.0/demo/#auth)是一个高可用的分布式Key/Value存储系统。它使用Raft算法，通过选举来保持集群内各节点状态的一致性。虽然ETCD具有高可用的特点，但是也无法避免多个节点宕机，甚至全部宕机的情况发生。如何快速的恢复集群，就变得格外重要。本文将介绍在日常工作中，遇到的ETCD集群常见问题的处理方法。
 
-# [etcd](ETCDCTL_API=3)数据备份与恢复验证
+# 一、etcd常用命令
 
-## 一、单机
+## 1、集群部署常用
 
-说明：执行etcd备份数据的恢复的机器必须和原先etcd所在机器一致
+查看集群
 
-### 1、单机备份
+```
+etcdctl member list  
+```
+
+查看集群健康状态
 
 ```bash
 etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379" \
-snapshot save snapshot.db
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+endpoint health
 ```
 
-### 2、单机数据恢复
-
-停止etcd服务
+查看集群状态
 
 ```bash
-systemctl stop etcd
-```
-
-恢复数据
-
-```bash
-etcdctl  snapshot restore snapshot.db \
---name=etcd01 \
---data-dir=/data/etcd/data \
---initial-advertise-peer-urls=https://10.0.0.31:2380 \
---initial-cluster etcd01=https://10.0.0.31:2380 \
---initial-cluster-token=etcd-cluster \
---cacert=/etc/kubernetes/pki/ca.pem \
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status --write-out=table
 ```
 
-启动服务
+## 2、用户操作常用
+
+### user相关命令
+
+#### 1.1. 添加root用户并设置密码
 
 ```bash
-systemctl start etcd
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+user add root
+```
+
+#### 1.2. 添加非root用户并设置密码
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 user add huwh01
+```
+
+#### 1.3. 查看当前所有用户
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 user list
+```
+
+#### 1.4. 将用户添加到对应角色
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 user grant-role huwh01 role01 
+```
+
+#### 1.5. 查看用户拥有哪些角色
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 user get huwh01
+```
+
+#### 1.6 删除用户下的某个角色
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 user revoke-role huwh01 role01
+```
+
+#### 1.7. 删除用户
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 user delete huwh01
+```
+
+### role相关命令
+
+#### 2.1. 添加角色
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role add role01 
+```
+
+#### 2.2. 查看所有角色
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role list
+```
+
+#### 2.3. 给角色分配权限
+
+##### 2.3.1、赋予访问权限
+
+给 role01 角色赋予键 /foo 的读操作
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role grant-permission role01 read /foo
+```
+
+ role01 角色赋予键 /foo/* 的写操作
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role grant-permission role01 write /foo/*
+```
+
+ role01 角色赋予键 /foo 读写操作
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role grant-permission role01 readwrite /foo/*
+```
+
+#####    2.3.2、收回访问权限
+
+收回 role01 角色对 /foo 的权限
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role revoke-permission role01 /foo
+```
+
+收回 role01 角色对 /foo/* 的权限
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role revoke-permission role01 /foo/*
+```
+
+####  2.4. 查看角色所拥有的权限
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 \
+--user root:123 role get role01
+```
+
+## 3、auth相关操作
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints https://10.0.0.31:2379 auth enable
+```
+
+## 4、写入数据与查看数据
+
+写入
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+--user root:123 put /foo/test wzxmt
+```
+
+查看数据
+
+```bash
+etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
+--cert=/etc/kubernetes/pki/etcd.pem \
+--key=/etc/kubernetes/pki/etcd-key.pem \
+--endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+--user root:123 get /foo/test
 ```
 
 ## 二、持久化数据备份和恢复
