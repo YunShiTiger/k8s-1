@@ -3,7 +3,7 @@
 注意部署时最好不要配置到kube-system这个ns,因为默认情况下是没有权限去访问kube-system
 
 ```bash
-mkdir -p sso-authelia/config  && cd sso-authelia
+mkdir -p sso-authelia  && cd sso-authelia
 ```
 
 创建名称空间
@@ -12,10 +12,52 @@ mkdir -p sso-authelia/config  && cd sso-authelia
 kubectl create ns sso
 ```
 
+创建sso-config存储目录
+
+```bash
+mkdir -p /data/nfs-volume/sso
+```
+
+创建pv
+
+```yaml
+cat << EOF >pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: authelia-pv
+spec:
+  storageClassName: nfs
+  nfs:
+    path: /data/nfs-volume/sso
+    server: nfs.wzxmt.com
+  persistentVolumeReclaimPolicy: Recycle
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+EOF
+cat << EOF >pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-pv-claim
+  namespace: sso
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+EOF
+kubectl apply -f pv.yaml -f pvc.yaml
+```
+
 [创建配置文件](https://github.com/authelia/authelia/blob/master/config.template.yml)
 
 ```yaml
-cat<< EOF >config/configuration.yml
+cat<< EOF >/data/nfs-volume/sso/configuration.yml
 host: 0.0.0.0
 port: 9091
 log_level: debug
@@ -23,25 +65,12 @@ jwt_secret: a_very_important_secret
 default_redirection_url: https://public.wzxmt.com  #默认重定向url
 totp:
   issuer: authelia.com
- 
+
 authentication_backend:
   disable_reset_password: false
   refresh_interval: 5m
-  ldap:
-    implementation: custom
-    url: ldap://127.0.0.1
-    start_tls: false
-    tls:
-      skip_verify: false
-      minimum_version: TLS1.2
-    base_dn: dc=example,dc=com
-    additional_users_dn: ou=users
-    users_filter: (&({username_attribute}={input})(objectClass=person))
-    additional_groups_dn: ou=groups
-    groups_filter: (&(member={dn})(objectclass=groupOfNames))
-    user: cn=admin,dc=example,dc=com
-    password: password
-
+  file:
+    path: /config/users_database.yml
 access_control:
   default_policy: deny
   rules:
@@ -51,19 +80,19 @@ access_control:
       policy: one_factor #需要一个验证条件
     - domain: secure.wzxmt.com
       policy: two_factor #需要两个验证条件
-      
+
 session:
   name: authelia_session
   secret: unsecure_session_secret
   expiration: 3600 # 1 hour
   inactivity: 300 # 5 minutes
   domain: wzxmt.com # 被保护的域名
- 
+
 regulation:
   max_retries: 3
   find_time: 120
   ban_time: 300
- 
+
 storage:
   mysql:
     host: mysql.wzxmt.com
@@ -71,7 +100,7 @@ storage:
     database: authelia
     username: authelia
     password: authelia
- 
+
 notifier:
   disable_startup_check: false
   smtp:
@@ -81,12 +110,17 @@ notifier:
     host: smtp.qq.com
     port: 465
 EOF
-```
-
-创建configmap
-
-```bash
-kubectl -n sso create configmap oss-config --from-file=config
+cat<< EOF >/data/nfs-volume/sso/users_database.yml
+# List of users
+users:
+  wrx:
+    displayname: "wrx"
+    password: "$6$rounds=50000$BpLnfgDsc2WD8F2q$Zis.ixdg9s/UOJYrs56b5QEZFiZECu0qZVNsIYxBaNJ7ucIL.nlxVCT5tqh8KHG8X4tlwCFm5r6NTOZZ5qRFN/"
+    email: wrx@xxx.com
+    groups:
+      - admins
+      - dev
+EOF
 ```
 
 部署清单
@@ -123,8 +157,8 @@ spec:
         - name: IfNotPresent
       volumes:
         - name: oauthelia-configmap
-          configMap:
-            name: oss-config
+          persistentVolumeClaim:
+            claimName: authelia-pv-claim
 EOF
 ```
 
@@ -161,13 +195,15 @@ metadata:
   namespace: sso
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
-  - match: Host(`authelia.wzxmt.com`) && PathPrefix(`/`)
+  - match: Host(`login.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: sso-authelia
       port: 9091
+  tls:
+    certResolver: myresolver
 EOF
 ```
 
@@ -181,7 +217,7 @@ metadata:
   name: sso-authelia
 spec:
   forwardAuth:
-    address: http://sso-authelia.sso:9091/api/verify?rd=http://authelia.wzxmt.com/
+    address: http://sso-authelia.sso:9091/api/verify?rd=https://login.wzxmt.com/
     trustForwardHeader: true
     authResponseHeaders:
       - "Remote-User"
