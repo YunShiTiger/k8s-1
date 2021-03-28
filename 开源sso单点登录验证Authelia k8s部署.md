@@ -56,71 +56,10 @@ kubectl apply -f pv.yaml -f pvc.yaml
 
 [创建配置文件](https://github.com/authelia/authelia/blob/master/config.template.yml)
 
-```yaml
-cat<< EOF >/data/nfs-volume/sso/configuration.yml
-host: 0.0.0.0
-port: 9091
-log_level: debug
-jwt_secret: a_very_important_secret
-default_redirection_url: https://public.wzxmt.com  #默认重定向url
-totp:
-  issuer: authelia.com
+使用docker创建的配置文件
 
-authentication_backend:
-  disable_reset_password: false
-  refresh_interval: 5m
-  file:
-    path: /config/users_database.yml
-access_control:
-  default_policy: deny
-  rules:
-    - domain: public.wzxmt.com
-      policy: bypass   #其实是bypassed绕过验证，一般生产这个不会用
-    - domain: traefik.wzxmt.com
-      policy: one_factor #需要一个验证条件
-    - domain: secure.wzxmt.com
-      policy: two_factor #需要两个验证条件
-
-session:
-  name: authelia_session
-  secret: unsecure_session_secret
-  expiration: 3600 # 1 hour
-  inactivity: 300 # 5 minutes
-  domain: wzxmt.com # 被保护的域名
-
-regulation:
-  max_retries: 3
-  find_time: 120
-  ban_time: 300
-
-storage:
-  mysql:
-    host: mysql.wzxmt.com
-    port: 3306
-    database: authelia
-    username: authelia
-    password: authelia
-
-notifier:
-  disable_startup_check: false
-  smtp:
-    username: 1451343603@qq.com
-    password: lqukswqzhnvqjcbj
-    sender: 1451343603@qq.com
-    host: smtp.qq.com
-    port: 465
-EOF
-cat<< EOF >/data/nfs-volume/sso/users_database.yml
-# List of users
-users:
-  wrx:
-    displayname: "wrx"
-    password: "$6$rounds=50000$BpLnfgDsc2WD8F2q$Zis.ixdg9s/UOJYrs56b5QEZFiZECu0qZVNsIYxBaNJ7ucIL.nlxVCT5tqh8KHG8X4tlwCFm5r6NTOZZ5qRFN/"
-    email: wrx@xxx.com
-    groups:
-      - admins
-      - dev
-EOF
+```bash
+cp authelia/compose/local/authelia/* /data/nfs-volume/sso
 ```
 
 部署清单
@@ -254,3 +193,11 @@ EOF
 测试跳转验证：
 
 访问：https://who.wzxmt.com 访问后自动跳转至验证页面，注意: session和cookie只能通过 https传输
+
+注意：
+
+```
+user：wzxmt
+password：wzxmt
+```
+
