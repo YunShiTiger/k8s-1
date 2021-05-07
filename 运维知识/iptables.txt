@@ -157,12 +157,11 @@ iptables主要工作在 OSI 七层模型中  二 三 四层
 	策略部署：（从接受者 和 请求者 两个方面考虑）
 	请求方：
 		iptables -A OUTPUT -o eth0 -p icmp --icmp-type 8 -j DROP
-		iptables -A OUTPUT -i eth8 -p icmp --icmp-type 0 -j DROP
+		iptables -A OUTPUT -o eth0 -p icmp --icmp-type 0 -j DROP
 	接收方：
 		iptables -A INPUT -i eth0 -p icmp --icmp-type 8 -j DROP
-		iptables -A INPUT -o eth0 -p icmp --icmp-type 0 -j DROP
+                                iptables -A INPUT -i eth0 -p icmp --icmp-type 0 -j DROP
 
-iptables -A FORWARD -s 192.168.1.0/24 -p icmp -m icmp --icmp-type any -j ACCEPT
 说明：只有类型8是真正会影响ping，或者也可以采用any；了解很多icmp类型iptables -p icmp -h
 
 十：对数据包进行限速处理
