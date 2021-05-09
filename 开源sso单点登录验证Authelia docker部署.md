@@ -20,7 +20,7 @@ Docker方式部署
 
 ```bash
 git clone https://github.com/authelia/authelia.git
-cd authelia/compose/localsudo 
+cd authelia/examples/compose/local
 ./setup.sh #执行此命令需要sudo来修改/etc/hosts文件
 ```
 
@@ -32,9 +32,9 @@ Checking for pre-requisites
 Pulling Authelia docker image for setup
 What root domain would you like to protect? (default/no selection is example.com): wzxmt.com
 Generating SSL certificate for *.wzxmt.com
-Enter your username for Authelia: wzxmt.com
+Enter your username for Authelia: wzxmt
 Enter your display name for Authelia (eg. John Doe): wzxmt
-Enter a password for wzxmt.com:
+Enter a password for wzxmt:
 ......
 Setup completed successfully.
 

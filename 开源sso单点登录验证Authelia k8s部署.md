@@ -18,6 +18,25 @@ kubectl create ns sso
 mkdir -p /data/nfs-volume/sso
 ```
 
+镜像私有化
+
+```bash
+docker pull authelia/authelia
+docker tag authelia/authelia harbor.wzxmt.com/infra/authelia:latest
+docker push harbor.wzxmt.com/infra/authelia:latest
+```
+
+创建docker-registry
+
+```bash
+kubectl create namespace infra
+kubectl create secret docker-registry harborlogin \
+--namespace=sso  \
+--docker-server=https://harbor.wzxmt.com \
+--docker-username=admin \
+--docker-password=admin
+```
+
 创建pv
 
 ```yaml
@@ -84,7 +103,7 @@ spec:
         app: sso-authelia
     spec:
       containers:
-      - image: authelia/authelia
+      - image: harbor.wzxmt.com/infra/authelia:latest
         name: sso-authelia
         volumeMounts:
         - name: oauthelia-configmap
@@ -93,7 +112,7 @@ spec:
         - containerPort: 9091
           protocol: TCP
       imagePullSecrets:
-        - name: IfNotPresent
+      - name: harborlogin
       volumes:
         - name: oauthelia-configmap
           persistentVolumeClaim:
