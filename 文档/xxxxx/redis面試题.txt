@@ -1,0 +1,101 @@
+
+redis 
+Memcached:
+	优点：高性能读写、单一数据类型、支持客户端式分布式集群、一致性hash
+	缺点：无持久化、节点故障可能出现缓存穿透、分布式需要客户端实现、跨机房数据同步困难、架构扩容复杂度高
+
+Redis:	优点：高性能读写、多数据类型支持、数据持久化、高可用架构、支持自定义虚拟内存、支持分布式分片集群、单线程读写性能极高
+	缺点：多线程读写较Memcached慢
+
+memcached 适合,多用户访问,每个用户少量的rw
+redis     适合,少用户访问,每个用户大量rw	
+
+redis 持久化方式有哪些？有什么区别？
+rdb：基于快照的持久化，速度更快，一般用作备份，主从复制也是依赖于rdb持久化功能
+dir /usr/local/redis/data
+dbfilename dump.rdb
+save 900 1
+save 300 10
+save 60 10000
+
+aof：以追加的方式记录redis操作日志的文件。可以最大程度的保证redis数据安全，类似于mysql的binlog
+appendonly yes
+appendfsync everysec 
+
+String ：     字符类型           常规计数：微博数，粉丝数等
+Hash：        字典类型          存储部分变更的数据，如用户信息等。
+List：        列表                    消息队列系统
+Set：         集合 	           共同关注、共同喜好、二度好友等功能，
+Sorted set：  有序集合	排行榜应用
+
+redis的事务是基于队列实现的。
+mysql的事务是基于事务日志实现的。
+
+mult  开启事务
+discard 丢弃
+exec 提交
+
+10、redis（master-replicaset）
+原理：
+1. 从服务器开启主从功能时,向主服务器发送 SYNC 命令。
+2. 接到 SYNC 命令的主服务器会调用BGSAVE 命令，创建一个 RDB 文件.
+主服务器会将,缓冲区记录接下来执行的所有写命令,再次传送给从。
+3. 当主服务器执行完 BGSAVE 命令时，它会向从服务器发送 RDB 文件，而从服务器则会接收并载入这个文件。
+4. 主服务器将缓冲区储存的所有写命令（广播形式）发送给从服务器执行。
+
+主库是否要开启持久化？
+如果不开有可能，主库重启操作，造成所有主从数据丢失！
+
+2、开启主从：
+6381/6382命令行:
+redis-cli -p 6381 -a 123 SLAVEOF 127.0.0.1 6380
+redis-cli -p 6382 -a 123 SLAVEOF 127.0.0.1 6380
+3、查询主从状态
+ redis-cli -p 6380 -a 123 info replication
+ redis-cli -p 6381 -a 123 info replication
+ redis-cli -p 6382 -a 123 info replication
+4、从库切为主库
+模拟主库故障
+redis-cli -p 6380 -a 123 shutdown
+redis-cli -p 6381 -a 123 info replication
+redis-cli -p 6381 -a 123 slaveof no one
+
+6382连接到6381：
+redis-cli -p 6382 -a 123 SLAVEOF no one
+redis-cli -p 6382 -a 123 SLAVEOF 127.0.0.1 6381
+
+sentinel搭建过程
+mkdir -p /data/26380
+cat << EOF >/data/26380/sentinel.conf
+port 26380
+dir "/data/26380"
+sentinel monitor mymaster 127.0.0.1 6381 1
+sentinel down-after-milliseconds mymaster 5000
+sentinel auth-pass mymaster 123
+EOF
+启动：
+redis-sentinel /data/26380/sentinel.conf &
+
+哈希槽是一个key的集合，Redis集群共有16384个哈希槽，每个key通过CRC16散列然后对16384进行取模来决定该key应当被放到哪个槽中，集群中的每个节点负责一部分哈希槽。
+
+缓存穿透
+概念
+访问一个不存在的key，缓存不起作用，请求会穿透到DB，流量大时DB会挂掉。
+
+解决方案
+采用布隆过滤器，使用一个足够大的bitmap，用于存储可能访问的key，不存在的key直接被过滤；
+访问key未在DB查询到值，也将空值写进缓存，但可以设置较短过期时间。
+
+缓存雪崩
+概念
+大量的key设置了相同的过期时间，导致在缓存在同一时刻全部失效，造成瞬时DB请求量大、压力骤增，引起雪崩。
+
+解决方案
+可以给缓存设置过期时间时加上一个随机值时间，使得每个key的过期时间分布开来，不会集中在同一时刻失效。
+
+缓存击穿
+概念
+一个存在的key，在缓存过期的一刻，同时有大量的请求，这些请求都会击穿到DB，造成瞬时DB请求量大、压力骤增。
+
+解决方案
+在访问key之前，采用SETNX（set if not exists）来设置另一个短期key来锁住当前key的访问，访问结束再删除该短期key。

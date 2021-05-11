@@ -325,7 +325,3 @@ drop table test;
         1、读取relay-log.info
         2、执行relaylog日志新事件
         3、更新relay-log.info
-
-
-
-
