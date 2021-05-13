@@ -78,7 +78,7 @@ kubectl apply -f pv.yaml -f pvc.yaml
 使用docker创建的配置文件
 
 ```bash
-cp authelia/compose/local/authelia/* /data/nfs-volume/sso
+cp authelia/examples/compose/local/authelia/* /data/nfs-volume/sso
 ```
 
 部署清单
