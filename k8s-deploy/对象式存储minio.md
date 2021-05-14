@@ -2,19 +2,19 @@ Minio 是一个基于Go语言的对象存储服务。它实现了大部分亚马
 
 MinIO支持Kubernetes原生云环境部署和使用。
 
-![img](https://www.mayi888.com/wp-content/uploads/2020/02/Snip20200220_5.png)
+![img](../acess/Snip20200220_5.png)
 
 它可以作为大数据数据存取平台。官网数据公布MinIO运行Apache Spark大数据分析平台效率高于HDFS和亚马逊S3文件系统。
 
-![img](https://www.mayi888.com/wp-content/uploads/2020/02/Snip20200220_6.png)
+![img](../acess/Snip20200220_6.png)
 
 它与Amazon S3云存储服务兼容。它最适合存储非结构化数据，如照片，视频，日志文件，备份和容器/ VM映像。对象的大小可以从几KB到最大5TB。可以实现MinIO私有云和S3协议兼容公有云之间数据的同步。
 
-![img](https://www.mayi888.com/wp-content/uploads/2020/02/Snip20200220_8.png)
+![img](../acess/Snip20200220_8.png)
 
 MinIO开源（Apache License v2.0）分布式存储系统可以作为原生云数据存储基础设施，应用程序、机器学习、数据处理和流数据都可以存储在该系统中。
 
-![img](https://www.mayi888.com/wp-content/uploads/2020/02/Snip20200220_9.png)
+![img](../acess/Snip20200220_9.png)
 
 - [服务端](https://docs.min.io/)，可通过web访问
 - [客户端](https://docs.min.io/docs/minio-client-quickstart-guide.html)
@@ -195,5 +195,5 @@ http://minio.wzxmt.com
 
 密码：admin123
 
-![158399429267](C:/Users/wzxmt/Desktop/k8s/acess/1583994292679.png)
+![158399429267](../acess/1583994292679.png)
 

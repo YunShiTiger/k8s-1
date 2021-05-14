@@ -1155,7 +1155,7 @@ service/acme-financial-ui            ClusterIP   10.96.88.0     <none>        80
 ## 5.2 访问skywalking的UI界面
 
 打开skywalking的界面（192.168.39.33:16622），即可看见链路追踪相关的数据。
-![image-20210123172945113](acess/image-20210123172945113.png)
-![image-20210123173023681](acess/image-20210123173023681.png)
-![image-20210123173121139](acess/image-20210123173121139.png)
-![image-20210123173143942](acess/image-20210123173143942.png)
+![image-20210123172945113](../acess/image-20210123172945113.png)
+![image-20210123173023681](../acess/image-20210123173023681.png)
+![image-20210123173121139](../acess/image-20210123173121139.png)
+![image-20210123173143942](../acess/image-20210123173143942.png)

@@ -7,7 +7,7 @@
 - 资源分配不均衡，有的 Slave 要运行的 job 出现排队等待，而有的 Slave 处于空闲状态
 - 资源有浪费，每台 Slave 可能是物理机或者虚拟机，当 Slave 处于空闲状态时，也不会完全释放掉资源。
 
-正因为上面的这些种种痛点，我们渴望一种更高效更可靠的方式来完成这个 CI/CD 流程，而 Docker 虚拟化容器技术能很好的解决这个痛点，又特别是在 Kubernetes 集群环境下面能够更好来解决上面的问题，下图是基于 Kubernetes 搭建 Jenkins 集群的简单示意图：![k8s-jenkins](acess/k8s-jenkins.png)
+正因为上面的这些种种痛点，我们渴望一种更高效更可靠的方式来完成这个 CI/CD 流程，而 Docker 虚拟化容器技术能很好的解决这个痛点，又特别是在 Kubernetes 集群环境下面能够更好来解决上面的问题，下图是基于 Kubernetes 搭建 Jenkins 集群的简单示意图：![img](../acess/1572587229629-c79d9b57-0252-415f-9371-af63f52116c3.png)
 
 从图上可以看到 Jenkins Master 和 Jenkins Slave 以 Pod 形式运行在 Kubernetes 集群的 Node 上，Master 运行在其中一个节点，并且将其配置数据存储到一个 Volume 上去，Slave 运行在各个节点上，并且它不是一直处于运行状态，它会按照需求动态的创建并自动删除。
 
@@ -293,17 +293,17 @@ kubectl apply -f  deployment.yaml
 
 #### 页面配置jenkins
 
-等到服务启动成功后，我们就可以通过[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)访问 jenkins 服务了，可以根据提示信息进行安装配置即可：![setup jenkins](acess/image-20200622074600136.png)初始化的密码我们可以在 jenkins 的容器的日志中进行查看，也可以直接在 nfs 的共享数据目录中查看：
+等到服务启动成功后，我们就可以通过[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)访问 jenkins 服务了，可以根据提示信息进行安装配置即可：![setup jenkins](../acess/image-20200622074600136.png)初始化的密码我们可以在 jenkins 的容器的日志中进行查看，也可以直接在 nfs 的共享数据目录中查看：
 
 ```shell
 cat ${WORK_DIR}/secrets/initialAdminPassword
 ```
 
-然后选择安装基础的插件即可。![image-20210116083928201](acess/image-20210116083928201.png)   
+然后选择安装基础的插件即可。![image-20210116083928201](../acess/image-20210116083928201.png)   
 
 安装完成后添加管理员帐号即可进入到 jenkins 主界面：
 
-![jenkins home](acess/image-20210116092054090.png)
+![jenkins home](../acess/image-20210116092054090.png)
 
 ### 调整安全选项
 
@@ -320,9 +320,9 @@ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 **第1步.** 我们需要安装**kubernetes plugin (新版本就叫 Kubernetes)**， 点击 Manage Jenkins -> Manage Plugins -> Available -> Kubernetes plugin 勾选安装即可。
 
-![image-2020062](acess/image-2020062208044.png)
+![image-2020062](../acess/image-2020062208044.png)
 
-**第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](acess/image-20200627224756024.png)
+**第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](../acess/image-20200627224756024.png)
 
 ## 添加扩展插件
 
@@ -519,7 +519,7 @@ stages {
 }
 ```
 
-出现success，表示jenkins slave搭建成功![image-20210116091850454](acess/image-20210116091850454.png)
+出现success，表示jenkins slave搭建成功![image-20210116091850454](../acess/image-20210116091850454.png)
 
 ## 发布dubbo-demo-service
 
@@ -847,7 +847,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 
 ### 开始构建
 
-![image-20200628021513893](acess/image-20200628021513893.png)
+![image-20200628021513893](../acess/image-20200628021513893.png)
 
 dubbo-demo-service
 

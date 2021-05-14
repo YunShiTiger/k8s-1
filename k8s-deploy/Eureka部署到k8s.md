@@ -14,24 +14,24 @@
 
 选择Spring Initializr,默认地址，或者修改为http://start.spring.io
 
-![image-20210109170059759](acess/image-20210109170059759.png)
+![image-20210109170059759](../acess/image-20210109170059759.png)
 
 ### 2、配置工程信息
 
-![image-20210109170202414](acess/image-20210109170202414.png)
+![image-20210109170202414](../acess/image-20210109170202414.png)
 
 ### 3 选择EurekaServer
 
-![image-20210109000201025](acess/image-20210109000201025.png)
+![image-20210109000201025](../acess/image-20210109000201025.png)
 
 加载完成，删除mvn文件和包,共3处
-![image-20210109000849039](acess/image-20210109000849039.png)
+![image-20210109000849039](../acess/image-20210109000849039.png)
 
 ### 4 添加注解@EnableEurekaServer
 
 启动类就是项目生成的第一个class文件,在该类名上加注解@EnableEurekaServer 就表明这个服务就是注册中心了…接下里去操作其他的步骤…当然注册中心服务也是靠这个类来启动,通过@EnableEurekaServer注解启动一个服务注册中心提供给其他应用进行对话
 
-![image-20210109170308063](acess/image-20210109170308063.png)
+![image-20210109170308063](../acess/image-20210109170308063.png)
 
 ```java
 package eurekaservice.eureka;
@@ -376,11 +376,11 @@ kubectl apply -f eureka-ingress.yaml
 
 访问 [eureka.wzxmt.com](http://eureka.wzxmt.com) 地址，查看 Eureka UI 界面。
 
-![image-20210109175502542](acess/image-20210109175502542.png)
+![image-20210109175502542](../acess/image-20210109175502542.png)
 
 查看健康状况[http://eureka.wzxmt.com/actuator/health](http://eureka.wzxmt.com/actuator/health)
 
-   ![image-20210109232158515](acess/image-20210109232158515.png)
+   ![image-20210109232158515](../acess/image-20210109232158515.png)
 
 ## 六、服务离线
 
@@ -414,10 +414,10 @@ management.endpoints.shutdown.sensitive = false
 
 (2) 运行测试
 在 postman中提交如下 POST 请求即可关闭该应用。
-![img](https://imgconvert.csdnimg.cn/aHR0cHM6Ly91c2VyLWdvbGQtY2RuLnhpdHUuaW8vMjAyMC8yLzI2LzE3MDdmNWZjOTUxZGMzYjE?x-oss-process=image/format,png)
+![img](../acess/format,png)
 
 可看到eureka中的服务实例已被移除了
-![img](https://imgconvert.csdnimg.cn/aHR0cHM6Ly91c2VyLWdvbGQtY2RuLnhpdHUuaW8vMjAyMC8yLzI2LzE3MDdmNjA3YThiNzM1ZTE?x-oss-process=image/format,png)
+![img](../acess/format.png)
 
 #### 3、服务平滑上下线
 
@@ -434,6 +434,6 @@ management.endpoints.web.exposure.include=*
 (2) 运行测试
 在 curl 中提交如下 POST 请求，然后再查看 Eureka 页面，发现服务状态已经变为了
 DOWN。
-![image-20210111230537750](acess/image-20210111230537750.png)
+![image-20210111230537750](../acess/image-20210111230537750.png)
 
-![image-20210111230619867](acess/image-20210111230619867.png)
+![image-20210111230619867](../acess/image-20210111230619867.png)

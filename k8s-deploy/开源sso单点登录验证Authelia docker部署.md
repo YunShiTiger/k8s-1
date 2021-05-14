@@ -1,5 +1,3 @@
-# 开源sso单点登录验证Authelia docker部署
-
 **Authelia** 是一个开源的认证系统，目前支持双因素认证和单点登陆 SSO 认证，SSO 登陆是有 Web 界面支持的。它可以很好的与反向代理进行集成，比如 nginx，Traefik，HAProxy 等，对于通过这些反向代理的服务，如果没有通过认证将会把页面重定向到登陆页面。
 
 **HTTP/HTTPS**
@@ -14,7 +12,7 @@ docker run -v /tmp/certs:/tmp/certs authelia/authelia authelia certificates gene
 
 **Authelia** 项目的架构如下：
 
-![preview](https://pic4.zhimg.com/v2-76eec679e828c15c0a96414d7049ac13_r.jpg)
+![preview](../acess/v2-76eec679e828c15c0a96414d7049ac13_r.jpg)
 
 Docker方式部署
 
@@ -116,11 +114,11 @@ notifier:
 
 1.public.wzxmt.com #绕过Authelia（直接可访问）
 
-![image-20210329011641937](acess/image-20210329011641937.png)
+![image-20210329011641937](../acess/image-20210329011641937.png)
 
 **2.traefik.wzxmt.com #通过Authelia身份验证进行保护**
 
-![image-20210329011843427](acess/image-20210329011843427.png)
+![image-20210329011843427](../acess/image-20210329011843427.png)
 
 输入你执行setup时候设置的验证账户登录
 
@@ -131,15 +129,15 @@ wzxmt
 
 验证通过后进入traefik dashboard
 
-![image-20210329002838682](acess/image-20210329002838682.png)
+![image-20210329002838682](../acess/image-20210329002838682.png)
 
 **3. secure.wzxmt.com #通过Authelia两因素身份验证进行安全保护**
 
 继续进入验证页面
 
-![image-20210329003226119](acess/image-20210329003226119.png)
+![image-20210329003226119](../acess/image-20210329003226119.png)
 
-![img](acess/image-30.png)点击Not registered yet 他会向你邮箱发送一个链接邀请你加入一个类似网易将军令的东西
+![img](../acess/image-30.png)点击Not registered yet 他会向你邮箱发送一个链接邀请你加入一个类似网易将军令的东西
 APP名称叫做：Authenticator 应用商店搜索下载
 
 去notification.txt查看邮件内容
