@@ -18,33 +18,24 @@ k8s采用request和limit两种限制类型来对资源进行分配
 
 ```yaml
 cat<< EOF >limit-memory-pod.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:  
-  name: memory-demo
-spec:  
-  replicas: 1
-  selector:    
-    matchLabels:      
-      app: memory-demo  
-  template:    
-    metadata:      
-      labels:        
-        app: memory-demo    
-    spec:      
-      containers:      
-      - name: memory-demo        
-        image: progrium/stress:latest
-        args:
-        - --vm
-        - "1"
-        - --vm-bytes
-        - 200M           #容器使用200M
-        resources:
-          requests:      #资源需求，下限 
-            memory: 50Mi
-          limits:        #资源限制，上限
-            memory: 100Mi
+apiVersion: v1
+kind: Pod
+metadata:
+  name: limit-memory
+spec:
+  containers:
+    - name: test-container
+      image: progrium/stress:latest
+      args:
+      - --vm
+      - "1"
+      - --vm-bytes
+      - 200M           #容器使用200M
+      resources:
+        requests:      #资源需求，下限 
+          memory: 50Mi
+        limits:        #资源限制，上限
+          memory: 100Mi
 EOF
 kubectl apply -f limit-memory-pod.yaml
 ```
@@ -53,14 +44,14 @@ kubectl apply -f limit-memory-pod.yaml
 
 ```bash
 [root@supper ~]# kubectl get pod
-NAME                          READY   STATUS             RESTARTS   AGE
-memory-demo-8df545dc9-27tjj   0/1     CrashLoopBackOff   1          2m44s
+NAME           READY   STATUS             RESTARTS   AGE
+limit-memory   0/1     CrashLoopBackOff   1          2m39s
 ```
 
 查看日志
 
 ```yaml
-[root@supper ~]# kubectl logs memory-demo-8df545dc9-fsg57
+[root@supper ~]# kubectl logs limit-memory
 stress: FAIL: [1] (416) <-- worker 8 got signal 9
 stress: WARN: [1] (418) now reaping child worker processes
 stress: FAIL: [1] (422) kill error: No such process
@@ -79,33 +70,24 @@ stress: dbug: [1] --> hogvm worker 1 [8] forked
 
 ```yaml
 cat<< EOF >limit-memory-pod.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:  
-  name: memory-demo
-spec:  
-  replicas: 1
-  selector:    
-    matchLabels:      
-      app: memory-demo  
-  template:    
-    metadata:      
-      labels:        
-        app: memory-demo    
-    spec:      
-      containers:      
-      - name: memory-demo        
-        image: progrium/stress:latest
-        args:
-        - --vm
-        - "1"
-        - --vm-bytes
-        - 200M           #容器使用200M
-        resources:
-          requests:      #资源需求，下限 
-            memory: 50Mi
-          limits:        #资源限制，上限
-            memory: 300Mi    #将最大限制改为300mi，容器可以正常运行
+apiVersion: v1
+kind: Pod
+metadata:
+  name: limit-memory
+spec:
+  containers:
+    - name: test-container
+      image: progrium/stress:latest
+      args:
+      - --vm
+      - "1"
+      - --vm-bytes
+      - 200M           #容器使用200M
+      resources:
+        requests:      #资源需求，下限 
+          memory: 50Mi
+        limits:        #资源限制，上限
+          memory: 300Mi    #将最大限制改为300mi，容器可以正常运行
 EOF
 kubectl apply -f limit-memory-pod.yaml
 ```
@@ -114,20 +96,14 @@ kubectl apply -f limit-memory-pod.yaml
 
 ```bash
 [root@supper ~]# kubectl get pod
-NAME                          READY   STATUS             RESTARTS   AGE
-memory-demo-8df545dc9-27tjj   1/1     Running                0      2m44s
+NAME           READY   STATUS    RESTARTS   AGE
+limit-memory   1/1     Running   0          36s
 ```
 
 查看日志
 
 ```yaml
-[root@supper ~]# kubectl logs memory-demo-8df545dc9-fsg57
-stress: dbug: [8] allocating 209715200 bytes ...
-stress: dbug: [8] touching bytes in strides of 4096 bytes ...
-stress: dbug: [8] freed 209715200 bytes
-stress: dbug: [8] allocating 209715200 bytes ...
-stress: dbug: [8] touching bytes in strides of 4096 bytes ...
-stress: dbug: [8] freed 209715200 bytes
+[root@supper ~]# kubectl logs limit-memory
 stress: dbug: [8] allocating 209715200 bytes ...
 stress: dbug: [8] touching bytes in strides of 4096 bytes ...
 stress: dbug: [8] freed 209715200 bytes
@@ -179,9 +155,7 @@ NAME                        READY   STATUS    RESTARTS   AGE
 cpu-demo-6f6dc64c56-wh28p   0/1     Pending   0          2m15s
 ```
 
-调度失败是因为申请的CPU资源超出集群节点所能提供的资源
-但CPU 使用率过高，不会被杀死
-满足要求
+调度失败是因为申请的CPU资源超出集群节点所能提供的资源，但CPU 使用率过高，不会被杀死，满足要求
 
 ```yaml
 cat<< EOF >limit-cpu-pod.yaml
@@ -277,8 +251,8 @@ metadata:
   name: mem-cpu-demo
 spec:
   hard:
-    requests.cpu: 1       #要求cpu1个     即cpu要求不得超过1个cpu
-    requests.memory: 1Gi  #要求内存1gi    即内存要求不得超过1Gi
+    requests.cpu: 1       #要求cpu1个     即cpu请求不得超过1个cpu
+    requests.memory: 1Gi  #要求内存1gi     即内存请求不得超过1Gi
     limits.cpu: 2         #cpu限制2个     即cpu限制不得超过2个cpu
     limits.memory: 2Gi    #内存限制2gi    即内存限制不得超过2Gi
 EOF

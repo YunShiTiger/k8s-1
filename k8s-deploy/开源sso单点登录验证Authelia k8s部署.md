@@ -1,4 +1,4 @@
-**一. 部署Authelia至k8s**
+## 部署Authelia至k8s
 
 注意部署时最好不要配置到kube-system这个ns,因为默认情况下是没有权限去访问kube-system
 
@@ -81,6 +81,13 @@ kubectl apply -f pv.yaml -f pvc.yaml
 cp authelia/examples/compose/local/authelia/* /data/nfs-volume/sso
 ```
 
+在/data/nfs-volume/sso/configuration.yml添加：
+
+```bash
+    - domain: "*.wzxmt.com"
+      policy: one_factor
+```
+
 部署清单
 
 ```yaml
@@ -108,15 +115,21 @@ spec:
         volumeMounts:
         - name: oauthelia-configmap
           mountPath: /config/
+        - name: date
+          mountPath: /etc/localtime
         ports:
         - containerPort: 9091
           protocol: TCP
       imagePullSecrets:
       - name: harborlogin
       volumes:
-        - name: oauthelia-configmap
-          persistentVolumeClaim:
-            claimName: authelia-pv-claim
+      - name: date
+        hostPath:
+          path: /etc/localtime
+          type: ''
+      - name: oauthelia-configmap
+        persistentVolumeClaim:
+          claimName: authelia-pv-claim
 EOF
 ```
 
@@ -165,10 +178,54 @@ spec:
 EOF
 ```
 
-**二. 在traefik当中定义Middleware**
+## 测试sso登录认证
+
+**一、部署服务测试**
 
 ```yaml
-cat << 'EOF' >middleware.yaml
+cat << 'EOF' >test.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: whoami
+  labels:
+    app: whoami
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: whoami
+  template:
+    metadata:
+      labels:
+        app: whoami
+    spec:
+      containers:
+        - name: whoami
+          image: traefik/whoami
+          ports:
+            - name: web
+              containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+spec:
+  ports:
+    - protocol: TCP
+      name: web
+      port: 80
+  selector:
+    app: whoami
+EOF
+kubectl apply -f test.yaml
+```
+
+**二、 定义Middleware**
+
+```yaml
+cat << 'EOF' >default-middleware.yaml
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -183,16 +240,17 @@ spec:
       - "Remote-Name"
       - "Remote-Email"
 EOF
+kubectl apply -f default-middleware.yaml
 ```
 
-**三. 在traefik当中调用Middleware**
+**三、调用Middleware**
 
 ```yaml
-cat << 'EOF' >ingressRoute-middleware.yaml
+cat << 'EOF' >who-ingressroute.yaml
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: simpleingressroute
+  name: sso-who
 spec:
   entryPoints:
     - websecure
@@ -207,6 +265,7 @@ spec:
   tls:
     certResolver: myresolver
 EOF
+kubectl apply -f who-ingressroute.yaml
 ```
 
 测试跳转验证：
@@ -220,3 +279,45 @@ user：wzxmt
 password：wzxmt
 ```
 
+**traefik中调用sso认证**
+
+```yaml
+cat << 'EOF' >traefik-middleware.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: sso-authelia
+  namespace: ingress-system
+spec:
+  forwardAuth:
+    address: http://sso-authelia.sso:9091/api/verify?rd=https://login.wzxmt.com/
+    trustForwardHeader: true
+    authResponseHeaders:
+      - "Remote-User"
+      - "Remote-Groups"
+      - "Remote-Name"
+      - "Remote-Email"
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sso-traefik
+  namespace: ingress-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: HostRegexp(`traefik.wzxmt.com`)
+    kind: Rule
+    services:
+    - name: api@internal
+      kind: TraefikService
+    middlewares:
+    - name: sso-authelia
+  tls:
+    certResolver: myresolver
+EOF
+kubectl apply -f traefik-middleware.yaml
+```
+
+访问：https://traefik.wzxmt.com 
