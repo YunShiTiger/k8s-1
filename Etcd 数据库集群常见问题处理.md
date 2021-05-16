@@ -510,8 +510,6 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 endpoint status --write-out=table
 ```
 
-停止etcd服务
-
 ### 7 验证数据完整性
 
 ```bash
@@ -585,8 +583,6 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 --key=/etc/kubernetes/pki/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status --write-out=table
 ```
-
-![image-20210210173210747](../../AppData/Roaming/Typora/typora-user-images/image-20210210173210747.png)
 
 ### 2）摘除异常节点
 
