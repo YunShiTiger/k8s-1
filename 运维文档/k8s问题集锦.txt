@@ -169,3 +169,25 @@ ngx_cache_purge实现缓存清除功能
 3： DaemonSet
 4：Job
 5： CronJob
+
+
+
+如果你对Prometheus没有接触过，也许会看不懂上面说什么，但是没关系，如果你看完之后，在回过头来瞧瞧，也许就了解这个架构了，也会对Prometheus有一个更深的认识。
+这里简单说一下Prometheus的各个部分。
+Prometheus Server: Prometheus服务端，由于存储及收集数据，提供相关api对外查询用。
+Exporter: 类似传统意义上的被监控端的agent，有区别的是，它不会主动推送监控数据到server端，而是等待server端定时来手机数据，即所谓的主动监控。
+Pushagateway: 用于网络不可直达而居于exporter与server端的中转站。
+Alertmanager: 报警组件，将报警的功能单独剥离出来放在alertmanager。
+Web UI: Prometheus的web接口，可用于简单可视化，及语句执行或者服务状态监控。
+
+
+具有由 metric 名称和键/值对标识的时间序列数据的多维数据模型
+PromQL，有一个灵活的查询语言
+不依赖分布式存储，只和本地磁盘有关
+通过 HTTP 的服务拉取时间序列数据
+也支持推送的方式来添加时间序列数据
+通过服务发现或静态配置发现目标
+多种图形和仪表板支持
+
+
+ 配置告警对象有两种方式,一种是通过静态文件配置,另一种是动态发现机制,自动完成 数据采集。
