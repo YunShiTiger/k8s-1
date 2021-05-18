@@ -191,3 +191,31 @@ PromQL，有一个灵活的查询语言
 
 
  配置告警对象有两种方式,一种是通过静态文件配置,另一种是动态发现机制,自动完成 数据采集。
+
+
+autoscaling/v1：只支持基于CPU指标的缩放；
+
+autoscaling/v2beta1：支持Resource Metrics（资源指标，如pod的CPU）和Custom Metrics（自定义指标）的缩放；
+
+autoscaling/v2beta2：支持Resource Metrics（资源指标，如pod的CPU）和Custom Metrics（自定义指标）和ExternalMetrics（额外指标）的缩放。
+
+
+kubectl autoscale deployment nginx --min=1 --max=5 --cpu-percent=80
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
