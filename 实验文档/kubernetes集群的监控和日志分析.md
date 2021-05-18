@@ -12,9 +12,9 @@
 [Tomcat8下载链接](https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.40/bin/apache-tomcat-8.5.40.tar.gz)
 
 ```bash
-mkdir -p /data/software/dockerfile/tomcat 
-tar xf apache-tomcat-8.5.40.tar.gz -C /data/software/dockerfile/tomcat
-cd /data/software/dockerfile/tomcat
+mkdir -p tomcat 
+tar xf apache-tomcat-8.5.40.tar.gz -C tomcat
+cd tomcat
 rm -fr apache-tomcat-8.5.40/webapps/*
 mkdir -p apache-tomcat-8.5.40/webapps/ROOT
 ```
@@ -125,7 +125,7 @@ docker push harbor.wzxmt.com/base/tomcat:v8.5.40
 
 ### 修改dubbo-client/pom.xml
 
-```
+```xml
 /d/workspace/dubbo-demo-web/dubbo-client/pom.xml
 <packaging>war</packaging>
 
@@ -150,7 +150,7 @@ docker push harbor.wzxmt.com/base/tomcat:v8.5.40
 
 ### 修改Application.java
 
-```
+```java
 /d/workspace/dubbo-demo-web/dubbo-client/src/main/java/com/od/dubbotest/Application.java
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -162,7 +162,7 @@ import org.springframework.context.annotation.ImportResource;
 
 ### 创建ServletInitializer.java
 
-```
+```java
 /d/workspace/dubbo-demo-web/dubbo-client/src/main/java/com/od/dubbotest/ServletInitializer.java
 package com.od.dubbotest;
 
@@ -361,7 +361,6 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
 
 - root_url
   >ROOT
-  
 
 ## 准备k8s的资源配置清单
 
@@ -426,8 +425,8 @@ docker push harbor.wzxmt.com/k8s/kube-state-metrics:v1.9.5
 RBAC
 
 ```yaml
-mkdir -p /data/software/yaml/kube-state-metrics/
-cd  /data/software/yaml/kube-state-metrics/
+mkdir -p kube-state-metrics/
+cd  kube-state-metrics/
 cat << 'EOF' >rbac.yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -633,23 +632,16 @@ EOF
 
 ### 应用资源配置清单
 
-任意一台运算节点上：
-
 ```
-kubectl apply -f http://www.wzxmt.com/yaml/kube-state-metrics/rbac.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/kube-state-metrics/dp.yaml
+kubectl apply -f kube-state-metrics/*
 ```
 
 ## 部署node-exporter
 
-运维主机上：
-
-### 准备node-exporter镜像
-
 [node-exporter官方dockerhub地址](https://hub.docker.com/r/prom/node-exporter)
 [node-expoerer官方github地址](https://github.com/prometheus/node_exporter)
 
-```
+```bash
 docker pull quay.io/prometheus/node-exporter:v0.18.1
 docker tag quay.io/prometheus/node-exporter:v0.18.1 harbor.wzxmt.com/k8s/node-exporter:v0.18.1
 docker push harbor.wzxmt.com/k8s/node-exporter:v0.18.1
@@ -658,8 +650,8 @@ docker push harbor.wzxmt.com/k8s/node-exporter:v0.18.1
 ### 准备资源配置清单
 
 ```yaml
-mkdir -p /data/software/yaml/node-exporter
-cd /data/software/yaml/node-exporter
+mkdir -p node-exporter
+cd node-exporter
 cat<< 'EOF' >ds.yaml
 kind: DaemonSet
 apiVersion: apps/v1
@@ -720,14 +712,10 @@ EOF
 任意运算节点上：
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/node-exporter/ds.yaml
+kubectl apply -f node-exporter/ds.yaml
 ```
 
 ## 部署cadvisor
-
-运维主机`HDSS7-200.host.com`上：
-
-### 准备cadvisor镜像
 
 [cadvisor官方dockerhub地址](https://hub.docker.com/r/google/cadvisor)
 [cadvisor官方github地址](https://github.com/google/cadvisor)
@@ -743,8 +731,8 @@ docker push harbor.wzxmt.com/k8s/cadvisor:v0.33.0
 DaemonSet
 
 ```yaml
-mkdir -p /data/software/yaml/cadvisor
-cd /data/software/yaml/cadvisor
+mkdir -p cadvisor
+cd cadvisor
 cat << 'EOF' >ds.yaml
 apiVersion: apps/v1
 kind: DaemonSet
@@ -832,15 +820,11 @@ ll /sys/fs/cgroup|grep cpu
 任意运算节点上：
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/cadvisor/ds.yaml
+kubectl apply -f cadvisor/ds.yaml
 netstat -luntp|grep 4194
 ```
 
 ## 部署blackbox-exporter
-
-运维主机上：
-
-### 准备blackbox-exporter镜像
 
 [blackbox-exporter官方dockerhub地址](https://hub.docker.com/r/prom/blackbox-exporter)
 [blackbox-exporter官方github地址](https://github.com/prometheus/blackbox_exporter)
@@ -856,8 +840,8 @@ docker push harbor.wzxmt.com/k8s/blackbox-exporter:v0.16.0
 ConfigMap
 
 ```yaml
-mkdir -p /data/software/yaml/blackbox-exporter
-cd /data/software/yaml/blackbox-exporter
+mkdir -p blackbox-exporter
+cd blackbox-exporter
 cat << 'EOF' >cm.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -999,10 +983,7 @@ blackbox	60 IN A 10.0.0.50
 任意运算节点上：
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/blackbox-exporter/cm.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/blackbox-exporter/dp.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/blackbox-exporter/svc.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/blackbox-exporter/ingress.yaml
+kubectl apply -f blackbox-exporter/*
 ```
 
 ### 浏览器访问
@@ -1012,10 +993,6 @@ kubectl apply -f http://www.wzxmt.com/yaml/blackbox-exporter/ingress.yaml
 ![blackbox-exporter](../acess/image-20200604004252969.png)
 
 ## 部署prometheus
-
-运维主机上：
-
-### 准备prometheus镜像
 
 [prometheus官方dockerhub地址](https://hub.docker.com/r/prom/prometheus)
 [prometheus官方github地址](https://github.com/prometheus/prometheus)
@@ -1031,9 +1008,8 @@ docker push harbor.wzxmt.com/k8s/prometheus:v2.17.0
 #### 运维主机上：
 
 ```bash
-mkdir -p /data/software/yaml/prometheus
+mkdir -p prometheus && cd prometheus
 mkdir -p /data/nfs-volume/prometheus/etc
-cd /data/software/yaml/prometheus
 ```
 
 #### 配置清单:
@@ -1410,13 +1386,8 @@ EOF
 
 ### 应用资源配置清单
 
-任意运算节点上：
-
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/prometheus/rbac.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/prometheus/dp.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/prometheus/svc.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/prometheus/ingress.yaml
+kubectl apply -f prometheus/*
 ```
 
 ### 解析域名
@@ -1645,10 +1616,6 @@ app名称空间->deployment->dubbo-demo-consumer->spec->template->metadata下，
 
 ## 部署Grafana
 
-运维主机上：
-
-### 准备grafana镜像
-
 [grafana官方dockerhub地址](https://hub.docker.com/r/grafana/grafana)
 [grafana官方github地址](https://github.com/grafana/grafana)
 [grafana官网](https://grafana.com/)
@@ -1664,8 +1631,8 @@ docker push harbor.wzxmt.com/k8s/grafana:7.0.3
 Deployment
 
 ```yaml
-mkdir -p /data/software/yaml/grafana
-cd /data/software/yaml/grafana
+mkdir -p grafana
+cd grafana
 cat << 'EOF' >dp.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -1763,14 +1730,10 @@ EOF
 任意运算节点上：
 
 ```
-kubectl apply -f http://www.wzxmt.com/yaml/grafana/dp.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/grafana/svc.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/grafana/ingress.yaml
+kubectl apply -f grafana/*
 ```
 
 ### 解析域名
-
-`HDSS7-11.host.com`上
 
 ```
 grafana	60 IN A 10.0.0.50
@@ -1937,13 +1900,10 @@ kubernetes -> +New Cluster
 
 ## 部署alertmanager
 
-运维主机上：
-
-### 准备alertmanager镜像
 [alertmanager官方github地址](https://github.com/alertmanager/alert_manager)
 [alertmanager官网](https://prometheus.io)
 
-```
+```bash
 docker pull docker.io/prom/alertmanager:v0.14.0
 docker tag 30594e96cbe8 harbor.wzxmt.com/infra/alertmanager:v0.14.0
 docker push harbor.wzxmt.com/infra/alertmanager:v0.14.0
@@ -1952,8 +1912,8 @@ docker push harbor.wzxmt.com/infra/alertmanager:v0.14.0
 资源配置清单：
 
 ```
-mkdir -p /data/software/yaml/alertmanager
-cd /data/software/yaml/alertmanager
+mkdir -p alertmanager
+cd alertmanager
 ```
 
 ConfigMap
@@ -2403,8 +2363,8 @@ kafka	60 IN A 10.0.0.12
 #### 下载MCMAK
 
 ```
-mkdir /data/software/dockerfile/kafka-manager
-cd /data/software/dockerfile/kafka-manager
+mkdir kafka-manager
+cd kafka-manager
 wget https://github.com/yahoo/CMAK/releases/download/3.0.0.4/cmak-3.0.0.4.zip
 unzip cmak-3.0.0.4.zip
 rm -f cmak-3.0.0.4/bin/*.bat
@@ -2533,12 +2493,12 @@ EOF
 
 ### 应用资源配置清单
 
-任意一台运算节点上：
+
 
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/kafka-manager/dp.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/kafka-manager/svc.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/kafka-manager/ingress.yaml
+kubectl apply -f kafka-manager/dp.yaml
+kubectl apply -f kafka-manager/svc.yaml
+kubectl apply -f kafka-manager/ingress.yaml
 ```
 
 ### 解析域名
@@ -2565,8 +2525,8 @@ km	60 IN A 10.0.0.50
 Dockerfile
 
 ```bash
-mkdir -p /data/software/dockerfile/filebeat
-cd /data/software/dockerfile/filebeat
+mkdir -p filebeat
+cd filebeat
 cat << 'EOF' >Dockerfile
 FROM debian:jessie
 ENV FILEBEAT_VERSION=7.7.1 \
@@ -2654,7 +2614,7 @@ docker push harbor.wzxmt.com/infra/filebeat:v7.7.1
 **使用dubbo-demo-consumer的Tomcat版镜像**
 
 ```yaml
-cat<< 'EOF' >/data/software/yaml/t/dubbo-demo-consumer/dp-f.yaml
+cat<< 'EOF' >t/dubbo-demo-consumer/dp-f.yaml
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -2740,7 +2700,7 @@ cd /opt/kafka/bin
 docker pull logstash:6.7.2
 docker tag 857d9a1f8221 harbor.wzxmt.com/public/logstash:v6.7.2
 docker push harbor.wzxmt.com/public/logstash:v6.7.2
-cd /data/software/dockerfile/logstash
+cd logstash
 ```
 
 - 自定义Dockerfile

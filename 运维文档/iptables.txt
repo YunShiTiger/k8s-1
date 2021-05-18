@@ -235,10 +235,10 @@ iptables主要工作在 OSI 七层模型中  二 三 四层
 			223.6.6.6
 	#02.配置iptables服务器
 		echo "net.ipv4.ip_forward = 1" >/etc/sysctl.conf  增加路由转发功能
-		sysclt -p 
+		sysctl -p 
 		iptables -t nat -A POSRROUTING -s 172.16.1.0/24 -o eth0 -j MASQUERADE  伪装共享上网
 2.端口映射（外网---内网）
-	iptables -t nat -A PREROUTING -d 10.0.0.8 --dport 9000 -p tcp -i eth0 -j DANT -to-destination 172.16.1.9:22
+	iptables -t nat -A PREROUTING -i eth0 -d 10.0.0.20 -p tcp --dport 22 -j DNAT --to-destination 10.0.0.20:2222
 
 十三：修改
 修改使用-R参数
