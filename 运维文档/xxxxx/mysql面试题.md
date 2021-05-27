@@ -54,7 +54,7 @@ InnoDB支持MVCC, 而MyISAM不支持
 InnoDB支持外键，而MyISAM不支持
 InnoDB不支持全文索引，而MyISAM支持。
 
-## 6、Mysql中InnoDB支持的四种事务隔离级别名称，以及逐级之间的区别？
+## 6、Mysql中InnoDB支持的四种事务隔离级别名称？
 
 > 1. read uncommited ：读到未提交数据
 > 2. read committed：脏读，不可重复读
@@ -64,7 +64,7 @@ InnoDB不支持全文索引，而MyISAM支持。
 ## 7、问了innodb的事务与日志的实现方式
 
 > (1)、有多少种日志；错误日志：记录出错信息，也记录一些警告信息或者正确的信息。查询日志：记录所有对数据库请求的信息，不论这些请求是否得到了正确的执行。慢查询日志：设置一个阈值，将运行时间超过该值的所有SQL语句都记录到慢查询的日志文件中。二进制日志：记录对数据库执行更改的所有操作。中继日志：事务日志：
->  (2)、事物的4种隔离级别隔离级别读未提交(RU)读已提交(RC)可重复读(RR)串行
+>  (2)、事物的4种隔离级别：读未提交(RU)、读已提交(RC)、可重复读(RR)、串行
 >  (3)、事务是如何通过日志来实现的，说得越深入越好。事务日志是通过redo和innodb的存储引擎日志缓冲（Innodb log buffer）来实现的，当开始一个事务的时候，会记录该事务的lsn(log sequence number)号; 当事务执行时，会往InnoDB存储引擎的日志的日志缓存里面插入事务日志；当事务提交时，必须将存储引擎的日志缓冲写入磁盘（通过innodb_flush_log_at_trx_commit来控制），也就是写数据前，需要先写日志。这种方式称为“预写日志方式”
 
 ## 8、问了MySQL binlog的几种日志录入格式以及区别
@@ -96,15 +96,20 @@ mixed模式中，那么在以下几种情况下自动将binlog模式由SBR模式
 
 ## 10、MySQL的复制原理以及流程
 
-1、从库通过手工执行change master to 语句连接主库，提供了连接的用户一切条件（user、password、port、ip）
-	并且让从库知道，二进制日志的起点位置（file名  position号）
-2、从库的IO和主库的dump线程建立连接
-3、从库根据change master to 语句提供的file名和position号，IO线程向主库发起binlog的请求
-4、主库dump线程根据从库的请求，将本地binlog以events的方式发给从库IO线程
-5、从库IO线程接收binlog evnets，并从放到本地relay-log中，传送过来的信息，会记录到master.info中。
-6、从库应用relay-log，并且把应用过的记录到relay-log.info,默认情况下，已经应用过的relay会自动被清理purge。
-
-到此位置，一次主从复制就完成
+(1)从库IO线程,查看master.info信息,获取IP,port,user,password,file,pos
+(2)通过 IP,port,user,password,连接到主库.
+(3)拿着 file(mysql-bin.000003),pos(120),请求主库
+2.主库判断如果有新的binlog(mysql-bin.000003,800)
+3.通过Dump线程读取binlog,从3号文件的120开始发送二进制日志事件
+4.从库IO线程,接收binlog日志
+5.缓存binlog到TCPIP缓存 
+6.IO线程回复一个ACK确认给dump线程,主库收到后,主库此次复制工作就完成了.
+7.更新master.info文件,file,pos被更新为最新请求的值
+8.TCPIP缓存数据,写入relay-log中
+9.SQL线程,读取relay-log.info,获取到上次已经执行过的位置信息
+10.到relay-log找最新的日志进行执行
+11.再次更新relay-log.info
+12.已经应用过的relay-log,会被自动清理
 
 ## 11、备份计划，mysqldump以及xtranbackup的实现原理
 

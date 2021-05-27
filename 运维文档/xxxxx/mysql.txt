@@ -8,7 +8,8 @@ chown -R mysql. /data/mysql/
 mysqld --initialize --user=mysql --basedir=/usr/local/mysql --datadir=/data/mysql/data
 
 sql操作SQL入门：
-------------------------------------------    
+------------------------------------------
+CREATE DATABASE oldboy CHARSET utf8;   
 DROP DATABASE   --------一般不使用
 DROP DATABASE oldboy;
 ALTER DATABASE   ------一般不使用
@@ -199,8 +200,8 @@ pkill mysqld
 /etc/init.d/mysqld start
 source world.sql
 mysqldump  -uroot -p123 -A --triggers -R --master-data=2  >/backup/full.sql
-create database oldboy;
-use oldboy;
+create database oldboy01;
+use oldboy01;
 create table t1 (id int,name varchar(20));
 insert into t1 values(1,'a'),(2,'b'),(3,'c');
 commit;
@@ -208,17 +209,20 @@ use world
 delete from city where countrycode='JPN';
 commit;
 drop database world;
-drop database oldboy
+drop database oldboy01;
 要求:恢复到drop database world之前的状态。
 -----------
 
 mysql>source /backup/full.sql
 vim /backup/full.sql   ---22行
 mysql-bin.000003 MASTER_LOG_POS=689712
-mysql -e "show binlog events in 'mysql-bin.000003'"|tail 
-mysqlbinlog --start-position=689712 --stop-position=697414  /data/mysql/mysql-bin.000003>/backup/bin.sql
-mysql>source /backup/bin.sql
 
+mysql -e "show binlog events in 'mysql-bin.000003'"|tail 
+
+mysqlbinlog --start-position=689712 --stop-position=697414  /data/mysql/mysql-bin.000003>/backup/bin.sql
+set sql_log_bin=0;
+source /backup/bin.sql
+set sql_log_bin=1;
 
 
 
