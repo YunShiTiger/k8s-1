@@ -163,10 +163,10 @@ spec:
           value: -XshowSettings:vm -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Duser.timezone=Asia/Shanghai
         resources:
           limits: 
-            cpu: 500m
+            cpu: 1024m
             memory: 1Gi
           requests: 
-            cpu: 500m
+            cpu: 1024m
             memory: 1Gi
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
