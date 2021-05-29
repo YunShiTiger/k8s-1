@@ -187,9 +187,9 @@ LIMIT  <获取的行数> [OFFSET <跳过的行数>]
 --master-data=2    “打标签” mysql-bin.000015 |      120 
 
 
+mysqldump  -uroot -p123456 -A -R -F --triggers --master-data=2 --single-transaction  >full.sql
 
-mysqldump  -uroot -p123 -A --triggers -R --master-data=2  >/backup/full.sql
-mysqlbinlog  --start-position=120 --stop-position=1200 mysql-bin.000015 >/backup/inc.sql
+mysqlbinlog  --start-position=120 --stop-position=1200 mysql-bin.000015 >inc.sql
 
 -------
 模拟生产环境：
@@ -199,9 +199,9 @@ pkill mysqld
 /application/mysql/scripts/mysql_install_db --user=mysql --basedir=/application/mysql --datadir=/application/mysql/data/  
 /etc/init.d/mysqld start
 source world.sql
-mysqldump  -uroot -p123 -A --triggers -R --master-data=2  >/backup/full.sql
-create database oldboy01;
-use oldboy01;
+mysqldump  -uroot -p123456 -A --triggers -R --master-data=2  >full.sql
+create database oldboy;
+use oldboy;
 create table t1 (id int,name varchar(20));
 insert into t1 values(1,'a'),(2,'b'),(3,'c');
 commit;
@@ -209,11 +209,11 @@ use world
 delete from city where countrycode='JPN';
 commit;
 drop database world;
-drop database oldboy01;
+drop database oldboy;
 要求:恢复到drop database world之前的状态。
 -----------
 
-mysql>source /backup/full.sql
+mysql>source full.sql
 vim /backup/full.sql   ---22行
 mysql-bin.000003 MASTER_LOG_POS=689712
 
@@ -221,7 +221,7 @@ mysql -e "show binlog events in 'mysql-bin.000003'"|tail
 
 mysqlbinlog --start-position=689712 --stop-position=697414  /data/mysql/mysql-bin.000003>/backup/bin.sql
 set sql_log_bin=0;
-source /backup/bin.sql
+source bin.sql
 set sql_log_bin=1;
 
 
@@ -229,16 +229,17 @@ set sql_log_bin=1;
 案例模拟：
 1、创建备份需要的目录
 mkdir full  inc1 inc2
-create table test (id int,name  char(20),stuid INT)
+use oldboy;
+create table test (id int,name  char(20),stuid INT);
 2、周日全备
-innobackupex --user=root --password=123 --no-timestamp /backup/full/
+innobackupex --user=root --password=123456 --no-timestamp /backup/full/
 3、模拟数据变化
 use oldboy
 insert into test values(8,'outman',99);
 insert into test values(9,'outgirl',100);
 commit;
 4、周一增量备份 
- innobackupex --user=root --password=123 --incremental --no-timestamp --incremental-basedir=/backup/full/ /backup/inc1
+ innobackupex --user=root --password=123456 --incremental --no-timestamp --incremental-basedir=/backup/full/ /backup/inc1
 
 5、模拟数据变化
 use oldboy
@@ -247,7 +248,7 @@ insert into test values(8,'outman1',119);
 insert into test values(9,'outgirl1',120);
 commit;
 6、周二的增量备份
-innobackupex --user=root --password=123 --incremental --no-timestamp --incremental-basedir=/backup/inc1 /backup/inc2
+innobackupex --user=root --password=123456 --incremental --no-timestamp --incremental-basedir=/backup/inc1 /backup/inc2
 
 6.1 再插入新的行操作
 use oldboy
