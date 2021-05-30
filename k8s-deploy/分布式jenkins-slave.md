@@ -31,8 +31,8 @@
 下载官网上的稳定版
 
 ```bash
-docker pull jenkins/jenkins:lts
-docker tag jenkins/jenkins:lts harbor.wzxmt.com/infra/jenkins:latest
+docker pull jenkins/jenkins:2.195-centos
+docker tag jenkins/jenkins:2.195-centos harbor.wzxmt.com/infra/jenkins:latest
 docker push harbor.wzxmt.com/infra/jenkins:latest
 ```
 
