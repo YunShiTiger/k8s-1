@@ -31,8 +31,8 @@
 下载官网上的稳定版
 
 ```bash
-docker pull jenkins/jenkins:2.195-centos
-docker tag jenkins/jenkins:2.195-centos harbor.wzxmt.com/infra/jenkins:latest
+docker pull jenkins/jenkins:2.245-centos
+docker tag jenkins/jenkins:2.245-centos harbor.wzxmt.com/infra/jenkins:latest
 docker push harbor.wzxmt.com/infra/jenkins:latest
 ```
 
@@ -452,8 +452,8 @@ EOF
 #### 构建镜像
 
 ```bash
-docker build . -t harbor.wzxmt.com/infra/jenkins:latest
-docker push harbor.wzxmt.com/infra/jenkins:latest
+docker build . -t harbor.wzxmt.com/infra/jenkins-slave:latest
+docker push harbor.wzxmt.com/infra/jenkins-slave:latest
 ```
 
 ## 测试jenkins
@@ -468,13 +468,13 @@ pipeline {
 apiVersion: v1
 kind: Pod
 metadata:
-  name: jenkins
+  name: jenkins-slave
   namespace: infra
 spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins:latest
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -550,7 +550,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins:latest
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -614,13 +614,17 @@ stages {
           sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && mv *.jar ./project_dir"
         }
       }
-      stage('image') { //build image and push to registry
+      stage('dockerfile') { //exec mvn cmd
         steps {
           writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
 ADD ${params.target_dir}/project_dir /opt/project_dir"""
+        }
+      }
+      stage('image') { //build image and push to registry
+        steps {
           withCredentials([usernamePassword(credentialsId: "${harbor_registry_auth}", passwordVariable: 'password', usernameVariable: 'username')]) {
           sh """
-          echo "\${password}" | docker login --username admin --password-stdin ${registry} && \
+          echo "\${password}" | docker login --username ${username} --password-stdin ${registry} && \
           cd ${params.app_name}/${env.BUILD_NUMBER} && \
           docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
           docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}
@@ -644,6 +648,8 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 Pipeline Script
 
 ```yaml
+#!/usr/bin/env groovy
+def harbor_registry_auth = "68c13df1-8979-42a2-9bfc-eecb8491212d"
 pipeline {
   agent {
     kubernetes {
@@ -657,7 +663,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins:latest
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
@@ -767,7 +773,7 @@ spec:
   nodeName: n2
   containers:
   - name: jnlp
-    image: harbor.wzxmt.com/infra/jenkins:latest
+    image: harbor.wzxmt.com/infra/jenkins-slave:latest
     tty: true
     imagePullPolicy: Always
     volumeMounts:
