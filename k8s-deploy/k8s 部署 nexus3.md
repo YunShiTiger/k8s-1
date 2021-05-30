@@ -93,6 +93,7 @@ spec:
         ports:
         -  containerPort: 8081
         -  containerPort: 8082
+        -  containerPort: 8083
         resources:
           limits:
             cpu: 1000m
@@ -139,10 +140,14 @@ spec:
       protocol: TCP
       port: 8081
       targetPort: 8081
-    - name: docker
+    - name: hosted
       protocol: TCP
       port: 8082
       targetPort: 8082
+    - name: group
+      protocol: TCP
+      port: 8083
+      targetPort: 8083
 EOF
 ```
 
@@ -157,30 +162,53 @@ metadata:
   namespace: infra
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
   - match: Host(`nexus.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: nexus-svc
       port: 8081
+  tls:
+    certResolver: myresolver
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: nexus-docker
+  name: nexus-hosted
   namespace: infra
 spec:
   entryPoints:
-    - web
+    - websecure
   routes:
-  - match: Host(`docker.wzxmt.com`) && PathPrefix(`/`)
+  - match: Host(`docker01.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: nexus-svc
       port: 8082
+  tls:
+    certResolver: myresolver
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nexus-group
+  namespace: infra
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`docker02.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: nexus-svc
+      port: 8083
+  tls:
+    certResolver: myresolver
 EOF
 ```
+
+docekr镜像推送需要使用https
 
 部署
 
@@ -402,26 +430,83 @@ mvn install:install-file -Dfile=D:\jar\tx-lcn-4.2.0-SNAPSHOT.pom -DgroupId=com.c
 
 然后保存。
 
-### 2、创建一个hosted类型的docker仓库
+### 2、创建hosted类型的docker仓库
 
 ![image-20210530001627108](../acess/image-20210530001627108.png)
 
 Hosted类型仓库用作我们的私有仓库，替代harbor的功能。
-![image-20210530002044248](../acess/image-20210530002044248.png)
+![image-20210530071212782](../acess/image-20210530071212782.png)
 
 开发环境，我们运行重复发布，因此Delpoyment policy 我们选择Allow redeploy。
 
-### 3、创建一个proxy类型的docker仓库
+### 3、创建proxy类型的docker仓库
 
 proxy类型仓库，可以帮助我们访问不能直接到达的网络，如另一个私有仓库，或者国外的公共仓库，如官方的dockerhub镜像库。Remote Storage: docker hub的proxy，这里填写: [https://registry-1.docker.io](http://www.eryajf.net/go?url=https://registry-1.docker.io) 这个是官方默认的一个链接
-![image-20210530003028617](../acess/image-20210530003028617.png)
-![image-20210530002738567](../acess/image-20210530002738567.png)
+![image-20210530071551473](../acess/image-20210530071551473.png)
+![image-20210530071720230](../acess/image-20210530071720230.png)
 
-### 4、创建一个group类型的docker仓库
+### 4、创建group类型的docker仓库
 
-group类型的docker仓库，是一个聚合类型的仓库。它可以将前面我们创建的3个仓库聚合成一个URL对外提供服务，可以屏蔽后端的差异性，实现类似透明代理的功能。
-![image-20210530003301407](../acess/image-20210530003301407.png)最终效果
-![img](https://img2020.cnblogs.com/blog/794174/202006/794174-20200612134935291-114474621.png)
+group类型的docker仓库，是一个聚合类型的仓库。它可以将前面我们创建的3个仓库聚合成一个URL对外提供服务，可以屏蔽后端的差异性，实现类似透明代理的功能。注意最后的顺序，先hosted后proxy
+![image-20210530071855547](../acess/image-20210530071855547.png)
+
+5、设置Realms![image-20210530073259428](../acess/image-20210530073259428.png)
+
+最终效果
+![image-20210530073336063](../acess/image-20210530073336063.png)
 
 到这儿，nexus在docker这一块是部署已经完成了
+
+### 5、配置镜像仓库
+
+打开/etc/docker/daemon.json文件，增加
+
+```
+"insecure-registries": ["https://docker01.wzxmt.com","docker02.wzxmt.com"]
+```
+
+重启docker
+
+```
+systemctl restart docker 
+```
+
+登录验证
+
+```
+echo e2200911-b814-4c61-86b0-fe6e8766b1fb|docker login -u admin --password-stdin https://docker01.wzxmt.com
+```
+
+![image-20210530090354121](../acess/image-20210530090354121.png)
+
+### 5、测试从私服推拉镜像
+
+推送镜像
+
+```
+docker pull busybox:1.28
+docker tag busybox:1.28 docker01.wzxmt.com/app/busybox:1.28
+docker push docker01.wzxmt.com/app/busybox:1.28
+```
+
+![image-20210530091148858](../acess/image-20210530091148858.png)
+
+使用代理节点拉取镜像（不存在的）
+
+```
+docker pull docker01.wzxmt.com/nginx:1.18
+```
+
+![image-20210530091522902](../acess/image-20210530091522902.png)
+
+私服上查看镜像
+
+![image-20210530091747201](../acess/image-20210530091747201.png)
+
+备注：
+
+docker01.wzxmt.com（本地推送镜像）
+docker02.wzxmt.com（拉取镜像）
+
+![image-20210530094048197](../acess/image-20210530094048197.png)
 
