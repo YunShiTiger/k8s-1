@@ -118,354 +118,7 @@ Mode: follower
 
 # 部署jenkins
 
-## 准备镜像
-
-> [jenkins官网](https://jenkins.io/download/)
-> [jenkins镜像](https://hub.docker.com/r/jenkins/jenkins)
-
-在运维主机下载官网上的稳定版
-
-```bash
-docker pull jenkins/jenkins:2.195-centos
-```
-
-## 自定义Dockerfile
-
-在运维主机上编辑dockerfile
-
-```bash
-mkdir -p /data/software/dockerfile/jenkins
-cd /data/software/dockerfile/jenkins
-cat << 'EOF' >Dockerfile
-FROM jenkins/jenkins:2.195-centos
-USER root
-RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&\ 
-    echo 'Asia/Shanghai' >/etc/timezone
-ADD id_rsa /root/.ssh/id_rsa
-ADD config.json /root/.docker/config.json
-ADD get-docker.sh /get-docker.sh
-RUN echo "    StrictHostKeyChecking no" >> /etc/ssh/sshd_config &&\
-    /get-docker.sh
-EOF
-```
-
-这个Dockerfile里我们主要做了以下几件事
-
-- 设置容器用户为root
-- 设置容器内的时区
-- 将ssh私钥加入（使用git拉代码时要用到，配对的公钥应配置在gitlab中）
-- 加入了登录自建harbor仓库的config文件
-- 修改了ssh客户端的
-- 安装一个docker的客户端
-
-生成ssh密钥对：
-
-```bash
-ssh-keygen -t rsa -b 2048 -C "wzxmt.com@qq.com" -N "" -f /root/.ssh/id_rsa
-```
-
-get-docker.sh
-
-```bash
-cat  << 'EOF' >get-docker.sh
-#!/bin/bash
-cd /etc/yum.repos.d
-mv /etc/yum.repos.d/{CentOS-Base.repo,.bak}
-mv /etc/yum.repos.d/{epel.repo,bak}
-curl https://mirrors.aliyun.com/repo/Centos-7.repo -o CentOS-Base.repo 
-curl https://mirrors.aliyun.com/repo/epel-7.repo -o epel.repo
-yum install -y yum-utils device-mapper-persistent-data lvm2
-yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-yum makecache fast
-rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-yum makecache fast
-yum install -y docker-ce-18.06.3.ce-3.el7
-EOF
-```
-
-cat /root/.docker/config.json
-
-```
-{
-	"auths": {
-		"harbor.wzxmt.com": {
-			"auth": "YWRtaW46YWRtaW4="
-		}
-	},
-	"HttpHeaders": {
-		"User-Agent": "Docker-Client/19.03.8 (linux)"
-	}
-```
-
-## 制作自定义镜像
-
-```bash
-cp -r /root/.ssh/id_rsa ./
-cp -r /root/.docker/config.json ./
-chmod +x get-docker.sh
-ls #查看Dokerfile所需文件
-#config.json  Dockerfile  get-docker.sh  id_rsa
-docker build . -t harbor.wzxmt.com/infra/jenkins:v2.195
-docker push harbor.wzxmt.com/infra/jenkins:v2.195
-```
-
-## 准备共享存储
-
-运维主机，以及所有运算节点上：
-
-```
-yum install nfs-utils -y
-```
-
-- 配置NFS服务
-
-运维主机：
-
-```
-cat<< EOF >/etc/exports
-/data/nfs-volume 10.0.0.0/24(rw,no_root_squash)
-EOF
-```
-
-- 启动NFS服务
-
-运维主机上：
-
-```bash
-mkdir -p /data/nfs-volume
-systemctl start nfs
-systemctl enable nfs
-```
-
-## 准备资源配置清单
-
-运维主机上：
-
-```bash
-mkdir  -p /data/software/yaml/jenkins 
-mkdir -p /data/nfs-volume/{jenkins_home,jenkins_repository}
-cd /data/software/yaml/jenkins
-```
-
-deployment
-
-```yaml
-cat << EOF >deployment.yaml
-kind: Deployment
-apiVersion: apps/v1
-metadata:
-  name: jenkins
-  namespace: infra
-  labels: 
-    name: jenkins
-spec:
-  replicas: 1
-  selector:
-    matchLabels: 
-      name: jenkins
-  template:
-    metadata:
-      labels: 
-        app: jenkins 
-        name: jenkins
-    spec:
-      volumes:
-      - name: data
-        nfs: 
-          server: 10.0.0.20
-          path: /data/nfs-volume/jenkins_home
-      - name: repository
-        nfs: 
-          server: 10.0.0.20
-          path: /data/nfs-volume/jenkins_repository      
-      - name: docker
-        hostPath: 
-          path: /run/docker.sock
-          type: ''
-      containers:
-      - name: jenkins
-        image: harbor.wzxmt.com/infra/jenkins:v2.195
-        ports:
-        - containerPort: 8080
-          protocol: TCP
-        env:
-        - name: JAVA_OPTS
-          value: -Xmx512m -Xms512m
-        resources:
-          limits: 
-            cpu: 500m
-            memory: 1Gi
-          requests: 
-            cpu: 500m
-            memory: 1Gi
-        volumeMounts:
-        - name: data
-          mountPath: /var/jenkins_home
-        - name: repository
-          mountPath: /root/.m2/repository
-        - name: docker
-          mountPath: /run/docker.sock
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        imagePullPolicy: IfNotPresent
-      imagePullSecrets:
-      - name: harborlogin
-      restartPolicy: Always
-      terminationGracePeriodSeconds: 30
-      securityContext: 
-        runAsUser: 0
-      schedulerName: default-scheduler
-  strategy:
-    type: RollingUpdate
-    rollingUpdate: 
-      maxUnavailable: 1
-      maxSurge: 1
-  revisionHistoryLimit: 7
-  progressDeadlineSeconds: 600
-EOF
-```
-
-svc
-
-```yaml
-cat << EOF >svc.yaml
-kind: Service
-apiVersion: v1
-metadata: 
-  name: jenkins
-  namespace: infra
-spec:
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 8080
-  selector:
-    app: jenkins
-  type: ClusterIP
-  sessionAffinity: None
-EOF
-```
-
-ingress
-
-```yaml
-cat << EOF >ingress.yaml
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:  
-  name: jenkins
-  namespace: infra
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-spec:  
-  rules:    
-    - host: jenkins.wzxmt.com      
-      http:        
-        paths:        
-        - path: /          
-          backend:            
-            serviceName: jenkins            
-            servicePort: 80
-EOF
-```
-
-## 应用资源配置清单
-
-创建docker-registry
-
-```bash
-kubectl create secret docker-registry harborlogin \
---namespace=infra  \
---docker-server=http://harbor.wzxmt.com \
---docker-username=admin \
---docker-password=admin
-```
-
-任意一个k8s运算节点上
-
-```bash
-kubectl create namespace infra
-kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
-kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/svc.yaml
-kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/ingress.yaml
-
-kubectl get pods -n infra|grep jenkins
-kubectl get svc -n infra|grep jenkins
-kubectl get ingress -n infra|grep jenkins
-```
-
-## 解析域名
-
-`HDSS7-11.host.com`上
-
-复制
-
-```
-jenkins	60 IN A 10.0.0.50
-```
-
-## 浏览器访问
-
-[http://jenkins.wzxmt.com](http://jenkins.wzxmt.com/)
-
-## 优化jenkins插件下载速度
-
-在管理机上
-
-```bash
-WORK_DIR=/data/nfs-volume/jenkins_home/
-sed -i.bak 's#http://updates.jenkins-ci.org/download#https://mirrors.tuna.tsinghua.edu.cn/jenkins#g;s#http://www.google.com#https://www.baidu.com#g' ${WORK_DIR}/updates/default.json
-```
-
-从新在运算节点部署jenkins
-
-```bash
-kubectl delete -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
-kubectl apply -f  http://www.wzxmt.com/yaml/jenkins/deployment.yaml
-```
-
-## 页面配置jenkins
-
-![jenkins初始化页面](../acess/image-20200524143150587.png)
-
-### 初始化密码
-
-```
-cat /data/nfs-volume/jenkins_home/secrets/initialAdminPassword
-```
-
-### 安装插件
-
-![jenkins安装页面](../acess/image-20200524143444194.png)
-
-### 设置用户
-
-![jenkins设置用户](../acess/image-20200524161048685.png)
-
-### 完成安装
-
-![jenkins完成安装1](../acess/image-20200524161225578.png)
-![jenkins完成安装2](../acess/image-20200524161328386.png)
-
-### 使用admin登录
-
-![jenkins登录](../acess/jenkins-welcome.png)
-
-### 安装Blue Ocean插件
-
-- Manage Jenkins
-- Manage Plugins
-- Available
-- Blue Ocean
-
-### 调整安全选项
-
-- Manage Jenkins
-  - Configure Global Security
-    - Allow anonymous read access（钩上）
-
-- Manage Jenkins
-  - 防止跨站点请求伪造(取消钩)
+## jenkins部署及基础配置（略）
 
 ## 配置New job
 
@@ -584,52 +237,6 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
    }
 }
 ```
-
-# 最后的准备工作
-
-## 检查jenkins容器里的docker客户端
-
-进入jenkins的docker容器里，检查docker客户端是否可用。
-
-```bash
-docker exec -ti 52e250789b78 bash
-docker ps -a
-```
-
-## 检查jenkins容器里的SSH key
-
-进入jenkins的docker容器里，检查ssh连接git仓库，确认是否能拉到代码。
-
-```bash
-docker exec -ti 52e250789b78 bash
-ssh -i /root/.ssh/id_rsa -T git@github.com (有可能失败，但是只要能拉到代码)                                       
-```
-
-## 部署maven软件
-
-[maven官方下载地址](http://maven.apache.org/docs/history.html)
-在运维主机上二进制部署，这里部署maven-3.6.3版
-
-```bash
-tar xf /data/software/sf/apache-maven-3.6.3-bin.tar.gz -C /data/nfs-volume/jenkins_home
-mv /data/nfs-volume/jenkins_home/apache-maven-3.6.3 /data/nfs-volume/jenkins_home/maven-3.6.3-8u222
-```
-
-设置国内镜像源
-
-```bash
-vim /data/nfs-volume/jenkins_home/maven-3.6.3-8u222/conf/settings.xml
-  <mirror>
-    <id>alimaven</id>
-    <name>aliyun maven</name>
-    <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
-    <mirrorOf>central</mirrorOf>
-  </mirror>  
-<!-- profiles
-#注意位置
-```
-
-其他版本略
 
 ## 制作dubbo微服务的底包镜像
 
@@ -757,7 +364,8 @@ test $? -eq 0 && 成功，进行下一步 || 失败，排错直到成功
 运维主机上，准备资源配置清单：
 
 ```yaml
-cat << 'EOF' >/data/software/yaml/dubbo-demo-service/deployment.yaml
+mkdir dubbo-demo-service -p && cd dubbo-demo-service
+cat << 'EOF' >deployment.yaml
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -809,10 +417,9 @@ EOF
 
 ```bash
 kubectl create ns app
-
 kubectl create secret docker-registry harborlogin \
 --namespace=app  \
---docker-server=http://harbor.wzxmt.com \
+--docker-server=https://harbor.wzxmt.com \
 --docker-username=admin \
 --docker-password=admin
 
@@ -1114,8 +721,7 @@ demo IN A 60 10.0.0.50
 deployment
 
 ```yaml
-mkdir -p /data/software/yaml/dubbo-demo-consumer
-cd /data/software/yaml/dubbo-demo-consumer
+mkdir -p dubbo-demo-consumer && cd dubbo-demo-consumer
 cat << EOF >dp.yaml
 kind: Deployment
 apiVersion: apps/v1
@@ -1211,12 +817,8 @@ EOF
 
 ### 应用资源配置清单
 
-在任意一台k8s运算节点执行：
-
 ```bash
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-consumer/dp.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-consumer/svc.yaml
-kubectl apply -f http://www.wzxmt.com/yaml/dubbo-demo-consumer/ingress.yaml
+kubectl apply -f ./
 ```
 
 ### 检查dubbo-monitor

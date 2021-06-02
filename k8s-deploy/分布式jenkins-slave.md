@@ -178,9 +178,15 @@ spec:
         - name: jenkins-home
           subPath: jenkins-home
           mountPath: /var/jenkins_home
+        - name: date
+          mountPath: /etc/localtime
       securityContext:
         fsGroup: 1000
       volumes:
+      - name: date
+        hostPath:
+          path: /etc/localtime
+          type: ''
       - name: jenkins-home
         persistentVolumeClaim:
           claimName: jenkins-pvc
@@ -368,6 +374,7 @@ git的用户名和密码
 ├── repositories.yaml（helm chart认证文件）
 ├── helm（helm包管理器）
 ├── cert.tar.gz (harbor 的ca证书及私钥)
+├── 
 └── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ```
 
@@ -408,6 +415,23 @@ tar zcvf maven-3.6.3.tar.gz maven-3.6.3
 rm -rf apache-maven-3.6.3-bin.tar.gz maven-3.6.3
 ```
 
+docekr-config
+
+```bash
+cat << 'EOF' >config.json
+{
+	"auths": {
+		"harbor.wzxmt.com": {
+			"auth": "YWRtaW46YWRtaW4="
+         }
+    },
+	"HttpHeaders": {
+		"User-Agent": "Docker-Client/19.03.9 (linux)"
+   }
+}
+EOF
+```
+
 #### 下载helm
 
 ```bash
@@ -444,7 +468,8 @@ USER root
 ADD * /opt/
 RUN chown -R root. /opt/* && rm -f /opt/Dockerfile && \
 mv /opt/helm /usr/bin/ && mv /opt/kubectl /usr/bin/ && \
-mkdir -p /root/.config/helm && mv /opt/repositories.yaml /root/.config/helm
+mkdir -p /root/.config/helm /root/.docker && mv /opt/repositories.yaml /root/.config/helm && \
+mv /opt/config.json /root/.docker
 ENTRYPOINT ["jenkins-agent"]
 EOF
 ```
@@ -461,6 +486,7 @@ docker push harbor.wzxmt.com/infra/jenkins-slave:latest
 构建一次，测试jenkins连通性
 
 ```yaml
+#!/usr/bin/env groovy
 pipeline {
   agent {
     kubernetes {
@@ -512,7 +538,7 @@ spec:
 stages {
       stage('test') { 
         steps {
-          sh "pwd"
+          sh "docker ps"
         }
      }
   }
@@ -536,7 +562,6 @@ Pipeline Script
 
 ```yaml
 #!/usr/bin/env groovy
-def harbor_registry_auth = "68c13df1-8979-42a2-9bfc-eecb8491212d"
 pipeline {
   agent {
     kubernetes {
@@ -589,7 +614,7 @@ parameters {
   string defaultValue: 'dubbo-demo-service', description: 'project name. e.g: dubbo-demo-service', name: 'app_name', trim: true
   string defaultValue: 'app/dubbo-demo-service', description: 'project docker image name. e.g: app/dubbo-demo-service', name: 'image_name', trim: true
   string defaultValue: 'https://github.com/wzxmt/dubbo-demo-service.git', description: 'project git repository. e.g: https://github.com/wzxmt/dubbo-demo-service.git', name: 'git_repo', trim: true
-  string defaultValue: 'apollo', description: 'git commit id of the project.', name: 'git_ver', trim: true
+  string defaultValue: 'master', description: 'git commit id of the project.', name: 'git_ver', trim: true
   string defaultValue: '', description: 'project docker image tag, date_timestamp recommended. e.g: 200102_0001', name: 'add_tag', trim: true
   string defaultValue: '/opt', description: 'project maven directory. e.g: ./', name: 'mvn_dir', trim: true
   string defaultValue: './dubbo-server/target', description: 'the relative path of target file such as .jar or .war package. e.g: ./dubbo-server/target', name: 'target_dir', trim: true
@@ -622,15 +647,12 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
       }
       stage('image') { //build image and push to registry
         steps {
-          withCredentials([usernamePassword(credentialsId: "${harbor_registry_auth}", passwordVariable: 'password', usernameVariable: 'username')]) {
           sh """
-          echo "\${password}" | docker login --username ${username} --password-stdin ${registry} && \
           cd ${params.app_name}/${env.BUILD_NUMBER} && \
           docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
           docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}
           """
          }
-       }
      }
    }
 }
@@ -649,7 +671,6 @@ Pipeline Script
 
 ```yaml
 #!/usr/bin/env groovy
-def harbor_registry_auth = "68c13df1-8979-42a2-9bfc-eecb8491212d"
 pipeline {
   agent {
     kubernetes {
@@ -702,7 +723,7 @@ parameters {
   string defaultValue: 'dubbo-demo-consumer', description: 'project name. e.g: dubbo-demo-service', name: 'app_name', trim: true
   string defaultValue: 'app/dubbo-demo-consumer', description: 'project docker image name. e.g: app/dubbo-demo-consumer', name: 'image_name', trim: true
   string defaultValue: 'https://github.com/wzxmt/dubbo-demo-web.git', description: 'project git repository. e.g: https://github.com/wzxmt/dubbo-demo-web.git', name: 'git_repo', trim: true
-  string defaultValue: 'apollo', description: 'git commit id of the project.', name: 'git_ver', trim: true
+  string defaultValue: 'master', description: 'git commit id of the project.', name: 'git_ver', trim: true
   string defaultValue: '', description: 'project docker image tag, date_timestamp recommended. e.g: 200102_0001', name: 'add_tag', trim: true
   string defaultValue: '/opt', description: 'project maven directory. e.g: ./', name: 'mvn_dir', trim: true
   string defaultValue: './dubbo-client/target', description: 'the relative path of target file such as .jar or .war package. e.g: ./dubbo-client/target', name: 'target_dir', trim: true
@@ -711,38 +732,42 @@ parameters {
   choice choices: ['base/jre8:8u112', 'base/jre7:7u112'], description: 'different base images.', name: 'base_image'
   choice choices: ['maven-3.6.3', 'maven-3.6.2', 'maven-3.6.1'], description: 'different maven edition.', name: 'maven'
 }
-    stages {
-    stage('pull') { //get project code from repo 
-      steps {
-        sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
+stages {
+      stage('pull') { //get project code from repo 
+        steps {
+          sh "git clone ${params.git_repo} ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.app_name}/${env.BUILD_NUMBER} && git checkout ${params.git_ver}"
         }
-    }
-    stage('build') { //exec mvn cmd
-      steps {
-        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
       }
-    }
-    stage('unzip') { //unzip  target/*.war -c target/project_dir
-      steps {
-        sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && unzip *.war -d ./project_dir"
+      stage('build') { //exec mvn cmd
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && ${params.mvn_dir}/${params.maven}/bin/${params.mvn_cmd}"
+        }
       }
-    }
-    stage('image') { //build image and push to registry
-      steps {
-        writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
-ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
-        sh "cd  ${params.app_name}/${env.BUILD_NUMBER} && \
-        docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
-        docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}"
+      stage('package') { //move jar file into project_dir
+        steps {
+          sh "cd ${params.app_name}/${env.BUILD_NUMBER} && cd ${params.target_dir} && mkdir project_dir && mv *.jar ./project_dir"
+        }
       }
-    }
-  }
+      stage('dockerfile') { //exec mvn cmd
+        steps {
+          writeFile file: "${params.app_name}/${env.BUILD_NUMBER}/Dockerfile", text: """FROM harbor.wzxmt.com/${params.base_image}
+ADD ${params.target_dir}/project_dir /opt/project_dir"""
+        }
+      }
+      stage('image') { //build image and push to registry
+        steps {
+          sh """
+          cd ${params.app_name}/${env.BUILD_NUMBER} && \
+          docker build -t harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag} . && \
+          docker push harbor.wzxmt.com/${params.image_name}:${params.git_ver}_${params.add_tag}
+          """
+         }
+     }
+   }
 }
 ```
 
 ## 发布tomcat
-
-### 配置New job
 
 - 使用admin登录
 
@@ -755,9 +780,6 @@ ADD ${params.target_dir}/project_dir /opt/tomcat/webapps/${params.root_url}"""
   > tomcat-demo
 
 - Pipeline -> OK
-
-
-### Pipeline Script
 
 ```yaml
 pipeline {
@@ -849,11 +871,7 @@ ADD ${params.target_dir}/project_dir /opt/project_dir"""
 }
 ```
 
-依次填入/选择：
-
-### 开始构建
-
-![image-20200628021513893](../acess/image-20200628021513893.png)
+## 部署
 
 dubbo-demo-service
 
@@ -863,7 +881,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: dubbo-demo-service
-  namespace: test
+  namespace: app
   labels: 
     name: dubbo-demo-service
 spec:
@@ -879,16 +897,14 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-service
-        image: harbor.wzxmt.com/app/dubbo-demo-service:apollo_20201206_0001
+        image: harbor.wzxmt.com/app/dubbo-demo-service:master_20210603
         ports:
         - containerPort: 20880
           protocol: TCP
         env:
-        - name: C_OPTS
-          value: -Denv=fat -Dapollo.meta=http://config-test.wzxmt.com
         - name: JAR_BALL
           value: dubbo-server.jar
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
@@ -914,7 +930,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: dubbo-demo-consumer
-  namespace: test
+  namespace: app
   labels: 
     name: dubbo-demo-consumer
 spec:
@@ -930,18 +946,16 @@ spec:
     spec:
       containers:
       - name: dubbo-demo-consumer
-        image: harbor.wzxmt.com/app/dubbo-demo-consumer:apollo_20201206_0001
+        image: harbor.wzxmt.com/app/dubbo-demo-consumer:master_20210603
         ports:
-        - containerPort: 20880
-          protocol: TCP
         - containerPort: 8080
           protocol: TCP
+        - containerPort: 20880
+          protocol: TCP
         env:
-        - name: C_OPTS
-          value: -Denv=fat -Dapollo.meta=http://config-test.wzxmt.com
         - name: JAR_BALL
           value: dubbo-client.jar
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
       imagePullSecrets:
       - name: harborlogin
       restartPolicy: Always
@@ -961,7 +975,7 @@ kind: Service
 apiVersion: v1
 metadata: 
   name: dubbo-demo-consumer
-  namespace: test
+  namespace: app
 spec:
   ports:
   - protocol: TCP
@@ -977,7 +991,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
   name: dubbo-demo-consumer
-  namespace: test
+  namespace: app
 spec:
   entryPoints:
     - web
@@ -990,4 +1004,4 @@ spec:
 EOF
 ```
 
-http://demo-test.wzxmt.com/hello?name=wangdao
+http://demo-test.wzxmt.com/hello?name=wzxmt

@@ -84,7 +84,7 @@ data:
     spring.messages.basename=i18n/message
     spring.root.password=root
     spring.guest.password=guest
-    dubbo.registry.address=zookeeper://zk-0.zk-hs:2181?backup=zk-1.zk-hs:2181,zk-2.zk-hs:2181
+    dubbo.registry.address=zookeeper://zk-0.zk-hs.infra:2181?backup=zk-1.zk-hs.infra:2181,zk-2.zk-hs.infra:2181
 EOF
 ```
 
