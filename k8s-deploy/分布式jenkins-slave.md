@@ -1,4 +1,4 @@
-# 简介
+## 简介
 
 我们知道持续构建与发布是我们日常工作中必不可少的一个步骤，目前大多公司都采用 Jenkins 集群来搭建符合需求的 CI/CD 流程，然而传统的 Jenkins Slave 一主多从方式会存在一些痛点，比如：
 
@@ -21,7 +21,7 @@
 
 是不是以前我们面临的种种问题在 Kubernetes 集群环境下面是不是都没有了啊？看上去非常完美。
 
-## 部署jenkins-master
+## jenkins-master
 
 #### 获取镜像
 
@@ -311,7 +311,7 @@ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 ![jenkins home](../acess/image-20210116092054090.png)
 
-### 调整安全选项
+#### 调整安全选项
 
 - Manage Jenkins
   - Configure Global Security
@@ -330,14 +330,14 @@ cat ${WORK_DIR}/secrets/initialAdminPassword
 
 **第2步.** 安装完毕后，点击 Manage Jenkins —> Configure System —> (拖到最下方)Add a new cloud —> 选择 Kubernetes，然后填写 Kubernetes 和 Jenkins 配置信息。![image-20200622094452898](../acess/image-20200627224756024.png)
 
-## 添加扩展插件
+#### 添加扩展插件
 
 - Git Parameter 可以实现动态的从git中获取所有分支
 - Config File Provider 主要可以将kubeconfig配置文件存放在jenkins里，让这个pipeline引用这个配置文件
 - Extended Choice Parameter 进行对选择框插件进行扩展，可以多选，扩展参数构建，而且部署微服务还需要多选
 - Blue Ocean 一个可视化、可编辑的流水线插件
 
-## 添加凭据
+#### 添加凭据
 
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/200511164028156.png)
 点击jenkins
@@ -365,7 +365,7 @@ git的用户名和密码
 最后进行测试发布在pipeline的配置指定发布的服务进行发布
 查看pod的状态
 
-## 部署jenkins
+## jenkins-slave
 
 #### jenkins dockerfile结构
 
@@ -374,7 +374,7 @@ git的用户名和密码
 ├── repositories.yaml（helm chart认证文件）
 ├── helm（helm包管理器）
 ├── cert.tar.gz (harbor 的ca证书及私钥)
-├── 
+├── config.json (docker push认证)
 └── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ```
 
