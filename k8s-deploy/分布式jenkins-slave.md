@@ -363,13 +363,14 @@ git的用户名和密码
 ![通过jenkins交付微服务到kubernetes](https://www.linuxidc.com/upload/2020_05/2005111640281529.png)
 
 最后进行测试发布在pipeline的配置指定发布的服务进行发布
-查看pod的状态
 
-## 制作微服务的底包镜像
+## 制作底包
 
 根据自己需求添加相应配置
 
-#### 自定义Dockerfile
+### 制作微服务底包镜像
+
+#### Dockerfile
 
 ```bash
 mkdir -p jre8 && cd jre8
@@ -386,7 +387,7 @@ CMD ["/entrypoint.sh"]
 EOF
 ```
 
-#### config.yml
+config.yml
 
 ```bash
 cat << 'EOF' >config.yml
@@ -396,13 +397,13 @@ rules:
 EOF
 ```
 
-#### jmx_javaagent-0.3.1.jar
+jmx_javaagent-0.3.1.jar
 
 ```bash
 wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar
 ```
 
-#### entrypoint.sh
+entrypoint.sh
 
 ```bash
 cat << 'EOF' >entrypoint.sh
@@ -415,7 +416,7 @@ EOF
 chmod +x entrypoint.sh
 ```
 
-制作底包
+#### 制作镜像并推送
 
 ```bash
 docker build . -t harbor.wzxmt.com/base/jre8:8u112
@@ -423,6 +424,115 @@ docker push harbor.wzxmt.com/base/jre8:8u112
 ```
 
 **注意：**jre7底包制作类似(略)
+
+### 制作Tomcat底包镜像
+
+[Tomcat8下载链接](https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.40/bin/apache-tomcat-8.5.40.tar.gz)
+
+```bash
+mkdir -p tomcat && cd tomcat 
+wget https://archive.apache.org/dist/tomcat/tomcat-8/v8.5.40/bin/apache-tomcat-8.5.40.tar.gz
+tar xf apache-tomcat-8.5.40.tar.gz && mv apache-tomcat-8.5.40 tomcat-8.5.40
+rm -fr apache-tomcat-8.5.40.tar.gz tomcat-8.5.40/webapps/* && mkdir -p tomcat-8.5.40/webapps/ROOT
+tar zcvf tomcat-8.5.40.tar.gz tomcat-8.5.40 && rm -fr tomcat-8.5.40
+```
+
+#### 简单配置tomcat
+
+1. 关闭AJP端口
+
+```bash
+vim tomcat-8.5.40/conf/server.xml
+<!-- <Connector port="8009" protocol="AJP/1.3" redirectPort="8443" /> -->
+```
+
+1. 配置日志
+
+- 日志级别改为INFO
+
+```bash
+vim tomcat-8.5.40/conf/logging.properties
+
+1catalina.org.apache.juli.AsyncFileHandler.level = INFO
+2localhost.org.apache.juli.AsyncFileHandler.level = INFO
+java.util.logging.ConsoleHandler.level = INFO
+```
+
+- 注释掉所有关于3manager，4host-manager日志的配置
+
+```bash
+vim tomcat-8.5.40/conf/logging.properties
+
+#3manager.org.apache.juli.AsyncFileHandler.level = FINE
+#3manager.org.apache.juli.AsyncFileHandler.directory = ${catalina.base}/logs
+#3manager.org.apache.juli.AsyncFileHandler.prefix = manager.
+#3manager.org.apache.juli.AsyncFileHandler.encoding = UTF-8
+
+#4host-manager.org.apache.juli.AsyncFileHandler.level = FINE
+#4host-manager.org.apache.juli.AsyncFileHandler.directory = ${catalina.base}/logs
+#4host-manager.org.apache.juli.AsyncFileHandler.prefix = host-manager.
+#4host-manager.org.apache.juli.AsyncFileHandler.encoding = UTF-8
+```
+
+#### Dockerfile
+
+```bash
+cat << 'EOF' >Dockerfile
+From stanleyws/jre8:8u112
+ENV CATALINA_HOME /opt/tomcat-8.5.40
+ENV LANG zh_CN.UTF-8
+ADD * /opt/
+RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \ 
+    echo 'Asia/Shanghai' >/etc/timezone && mkdir -p /opt/prom && \
+    mv /opt/entrypoint.sh / && rm -f /opt/Dockerfile && \
+    mv /opt/jmx_javaagent-0.3.1.jar /opt/config.yml /opt/prom 
+WORKDIR /opt/tomcat-8.5.40
+CMD ["/entrypoint.sh"]
+EOF
+```
+
+config.yml
+
+```bash
+cat << 'EOF' >config.yml
+---
+rules:
+  - pattern: '.*'
+EOF
+```
+
+jmx_javaagent-0.3.1.jar
+
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar
+```
+
+entrypoint.sh (不要忘了给执行权限)
+
+```bash
+cat << 'EOF' >entrypoint.sh
+#!/bin/bash
+TOMCAT_VERSION=8.5.40
+M_OPTS="-Duser.timezone=Asia/Shanghai -javaagent:/opt/prom/jmx_javaagent-0.3.1.jar=$(hostname -i):${M_PORT:-"12346"}:/opt/prom/config.yml"
+C_OPTS=${C_OPTS}
+MIN_HEAP=${MIN_HEAP:-"128m"}
+MAX_HEAP=${MAX_HEAP:-"128m"}
+JAVA_OPTS=${JAVA_OPTS:-"-Xmn384m -Xss256k -Duser.timezone=GMT+08  -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=0 -XX:+CMSClassUnloadingEnabled -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=80 -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+PrintClassHistogram  -Dfile.encoding=UTF8 -Dsun.jnu.encoding=UTF8"}
+CATALINA_OPTS="${CATALINA_OPTS}"
+JAVA_OPTS="${M_OPTS} ${C_OPTS} -Xms${MIN_HEAP} -Xmx${MAX_HEAP} ${JAVA_OPTS}"
+sed -i "2c JAVA_OPTS=\"${JAVA_OPTS}\"" /opt/tomcat-${TOMCAT_VERSION}/bin/catalina.sh
+sed -i "3c CATALINA_OPTS=\"${CATALINA_OPTS}\"" /opt/tomcat-${TOMCAT_VERSION}/bin/catalina.sh
+/opt/tomcat-${TOMCAT_VERSION}/bin/catalina.sh run
+EOF
+chmod +x entrypoint.sh
+```
+
+#### 制作镜像并推送
+
+```bash
+docker build . -t harbor.wzxmt.com/base/tomcat:v8.5.40
+docker push harbor.wzxmt.com/base/tomcat:v8.5.40
+```
 
 ## 制作jenkins-slave镜像
 
@@ -432,18 +542,17 @@ docker push harbor.wzxmt.com/base/jre8:8u112
 ├── Dockerfile（见下面）
 ├── repositories.yaml（helm chart认证文件）
 ├── helm（helm包管理器）
-├── cert.tar.gz (harbor 的ca证书及私钥)
+├── cert.tar.gz (harborca证书及私钥)
 ├── config.json (docker push认证)
 └── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ```
 
 #### 下载maven修改配置
 
-```bash
+```xml-dtd
 wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-tar xf apache-maven-3.6.3-bin.tar.gz
-mv apache-maven-3.6.3 maven-3.6.3
-rm -f apache-maven-3.6.3-bin.tar.gz
+tar xf apache-maven-3.6.3-bin.tar.gz && mv apache-maven-3.6.3 maven-3.6.3
+tar zcvf maven-3.6.3.tar.gz maven-3.6.3 && rm -rf apache-maven-3.6.3-bin.tar.gz maven-3.6.3
 #修改maven-3.6.3/conf/settings.xml
 ...
     </mirror>
@@ -461,17 +570,7 @@ rm -f apache-maven-3.6.3-bin.tar.gz
       <name>Human Readable Name for this.Mirror.</name>
       <url>http://repo1.maven.org/maven2/</url>
     </mirror>
-	<!--中央仓库2-->  
-    <mirror>
-      <id>repo2</id>
-      <mirrorOf>central</mirrorOf>
-      <name>Human Readable Name for this.Mirror.</name>
-      <url>http://repo2.maven.org/maven2/</url>
-    </mirror>
-  </mirrors>
 ...
-tar zcvf maven-3.6.3.tar.gz maven-3.6.3
-rm -rf apache-maven-3.6.3-bin.tar.gz maven-3.6.3
 ```
 
 docekr-config
