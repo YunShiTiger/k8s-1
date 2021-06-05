@@ -365,7 +365,66 @@ git的用户名和密码
 最后进行测试发布在pipeline的配置指定发布的服务进行发布
 查看pod的状态
 
-## jenkins-slave
+## 制作微服务的底包镜像
+
+根据自己需求添加相应配置
+
+#### 自定义Dockerfile
+
+```bash
+mkdir -p jre8 && cd jre8
+cat << EOF >Dockerfile
+FROM stanleyws/jre8:8u112
+ADD * /opt/
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo 'Asia/Shanghai' >/etc/timezone && \
+    mkdir /opt/prom -p && mv /opt/jmx_javaagent-0.3.1.jar /opt/prom && \
+    mv /opt/config.yml /opt/prom && \
+    mv /opt/entrypoint.sh / && rm -f /opt/Dockerfile  
+WORKDIR /opt/project_dir
+CMD ["/entrypoint.sh"]
+EOF
+```
+
+#### config.yml
+
+```bash
+cat << 'EOF' >config.yml
+---
+rules:
+  - pattern: '.*'
+EOF
+```
+
+#### jmx_javaagent-0.3.1.jar
+
+```bash
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar -O jmx_javaagent-0.3.1.jar
+```
+
+#### entrypoint.sh
+
+```bash
+cat << 'EOF' >entrypoint.sh
+#!/bin/sh
+M_OPTS="-Duser.timezone=Asia/Shanghai -javaagent:/opt/prom/jmx_javaagent-0.3.1.jar=$(hostname -i):${M_PORT:-"12346"}:/opt/prom/config.yml"
+C_OPTS=${C_OPTS}
+JAR_BALL=${JAR_BALL}
+exec java -jar ${M_OPTS} ${C_OPTS} ${JAR_BALL}
+EOF
+chmod +x entrypoint.sh
+```
+
+制作底包
+
+```bash
+docker build . -t harbor.wzxmt.com/base/jre8:8u112
+docker push harbor.wzxmt.com/base/jre8:8u112
+```
+
+**注意：**jre7底包制作类似(略)
+
+## 制作jenkins-slave镜像
 
 #### jenkins dockerfile结构
 
