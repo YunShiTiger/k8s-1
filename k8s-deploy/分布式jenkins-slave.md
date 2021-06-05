@@ -542,7 +542,7 @@ docker push harbor.wzxmt.com/base/tomcat:v8.5.40
 ├── Dockerfile（见下面）
 ├── repositories.yaml（helm chart认证文件）
 ├── helm（helm包管理器）
-├── cert.tar.gz (harborca证书及私钥)
+├── cert.tar.gz (harbor ca证书及私钥)
 ├── config.json (docker push认证)
 └── apache-maven-3.6.3-bin.tar.gz（maven工具）
 ```
