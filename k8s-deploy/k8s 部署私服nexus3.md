@@ -227,7 +227,7 @@ kubectl apply -f ./
 
 ```
 cat /data/nfs-volume/nexus-data/admin.password
-e2200911-b814-4c61-86b0-fe6e8766b1fb
+7c376a05-1112-4a15-8525-92fd7f9e9af8
 ```
 
 登录成功后，会提示修改密码，完成后进入如下界面，至此Nexus安装成功。![image-20210529232024964](../acess/image-20210529232024964.png)
@@ -441,7 +441,7 @@ Hosted类型仓库用作我们的私有仓库，替代harbor的功能。
 
 ### 3、创建proxy类型的docker仓库
 
-proxy类型仓库，可以帮助我们访问不能直接到达的网络，如另一个私有仓库，或者国外的公共仓库，如官方的dockerhub镜像库。Remote Storage: docker hub的proxy，这里填写: [https://registry-1.docker.io](http://www.eryajf.net/go?url=https://registry-1.docker.io) 这个是官方默认的一个链接
+proxy类型仓库，可以帮助我们访问不能直接到达的网络，如另一个私有仓库，或者国外的公共仓库，如官方的dockerhub镜像库。Remote Storage: docker hub的proxy，这里填写: https://registry-1.docker.io 这个是官方默认的一个链接
 ![image-20210530071551473](../acess/image-20210530071551473.png)
 ![image-20210530071720230](../acess/image-20210530071720230.png)
 

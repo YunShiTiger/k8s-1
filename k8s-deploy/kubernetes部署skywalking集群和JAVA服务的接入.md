@@ -1,25 +1,23 @@
-# kubernetes部署skywalking集群和JAVA服务的接入
+# 部署skywalking和JAVA服务的接入
 
 # 1 概述：
 
-## 1.1 环境
+### 1.1 环境
 
 版本信息如下：
 a、操作系统：centos 7.6
 a、skywalking版本：v8.0.1
 c、kubernetes版本：v1.18.14
-d、es版本：6.4.3
+d、es版本：7.5.1
 e、helm版本： helm3
 
-## 1.2 skywalking概述
-
-### 1.2.1 skywalking是什么
+### 1.2 skywalking是什么
 
 SkyWalking是一个开源的APM系统，为云原生分布式系统提供监控、链路追踪、诊断能力，支持集成多种编程语言的应用（java、php、go、lua等），也能和服务网格进行集成。除了支持代码侵入方式的集成，一个主要亮点也支持零代码入侵的集成（零代码侵入是和具体的编程语言相关的），是利用java agent的特性在jvm级别修改了运行时的程序，因此程序员在代码编辑期间不需要修改业务代码也能达到埋点的效果。后端存储支持es、mysql、tidb等多种数据库。
 架构图如下：
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20201128193220663.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25hbmdvbmdoZW4=,size_16,color_FFFFFF,t_70)
+![在这里插入图片描述](../acess/ZmFuZ3poZW5naGVpdGk.jpg)
 
-### 1.2.1 skywalking的java代理的使用
+### 1.3 skywalking的java代理的使用
 
 1）方式1：命令行方式
 
@@ -48,13 +46,13 @@ k8s集群部署（略）
 
 ## 3.1 helm
 
-#### 创建名称空间
+创建名称空间
 
 ```bash
 kubectl create ns skywalking
 ```
 
-#### 1 下载skywalking包
+### 1 下载skywalking包
 
 ```bash
 git clone https://github.com/apache/skywalking-kubernetes
@@ -63,7 +61,7 @@ helm repo add elastic https://helm.elastic.co
 helm dep up skywalking
 ```
 
-#### 2 部署SkyWalking 8.1.0 & Elasticsearch 7.5.1
+### 2 部署SkyWalking 8.1.0 & Elasticsearch 7.5.1
 
 ```bash
 helm install skywalking skywalking -n skywalking \
@@ -73,7 +71,7 @@ helm install skywalking skywalking -n skywalking \
   --set elasticsearch.imageTag=7.5.1
 ```
 
-#### 3 trafik暴露服务
+### 3 trafik暴露服务
 
 ```yaml
 cat << 'EOF' >skywalking-ingress.yaml
@@ -96,11 +94,11 @@ EOF
 kubectl apply -f skywalking-ingress.yaml
 ```
 
-#### 4 访问：[skywalking.wzxmt.com](http://skywalking.wzxmt.com)
+### 4 访问：[skywalking.wzxmt.com](http://skywalking.wzxmt.com)
 
 ## 3.2 deploy部署
 
-###  1 部署es集群
+###  3.1 部署es集群
 
 拉取镜像并推送至私有仓库
 
@@ -426,7 +424,7 @@ kubectl apply -f test-elasticsearch-health.yaml
 {"cluster_name":"elasticsearch","status":"green","timed_out":false,"number_of_nodes":3,"number_of_data_nodes":3,"active_primary_shards":0,"active_shards":0,"relocating_shards":0,"initializing_shards":0,"unassigned_shards":0,"delayed_unassigned_shards":0,"number_of_pending_tasks":0,"number_of_in_flight_fetch":0,"task_max_waiting_in_queue_millis":0,"active_shards_percent_as_number":100.0}
 ```
 
-### 2 部署skywalking集群
+### 3.2 部署skywalking集群
 
 创建docker-registry
 
@@ -735,11 +733,11 @@ EOF
 kubectl apply -f es-init.job.yaml
 ```
 
-### 3 访问web:
+### 3.3 访问web:
 
 [http://skywalking.wzxmt.com](http://skywalking.wzxmt.com)
 
-### 4 制作skywalking agent的init容器
+### 3.4 制作skywalking-agent镜像
 
 下载skywalking-apm
 
@@ -768,7 +766,7 @@ docker build -t harbor.wzxmt.com/infra/skywalking-agent:8.1.0 .
 docker push harbor.wzxmt.com/infra/skywalking-agent:8.1.0
 ```
 
-### 4 部署springboot微服务
+# 4 部署springboot微服务
 
 根据实际情况修改环境变量
 
@@ -808,7 +806,7 @@ done
 sh get_test_images.sh
 ```
 
-#### 4.1 UI服务
+### 4.1 UI服务
 
 ```yaml
 cat << 'EOF' >ui.yaml
@@ -900,7 +898,7 @@ spec:
 EOF
 ```
 
-#### 4.2 office服务
+### 4.2 office服务
 
 ```yaml
 cat << 'EOF' >office.yaml
@@ -975,7 +973,7 @@ spec:
 EOF
 ```
 
-#### 4.3 account服务
+### 4.3 account服务
 
 ```yaml
 cat<< 'EOF' >account.yaml
@@ -1052,7 +1050,7 @@ spec:
 EOF
 ```
 
-#### 4.4 customer服务
+### 4.4 customer服务
 
 ```yaml
 cat<< 'EOF' >customer.yaml
@@ -1127,7 +1125,7 @@ spec:
 EOF
 ```
 
-#### 4.5 业务微服务部署结果
+### 4.5 业务微服务部署结果
 
 部署业务服务成功
 
@@ -1146,13 +1144,13 @@ service/acme-financial-customer      ClusterIP   10.96.97.4     <none>        80
 service/acme-financial-ui            ClusterIP   10.96.88.0     <none>        8081/TCP   
 ```
 
-# 5 访问springboot业务微服务并查看skywalking
+# 5 访问微服务并查看skywalking
 
-## 5.1 访问UI服务的三个接口
+### 5.1 访问UI服务的三个接口
 
 通过http://test.wzxmt.com/访问UI服务的三个接口：/hello、/start、/readtimeout。
 
-## 5.2 访问skywalking的UI界面
+### 5.2 访问skywalking的UI界面
 
 打开skywalking的界面（192.168.39.33:16622），即可看见链路追踪相关的数据。
 ![image-20210123172945113](../acess/image-20210123172945113.png)
