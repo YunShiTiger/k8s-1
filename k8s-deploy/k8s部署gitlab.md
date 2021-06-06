@@ -1,8 +1,14 @@
-## gitlab安装
+## gitlib是什么？
 
-[gitlab]( https://packages.gitlab.com/gitlab/gitlab-ce/ )的安装方式有两种,一种是容器化安装,另外一种是yum安装,我们采用yum安装
+Gitlab是一个用Ruby on Rails开发的开源项目管理程序，可以通过WEB界面进行访问公开的或者私人项目。它和Github有类似的功能，能够浏览源代码，管理缺陷和注释。
 
-#### 1.1 安装依赖
+部署方式：
+
+[gitlab]( https://packages.gitlab.com/gitlab/gitlab-ce/ )的安装方式有两种,一种是容器化安装,另外一种是yum安装,
+
+### yum部署gitlab
+
+安装依赖
 
 ```bash
 yum install curl openssh-server openssh-clients
@@ -11,7 +17,7 @@ systemctl enable postfix
 systemctl start postfix
 ```
 
-#### 1.2 添加gitlab-ce源,并安装
+添加gitlab-ce源,并安装
 
 ```bash
 cat<< EOF >/etc/yum.repos.d/gitlab-ce.repo
@@ -38,7 +44,7 @@ yum list gitlab-ce --showduplicates
 yum install gitlab-ce-12.4.2-ce.0.el7 -y
 ```
 
-#### 1.4 修改配置
+修改配置
 
 vim /etc/gitlab/gitlab.rb
 
@@ -53,13 +59,13 @@ gitlab_rails['gitlab_shell_ssh_port'] = 2222
 gitlab-ctl reconfigure
 ```
 
-#### 1.5 启动
+启动
 
 ```bash
 gitlab-ctl restart
 ```
 
-#### 1.6 GitLab试用
+GitLab试用
 
 1. 打开首页
 
@@ -130,7 +136,14 @@ git push -u origin --tags
 
 去gitlab上看看我们新推送的项目.
 
-#### 1.7 docker部署gitlab
+分支说明
+
+- master主分支，有且只有一个
+- release线上分支，一般为线上版本，线上版本发布后，会将release分支合并到master
+- develop 开发分支，通常给测试部署环境或者打包的分支，每个人在自己的分支上开发完成后，向develop分支合并
+- feature 通常为一个功能分支或者个人分支，一般有很多个，通常合并完成后会删除
+
+### docker部署gitlab
 
 ```bash
 cat << 'EOF' > gitlab_start.sh
@@ -172,9 +185,151 @@ sed -ri.bak "s/^#(.*)22$/\12222/g" ${GITLAB_DIR}/config/gitlab.rb
  sh gitlab_start.sh
 ```
 
-#### 1.8 分支说明
+### k8s部署gitlab
 
-- master主分支，有且只有一个
-- release线上分支，一般为线上版本，线上版本发布后，会将release分支合并到master
-- develop 开发分支，通常给测试部署环境或者打包的分支，每个人在自己的分支上开发完成后，向develop分支合并
-- feature 通常为一个功能分支或者个人分支，一般有很多个，通常合并完成后会删除
+#### 1、集群初始化
+
+拉取镜像
+
+```bash
+#gitlab
+docker pull sameersbn/gitlab:11.5.1
+docker tag sameersbn/gitlab:11.5.1 harbor.wzxmt.com/infra/gitlab:11.5.1
+docker push harbor.wzxmt.com/infra/gitlab:11.5.1
+#postgresql
+docker pull sameersbn/postgresql:10
+docker tag sameersbn/postgresql:10 harbor.wzxmt.com/infra/sameersbn/postgresql:10
+docker push harbor.wzxmt.com/infra/postgresql:10
+#sameersbn/redis
+docker pull sameersbn/sameersbn/redis
+docker tag sameersbn/sameersbn/redis harbor.wzxmt.com/infra/sameersbn/redis:lates
+docker push harbor.wzxmt.com/infra/sameersbn/redis:lates
+```
+
+创建目录
+
+```bash
+mkdir -p gitlab /data/nfs-volume/gitlab-data && cd gitlab
+```
+
+pv
+
+```yaml
+cat << EOF >pv.yaml 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitlab-data-pv
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs
+  nfs:
+    path: /data/nfs-volume/gitlab-data
+    server: 10.0.0.20
+EOF
+```
+
+pvc
+
+```yaml
+cat << 'EOF' >pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-data-pvc
+  namespace: infra
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: nfs
+EOF
+```
+
+#### 2、部署redis
+
+```yaml
+cat << 'EOF' >dp.yaml
+EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: public-service
+  labels:
+    name: redis
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+  selector:
+    name: redis
+EOF
+```
+
+#### 3、部署postgresql
+
+dp
+
+```yaml
+cat << 'EOF' >dp.yaml
+EOF
+```
+
+svc
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: public-service
+  labels:
+    name: postgresql
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    name: postgresql
+EOF
+```
+
+#### 4、部署gitlab
+
+dp
+
+```yaml
+cat << 'EOF' >dp.yamlEOF
+```
+
+svc
+
+```yaml
+cat << 'EOF' >svc.yamlapiVersion: v1kind: Servicemetadata:  name: gitlab  namespace: public-service  labels:    name: gitlabspec:  type: ClusterIP  ports:    - name: http      port: 80      targetPort: http    - name: ssh      port: 22      targetPort: ssh  selector:    name: gitlabEOF
+```
+
+ingress
+
+```yaml
+cat << 'EOF' >ingress.yamlapiVersion: traefik.containo.us/v1alpha1kind: IngressRoutemetadata:  name: gitlab  namespace: infraspec:  entryPoints:    - web  routes:  - match: Host(`gitlab.wzxmt.com`) && PathPrefix(`/`)    kind: Rule    services:    - name: nexus-svc      port: 8083EOF
+```
+
+访问http://gitlab.wzxmt.com
