@@ -193,17 +193,17 @@ sed -ri.bak "s/^#(.*)22$/\12222/g" ${GITLAB_DIR}/config/gitlab.rb
 
 ```bash
 #gitlab
-docker pull sameersbn/gitlab:11.5.1
-docker tag sameersbn/gitlab:11.5.1 harbor.wzxmt.com/infra/gitlab:11.5.1
-docker push harbor.wzxmt.com/infra/gitlab:11.5.1
+docker pull sameersbn/gitlab:12.1.6
+docker tag sameersbn/gitlab harbor.wzxmt.com/infra/gitlab:latest
+docker push harbor.wzxmt.com/infra/gitlab:latest
 #postgresql
-docker pull sameersbn/postgresql:10
-docker tag sameersbn/postgresql:10 harbor.wzxmt.com/infra/sameersbn/postgresql:10
-docker push harbor.wzxmt.com/infra/postgresql:10
+docker pull sameersbn/postgresql
+docker tag sameersbn/postgresql harbor.wzxmt.com/infra/gitlab-postgresql:latest
+docker push harbor.wzxmt.com/infra/gitlab-postgresql:latest
 #sameersbn/redis
-docker pull sameersbn/sameersbn/redis
-docker tag sameersbn/sameersbn/redis harbor.wzxmt.com/infra/sameersbn/redis:lates
-docker push harbor.wzxmt.com/infra/sameersbn/redis:lates
+docker pull sameersbn/redis
+docker tag sameersbn/redis harbor.wzxmt.com/infra/gitlab-redis:latest
+docker push harbor.wzxmt.com/infra/gitlab-redis:latest
 ```
 
 创建目录
@@ -219,7 +219,7 @@ cat << EOF >pv.yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: gitlab-data-pv
+  name: gitlab-data
 spec:
   capacity:
     storage: 20Gi
@@ -241,7 +241,7 @@ cat << 'EOF' >pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gitlab-data-pvc
+  name: gitlab-data
   namespace: infra
 spec:
   accessModes:
@@ -257,28 +257,80 @@ EOF
 #### 2、部署redis
 
 ```yaml
-cat << 'EOF' >dp.yaml
+cat << 'EOF' >redis-dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-redis
+  namespace: infra
+  labels:
+    app: gitlab-redis
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab-redis
+  template:
+    metadata:
+      labels:
+        app: gitlab-redis
+    spec:
+      containers:
+      - name: redis
+        image: harbor.wzxmt.com/infra/gitlab-redis:latest
+        ports:
+        - name: redis
+          containerPort: 6379
+        volumeMounts:
+        - mountPath: /var/lib/redis
+          name: redis-data
+          subPath: redis
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: gitlab-data
+      imagePullSecrets:
+      - name: harborlogin
 EOF
 ```
 
 Service
 
 ```yaml
-cat << 'EOF' >svc.yaml
+cat << 'EOF' >redis-svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis
-  namespace: public-service
+  name: gitlab-redis
+  namespace: infra
   labels:
-    name: redis
+    app: gitlab-redis
 spec:
   ports:
     - name: redis
       port: 6379
       targetPort: redis
   selector:
-    name: redis
+    app: gitlab-redis
 EOF
 ```
 
@@ -287,28 +339,95 @@ EOF
 dp
 
 ```yaml
-cat << 'EOF' >dp.yaml
+cat << 'EOF' >postgresql-dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  gitlab-postgresql
+  namespace: infra
+  labels:
+    app: gitlab-postgresql
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab-postgresql
+  template:
+    metadata:
+      labels:
+        app: gitlab-postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: harbor.wzxmt.com/infra/gitlab-postgresql:latest
+        env:
+        - name: DB_USER
+          value: gitlab
+        - name: DB_PASS
+          value: passw0rd
+        - name: DB_NAME
+          value: gitlab_production
+        - name: DB_EXTENSION
+          value: pg_trgm
+        ports:
+        - name: postgres
+          containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql
+          name: postgres-data
+          subPath: postgres
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: gitlab-data
+      imagePullSecrets:
+      - name: harborlogin
 EOF
 ```
 
 svc
 
 ```yaml
-cat << 'EOF' >svc.yaml
+cat << 'EOF' >postgresql-svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql
-  namespace: public-service
+  name: gitlab-postgresql
+  namespace: infra
   labels:
-    name: postgresql
+    app: gitlab-postgresql
 spec:
   ports:
     - name: postgres
       port: 5432
       targetPort: postgres
   selector:
-    name: postgresql
+    app: gitlab-postgresql
 EOF
 ```
 
@@ -317,19 +436,234 @@ EOF
 dp
 
 ```yaml
-cat << 'EOF' >dp.yamlEOF
+cat << 'EOF' >gitlab-dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab
+  namespace: infra
+  labels:
+    app: gitlab
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: 
+      maxUnavailable: 1
+      maxSurge: 1
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab
+  template:
+    metadata:
+      labels:
+        app: gitlab
+    spec:
+      containers:
+      - name: gitlab
+        image: harbor.wzxmt.com/infra/gitlab:latest
+        env:
+        - name: TZ
+          value: Asia/Shanghai
+        - name: GITLAB_TIMEZONE
+          value: Beijing
+
+        - name: GITLAB_SECRETS_DB_KEY_BASE
+          value: long-and-random-alpha-numeric-string
+        - name: GITLAB_SECRETS_SECRET_KEY_BASE
+          value: long-and-random-alpha-numeric-string
+        - name: GITLAB_SECRETS_OTP_KEY_BASE
+          value: long-and-random-alpha-numeric-string
+
+        - name: GITLAB_ROOT_PASSWORD
+          value: gitlab123
+        - name: GITLAB_ROOT_EMAIL
+          value: wzxmt@163.com
+
+        - name: GITLAB_HOST
+          value: gitlab.wzxmt.com
+        - name: GITLAB_PORT
+          value: "80"
+        - name: GITLAB_SSH_PORT
+          value: "22"
+
+        - name: GITLAB_NOTIFY_ON_BROKEN_BUILDS
+          value: "true"
+        - name: GITLAB_NOTIFY_PUSHER
+          value: "false"
+
+        - name: GITLAB_BACKUP_SCHEDULE
+          value: daily
+        - name: GITLAB_BACKUP_TIME
+          value: 01:00
+
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_HOST
+          value: gitlab-postgresql
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: gitlab
+        - name: DB_PASS
+          value: passw0rd
+        - name: DB_NAME
+          value: gitlab_production
+
+        - name: REDIS_HOST
+          value: gitlab-redis
+        - name: REDIS_PORT
+          value: "6379"
+
+        - name: SMTP_ENABLED
+          value: "true"
+        - name: SMTP_DOMAIN
+          value: smtp.exmail.qq.com
+        - name: SMTP_HOST
+          value: smtp.exmail.qq.com
+        - name: SMTP_PORT
+          value: "465"
+        - name: SMTP_USER
+          value: wzxmt@qq.com
+        - name: SMTP_PASS
+          value: "wzxmt"
+        - name: SMTP_STARTTLS
+          value: "true"
+        - name: SMTP_AUTHENTICATION
+          value: login
+
+        - name: IMAP_ENABLED
+          value: "false"
+        - name: IMAP_HOST
+          value: imap.gmail.com
+        - name: IMAP_PORT
+          value: "993"
+        - name: IMAP_USER
+          value: mailer@example.com
+        - name: IMAP_PASS
+          value: password
+        - name: IMAP_SSL
+          value: "true"
+        - name: IMAP_STARTTLS
+          value: "false"
+          
+        - name: LDAP_ENABLED
+          value: "true"
+        - name: LDAP_LABEL
+          value: 'LDAP'
+        - name: LDAP_HOST
+          value: 'ldap-service'
+        - name: LDAP_PORT
+          value: '389'
+        - name: LDAP_UID
+          value: 'uid'
+        - name: LDAP_BIND_DN
+          value: 'cn=admin,dc=example,dc=org'
+        - name: LDAP_PASS
+          value: 'admin'
+        - name: LDAP_BASE
+          value: 'dc=example,dc=org'
+        - name: LDAP_ALLOW_USERNAME_OR_EMAIL_LOGIN
+          value: "true"
+        - name: LDAP_VERIFY_SSL
+          value: 'false'
+        - name: LDAP_METHOD
+          value: 'plain'
+        
+        ports:
+        - name: http
+          containerPort: 80
+        - name: ssh
+          containerPort: 22
+        volumeMounts:
+        - mountPath: /home/git/data
+          name: gitlab-data
+          subPath: gitlab
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 180
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+      volumes:
+      - name: gitlab-data
+        persistentVolumeClaim:
+          claimName: gitlab-data
+      imagePullSecrets:
+      - name: harborlogin
+EOF
 ```
 
 svc
 
 ```yaml
-cat << 'EOF' >svc.yamlapiVersion: v1kind: Servicemetadata:  name: gitlab  namespace: public-service  labels:    name: gitlabspec:  type: ClusterIP  ports:    - name: http      port: 80      targetPort: http    - name: ssh      port: 22      targetPort: ssh  selector:    name: gitlabEOF
+cat << 'EOF' >gitlab-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab
+  namespace: infra
+  labels:
+    app: gitlab
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: ssh
+      port: 22
+      targetPort: ssh
+  selector:
+    app: gitlab
+EOF
 ```
 
 ingress
 
 ```yaml
-cat << 'EOF' >ingress.yamlapiVersion: traefik.containo.us/v1alpha1kind: IngressRoutemetadata:  name: gitlab  namespace: infraspec:  entryPoints:    - web  routes:  - match: Host(`gitlab.wzxmt.com`) && PathPrefix(`/`)    kind: Rule    services:    - name: nexus-svc      port: 8083EOF
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: gitlab
+  namespace: infra
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`gitlab.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: gitlab
+      port: 80
+EOF
+```
+
+部署
+
+```bash
+kubectl apply -f ./
+```
+
+查看状态
+
+```bash
+kubectl -n infra get pod,svc,ep
 ```
 
 访问http://gitlab.wzxmt.com
+
+使用管理员登陆gitlab
+
+```bash
+user:	root
+password:	gitlab123
+```
+
