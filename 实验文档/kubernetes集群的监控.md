@@ -1,0 +1,1909 @@
+
+
+## 部署kube-state-metrics
+
+创建名称空间
+
+```bash
+kubectl create ns monitoring
+```
+
+创建create
+
+```bash
+kubectl create secret docker-registry harborlogin \
+--namespace=monitoring  \
+--docker-server=https://harbor.wzxmt.com \
+--docker-username=admin \
+--docker-password=admin
+```
+
+准备kube-state-metrics镜像
+
+[kube-state-metrics官方quay.io地址](https://quay.io/repository/coreos/kube-state-metrics?tab=info)
+
+```bash
+docker pull quay.io/coreos/kube-state-metrics:v1.9.8
+docker tag quay.io/coreos/kube-state-metrics:v1.9.8 harbor.wzxmt.com/k8s/kube-state-metrics:v1.9.8
+docker push harbor.wzxmt.com/k8s/kube-state-metrics:v1.9.8
+```
+
+准备资源配置清单
+
+```bash
+mkdir prometheus -p && cd prometheus
+mkdir -p kube-state-metrics && cd  kube-state-metrics
+```
+
+RBAC
+
+```yaml
+cat << 'EOF' >rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.8
+  name: kube-state-metrics
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.8
+  name: kube-state-metrics
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - nodes
+  - pods
+  - services
+  - resourcequotas
+  - replicationcontrollers
+  - limitranges
+  - persistentvolumeclaims
+  - persistentvolumes
+  - namespaces
+  - endpoints
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - ingresses
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  - daemonsets
+  - deployments
+  - replicasets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  - volumeattachments
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.8
+  name: kube-state-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-state-metrics
+subjects:
+- kind: ServiceAccount
+  name: kube-state-metrics
+  namespace: monitoring
+EOF
+```
+
+Deployment
+
+```yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "2"
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.8
+  name: kube-state-metrics
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+      app.kubernetes.io/version: 1.9.8
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: kube-state-metrics
+        app.kubernetes.io/version: 1.9.8
+    spec:
+      containers:
+      - image: harbor.wzxmt.com/k8s/kube-state-metrics:v1.9.8
+        name: kube-state-metrics
+        ports:
+        - containerPort: 8080
+          name: http-metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      serviceAccount: kube-state-metrics
+      serviceAccountName: kube-state-metrics
+EOF
+```
+
+部署
+
+```
+kubectl apply -f ./
+```
+
+## 部署node-exporter
+
+[node-exporter官方dockerhub地址](https://hub.docker.com/r/prom/node-exporter)
+[node-expoerer官方github地址](https://github.com/prometheus/node_exporter)
+
+```bash
+docker pull quay.io/prometheus/node-exporter:v1.0.1
+docker tag quay.io/prometheus/node-exporter:v1.0.1 harbor.wzxmt.com/k8s/node-exporter:v1.0.1
+docker push harbor.wzxmt.com/k8s/node-exporter:v1.0.1
+```
+
+### docker部署
+
+```bash
+docker run -d --rm --name node-exporter \
+-v "/proc:/host/proc" \
+-v "/sys:/host/sys" \
+-v "/:/rootfs" \
+--net=host \
+harbor.wzxmt.com/k8s/node-exporter:v1.0.1 \
+--path.procfs /host/proc \
+--path.sysfs /host/sys \
+--collector.filesystem.ignored-mount-points "^/(sys|proc|dev|host|etc)($|/)"
+```
+
+创建目录
+
+```bash
+mkdir -p node-exporter && cd node-exporter
+```
+
+### k8s容器部署
+
+```yaml
+cat<< 'EOF' >ds.yaml
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    daemon: "node-exporter"
+    prometheus: "true"
+spec:
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      daemon: "node-exporter"
+      prometheus: "true"
+  template:
+    metadata:
+      labels:
+        daemon: "node-exporter"
+        prometheus: "true"
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: node-exporter
+        image: harbor.wzxmt.com/k8s/node-exporter:v1.0.1
+        args:
+        - --path.procfs=/host/proc
+        - --path.sysfs=/host/sys
+        - --path.rootfs=/rootfs
+        - --no-collector.wifi
+        - --no-collector.hwmon
+        - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)
+        - --collector.netclass.ignored-devices=^(veth.*)$
+        - --collector.netdev.device-exclude=^(veth.*)$
+        securityContext:
+          runAsUser: 0     #设置以ROOT用户运行容器
+          privileged: true #拥有特权
+        ports:
+        - name: node-exporter
+          hostPort: 9100
+          containerPort: 9100
+          protocol: TCP
+        volumeMounts:
+        - name: proc
+          mountPath: /host/proc
+        - name: sys
+          mountPath: /host/sys
+        - name: root
+          mountPath: /rootfs
+      volumes:
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: sys
+        hostPath:
+          path: /sys
+      - name: root
+        hostPath:
+          path: /
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      hostNetwork: true
+EOF
+```
+
+部署
+
+```bash
+kubectl apply -f node-exporter/ds.yaml
+```
+
+## 部署cadvisor
+
+[cadvisor官方dockerhub地址](https://hub.docker.com/r/google/cadvisor)
+[cadvisor官方github地址](https://github.com/google/cadvisor)
+
+```bash
+docker pull google/cadvisor:v0.33.0
+docker tag google/cadvisor:v0.33.0 harbor.wzxmt.com/k8s/cadvisor:v0.33.0
+docker push harbor.wzxmt.com/k8s/cadvisor:v0.33.0
+```
+
+### docker部署
+
+```
+#注意docker存储的位置
+docker run --rm --name=cadvisor -d \
+   -v /:/rootfs:ro \
+   -v /var/run:/var/run:ro \
+   -v /sys:/sys:ro \
+   -v /data/docker/:/var/lib/docker:ro \
+   -v /dev/disk/:/dev/disk:ro \
+   -v /cgroup:/cgroup:ro \
+   --privileged=true \
+   --publish=4194:8080 \
+   harbor.wzxmt.com/k8s/cadvisor:v0.33.0
+```
+
+### k8s部署
+
+DaemonSet
+
+```yaml
+mkdir -p cadvisor && cd cadvisor
+cat << 'EOF' >ds.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cadvisor
+  namespace: monitoring
+  labels:
+    app: cadvisor
+spec:
+  selector:
+    matchLabels:
+      name: cadvisor
+  template:
+    metadata:
+      labels:
+        name: cadvisor
+    spec:
+      hostNetwork: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: cadvisor
+        image: harbor.wzxmt.com/k8s/cadvisor:v0.33.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0     #设置以ROOT用户运行容器
+          privileged: true #拥有特权
+        volumeMounts:
+        - name: rootfs
+          mountPath: /rootfs
+          readOnly: true
+        - name: var-run
+          mountPath: /var/run
+          readOnly: false
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+        - name: docker
+          mountPath: /var/lib/docker
+          readOnly: true
+        ports:
+          - name: http
+            containerPort: 4194
+            protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: 4194
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        args:
+          - --housekeeping_interval=10s
+          - --port=4194
+      imagePullSecrets:
+      - name: harborlogin
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: rootfs
+        hostPath:
+          path: /
+      - name: var-run
+        hostPath:
+          path: /var/run
+      - name: sys
+        hostPath:
+          path: /sys
+      - name: docker
+        hostPath:
+          path: /data/docker
+EOF
+```
+
+修改运算节点软连接,所有运算节点上：
+
+```bash
+mount -o remount,rw /sys/fs/cgroup/
+ln -s /sys/fs/cgroup/cpu,cpuacct/ /sys/fs/cgroup/cpuacct,cpu
+ll /sys/fs/cgroup|grep cpu
+```
+
+部署
+
+```bash
+kubectl apply -f ds.yaml
+```
+
+## 部署blackbox-exporter
+
+[blackbox-exporter官方github地址](https://github.com/prometheus/blackbox_exporter)
+
+镜像私有
+
+```bash
+docker pull prom/blackbox-exporter:v0.19.0
+docker tag prom/blackbox-exporter:v0.19.0 harbor.wzxmt.com/k8s/blackbox-exporter:v0.19.0
+docker push harbor.wzxmt.com/k8s/blackbox-exporter:v0.19.0
+```
+
+创建目录
+
+```
+mkdir -p blackbox-exporter && cd blackbox-exporter
+```
+
+ConfigMap
+
+```yaml
+cat << 'EOF' >cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: blackbox-exporter
+  name: blackbox-exporter
+  namespace: monitoring
+data:
+  blackbox.yml: |-
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 2s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2"]
+          valid_status_codes: [200,301,302]
+          method: GET
+          preferred_ip_protocol: "ip4"
+      tcp_connect:
+        prober: tcp
+        timeout: 2s
+EOF
+```
+
+Deployment
+
+```yaml
+cat << 'EOF' >dp.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: blackbox-exporter
+  namespace: monitoring
+  labels:
+    app: blackbox-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app: blackbox-exporter
+    spec:
+      volumes:
+      - name: config
+        configMap:
+          name: blackbox-exporter
+          defaultMode: 420
+      containers:
+      - name: blackbox-exporter
+        image: harbor.wzxmt.com/k8s/blackbox-exporter:v0.19.0
+        args:
+        - --config.file=/etc/blackbox_exporter/blackbox.yml
+        - --log.level=debug
+        - --web.listen-address=:9115
+        ports:
+        - name: blackbox-port
+          containerPort: 9115
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/blackbox_exporter
+        readinessProbe:
+          tcpSocket:
+            port: 9115
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: blackbox-exporter
+  namespace: monitoring
+  labels:
+    app: blackbox-exporter
+spec:
+  selector:
+    app: blackbox-exporter
+  ports:
+    - protocol: TCP
+      port: 9115
+      name: http
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: blackbox-exporter
+  namespace: monitoring
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: HostRegexp(`blackbox.wzxmt.com`)
+    kind: Rule
+    services:
+    - name: blackbox-exporter
+      port: 9115
+EOF
+```
+
+解析域名
+
+```
+blackbox	60 IN A 10.0.0.50
+```
+
+部署
+
+```bash
+kubectl apply -f ./
+```
+
+访问
+
+[http://blackbox.wzxmt.com](http://blackbox.wzxmt.com/)
+
+![blackbox-exporter](../acess/image-20200604004252969.png)
+
+## 部署prometheus
+
+[prometheus官方dockerhub地址](https://hub.docker.com/r/prom/prometheus)
+[prometheus官方github地址](https://github.com/prometheus/prometheus)
+
+```bash
+docker pull prom/prometheus:v2.22.2
+docker tag prom/prometheus:v2.22.2 harbor.wzxmt.com/k8s/prometheus:v2.22.2
+docker push harbor.wzxmt.com/k8s/prometheus:v2.22.2
+```
+
+创建目录
+
+```bash
+mkdir -p prometheus && cd prometheus
+mkdir -p /data/prometheus/{prometheus/etc,grafana,alertmanager}
+```
+
+RBAC
+
+```yaml
+cat << 'EOF' >rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/metrics
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
+EOF
+```
+
+Deployment
+
+```yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus
+  namespace: monitoring
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 7
+  selector:
+    matchLabels:
+      app: prometheus
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      nodeName: n2
+      containers:
+      - image: harbor.wzxmt.com/k8s/prometheus:v2.25.0
+        args:
+        - --config.file=/data/etc/prometheus.yml
+        - --storage.tsdb.path=/data/etc/prometheus-db
+        - --storage.tsdb.retention=200h
+        - --web.enable-lifecycle
+        - --web.console.libraries=/data/etc/console_libraries
+        - --web.console.templates=/data/etc/consoles
+        command:
+        - /bin/prometheus
+        name: prometheus
+        ports:
+        - containerPort: 9090
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 2500Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      securityContext:
+        runAsUser: 0
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: prometheus
+      serviceAccountName: prometheus
+      volumes:
+      - name: data
+        hostPath:          
+          type: Directory
+          path: /data/prometheus/prometheus
+EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  ports:
+  - port: 9090
+    protocol: TCP
+    name: prometheus
+  selector:
+    app: prometheus
+  type: ClusterIP
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - match: Host(`prometheus.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: prometheus
+      port: 9090
+EOF
+```
+
+准备prometheus的配置文件
+
+- 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
+
+```
+mkdir -p /data/prometheus/prometheus/{etc,prom-db}
+```
+
+- 准备配置
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/prometheus.yml
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+scrape_configs:
+- job_name: 'kubernetes-etcd'
+  tls_config:
+    ca_file: /data/etc/ca.pem
+    cert_file: /data/etc/etcd.pem
+    key_file: /data/etc/etcd-key.pem
+  scheme: https
+  static_configs:
+  - targets:
+    - '10.0.0.31:2379'
+    - '10.0.0.32:2379'
+    - '10.0.0.33:2379'
+
+- job_name: 'kubernetes-apiservers'
+  kubernetes_sd_configs:
+  - role: endpoints
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+    action: keep
+    regex: default;kubernetes;https
+
+- job_name: 'kubernetes-pods'
+  kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+    action: keep
+    regex: true
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+    action: replace
+    target_label: __metrics_path__
+    regex: (.+)
+  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+    action: replace
+    regex: ([^:]+)(?::\d+)?;(\d+)
+    replacement: $1:$2
+    target_label: __address__
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_namespace]
+    action: replace
+    target_label: kubernetes_namespace
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: kubernetes_pod_name
+
+- job_name: 'kubernetes-kubelet'
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  - source_labels: [__meta_kubernetes_node_name]
+    regex: (.+)
+    target_label: __address__
+    replacement: ${1}:10255
+
+- job_name: 'kubernetes-cadvisor'
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  - source_labels: [__meta_kubernetes_node_name]
+    regex: (.+)
+    target_label: __address__
+    replacement: ${1}:4194 #添加解析.wzxmt.com
+  static_configs:
+    - targets: ['10.0.0.20:4194']
+
+- job_name: 'node-export'
+  kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_namespace]
+    action: replace
+    target_label: kubernetes_namespace
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: kubernetes_pod_name
+  - source_labels: [__meta_kubernetes_pod_label_prometheus]
+    regex: .*true.*
+    action: keep
+  - source_labels: ['__meta_kubernetes_pod_label_daemon', '__meta_kubernetes_pod_node_name']
+    regex: 'node-exporter;(.*)'
+    action: replace
+    target_label: nodename
+
+- job_name: 'blackbox_http_pod_probe'
+  metrics_path: /probe
+  kubernetes_sd_configs:
+  - role: pod
+  params:
+    module: [http_2xx]
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_blackbox_scheme]
+    action: keep
+    regex: http
+  - source_labels: [__address__, __meta_kubernetes_pod_annotation_blackbox_port,  __meta_kubernetes_pod_annotation_blackbox_path]
+    action: replace
+    regex: ([^:]+)(?::\d+)?;(\d+);(.+)
+    replacement: $1:$2$3
+    target_label: __param_target
+  - action: replace
+    target_label: __address__
+    replacement: blackbox-exporter.monitoring:9115
+  - source_labels: [__param_target]
+    target_label: instance
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_namespace]
+    action: replace
+    target_label: kubernetes_namespace
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: kubernetes_pod_name
+
+- job_name: 'blackbox_tcp_pod_probe'
+  metrics_path: /probe
+  kubernetes_sd_configs:
+  - role: pod
+  params:
+    module: [tcp_connect]
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_blackbox_scheme]
+    action: keep
+    regex: tcp
+  - source_labels: [__address__, __meta_kubernetes_pod_annotation_blackbox_port]
+    action: replace
+    regex: ([^:]+)(?::\d+)?;(\d+)
+    replacement: $1:$2
+    target_label: __param_target
+  - action: replace
+    target_label: __address__
+    replacement: blackbox-exporter.monitoring:9115
+  - source_labels: [__param_target]
+    target_label: instance
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_namespace]
+    action: replace
+    target_label: kubernetes_namespace
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: kubernetes_pod_name
+
+- job_name: 'traefik'
+  kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+    action: keep
+    regex: traefik
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+    action: replace
+    target_label: __metrics_path__
+    regex: (.+)
+  - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+    action: replace
+    regex: ([^:]+)(?::\d+)?;(\d+)
+    replacement: $1:$2
+    target_label: __address__
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_namespace]
+    action: replace
+    target_label: kubernetes_namespace
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: kubernetes_pod_name
+- job_name: 'prometheus_service_status' #外部服务
+  metrics_path: /probe
+  params:
+    module: [http_2xx]
+  static_configs:
+    - targets: ['10.0.0.20:50']
+      labels:
+        instance: 'port_status'
+        group: 'tcp'
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter.monitoring:9115
+- job_name: 'kubernetes-kube-mange'
+  static_configs:
+    - targets: ['10.0.0.20:9100']
+EOF
+```
+
+部署
+
+```bash
+kubectl apply -f ./
+```
+
+解析域名
+
+```
+prometheus	60 IN A 10.0.0.50
+```
+
+访问
+
+[http://prometheus.wzxmt.com](http://prometheus.wzxmt.com/)
+
+### etcd
+
+> 监控etcd服务
+
+| key                    | value |
+| :--------------------- | :---- |
+| etcd_server_has_leader | 1     |
+| etcd_http_failed_total | 1     |
+| …                      | …     |
+
+### kubernetes-apiserver
+
+> 监控apiserver服务
+
+### kubernetes-kubelet
+
+> 监控kubelet服务
+
+### kubernetes-kube-state
+
+监控基本信息
+
+- node-exporter
+
+  > 监控Node节点信息
+
+- kube-state-metrics
+
+  > 监控pod信息
+
+### traefik
+
+> 监控traefik-ingress-controller
+
+| key                                                          | value |
+| :----------------------------------------------------------- | :---- |
+| traefik_entrypoint_requests_total{code=”200”,entrypoint=”http”,method=”PUT”,protocol=”http”} | 138   |
+| traefik_entrypoint_requests_total{code=”200”,entrypoint=”http”,method=”GET”,protocol=”http”} | 285   |
+| traefik_entrypoint_open_connections{entrypoint=”http”,method=”PUT”,protocol=”http”} | 1     |
+| …                                                            | …     |
+
+**注意：在traefik的pod控制器上template下添加annotations，并重启pod，监控生效**
+配置范例：
+
+```
+"annotations": {
+  "prometheus_io_scheme": "traefik",
+  "prometheus_io_path": "/metrics",
+  "prometheus_io_port": "8080"
+}
+```
+
+### blackbox
+
+监控服务是否存活
+
+- blackbox_tcp_pod_porbe
+
+  > 监控tcp协议服务是否存活
+
+| key                           | value       |
+| :---------------------------- | :---------- |
+| probe_success                 | 1           |
+| probe_ip_protocol             | 4           |
+| probe_failed_due_to_regex     | 0           |
+| probe_duration_seconds        | 0.000597546 |
+| probe_dns_lookup_time_seconds | 0.00010898  |
+
+**注意：在pod控制器上template下添加annotations，并重启pod，监控生效**
+配置范例：
+
+复制
+
+```
+"annotations": {
+  "blackbox_port": "20880",
+  "blackbox_scheme": "tcp"
+}
+```
+
+- blackbox_http_pod_probe
+
+  > 监控http协议服务是否存活
+
+| key                                             | value           |
+| :---------------------------------------------- | :-------------- |
+| probe_success                                   | 1               |
+| probe_ip_protocol                               | 4               |
+| probe_http_version                              | 1.1             |
+| probe_http_status_code                          | 200             |
+| probe_http_ssl                                  | 0               |
+| probe_http_redirects                            | 1               |
+| probe_http_last_modified_timestamp_seconds      | 1.553861888e+09 |
+| probe_http_duration_seconds{phase=”transfer”}   | 0.000238343     |
+| probe_http_duration_seconds{phase=”tls”}        | 0               |
+| probe_http_duration_seconds{phase=”resolve”}    | 5.4095e-05      |
+| probe_http_duration_seconds{phase=”processing”} | 0.000966104     |
+| probe_http_duration_seconds{phase=”connect”}    | 0.000520821     |
+| probe_http_content_length                       | 716             |
+| probe_failed_due_to_regex                       | 0               |
+| probe_duration_seconds                          | 0.00272609      |
+| probe_dns_lookup_time_seconds                   | 5.4095e-05      |
+
+**注意：在pod控制器上template下添加annotations，并重启pod，监控生效**
+配置范例：
+
+```
+"annotations": {
+  "blackbox_path": "/",
+  "blackbox_port": "8080",
+  "blackbox_scheme": "http"
+}
+```
+
+### kubernetes-pods
+
+> 监控JVM信息
+
+| key                                                          | value           |
+| :----------------------------------------------------------- | :-------------- |
+| jvm_info{version=”1.7.0_80-b15”,vendor=”Oracle Corporation”,runtime=”Java(TM) SE Runtime Environment”,} | 1.0             |
+| jmx_config_reload_success_total                              | 0.0             |
+| process_resident_memory_bytes                                | 4.693897216E9   |
+| process_virtual_memory_bytes                                 | 1.2138840064E10 |
+| process_max_fds                                              | 65536.0         |
+| process_open_fds                                             | 123.0           |
+| process_start_time_seconds                                   | 1.54331073249E9 |
+| process_cpu_seconds_total                                    | 196465.74       |
+| jvm_buffer_pool_used_buffers{pool=”mapped”,}                 | 0.0             |
+| jvm_buffer_pool_used_buffers{pool=”direct”,}                 | 150.0           |
+| jvm_buffer_pool_capacity_bytes{pool=”mapped”,}               | 0.0             |
+| jvm_buffer_pool_capacity_bytes{pool=”direct”,}               | 6216688.0       |
+| jvm_buffer_pool_used_bytes{pool=”mapped”,}                   | 0.0             |
+| jvm_buffer_pool_used_bytes{pool=”direct”,}                   | 6216688.0       |
+| jvm_gc_collection_seconds_sum{gc=”PS MarkSweep”,}            | 1.867           |
+| …                                                            | …               |
+
+**注意：在pod控制器上template下添加annotations，并重启pod，监控生效**
+配置范例：
+
+```
+"annotations": {
+  "prometheus_io_scrape": "true",
+  "prometheus_io_port": "12346",
+  "prometheus_io_path": "/"
+}
+```
+
+**修改traefik服务接入prometheus监控**
+
+`dashboard`上：
+kube-system名称空间->daemonset->traefik-ingress-controller->spec->template->metadata下，添加
+
+```
+"annotations": {
+  "prometheus_io_scheme": "traefik",
+  "prometheus_io_path": "/metrics",
+  "prometheus_io_port": "8080"
+}
+```
+
+删除pod，重启traefik，观察监控
+
+继续添加blackbox监控配置项
+
+```
+"annotations": {
+  "prometheus_io_scheme": "traefik",
+  "prometheus_io_path": "/metrics",
+  "prometheus_io_port": "8080",
+  "blackbox_path": "/",
+  "blackbox_port": "8080",
+  "blackbox_scheme": "http"
+}
+```
+
+**修改dubbo-service服务接入prometheus监控**
+
+dashboard上：
+app名称空间->deployment->dubbo-demo-service->spec->template=>metadata下，添加
+
+```
+"annotations": {
+  "prometheus_io_scrape": "true",
+  "prometheus_io_path": "/",
+  "prometheus_io_port": "12346",
+  "blackbox_port": "20880",
+  "blackbox_scheme": "tcp"
+}
+```
+
+删除pod，重启traefik，观察监控
+
+**修改dubbo-consumer服务接入prometheus监控**
+
+app名称空间->deployment->dubbo-demo-consumer->spec->template->metadata下，添加
+
+```
+"annotations": {
+  "prometheus_io_scrape": "true",
+  "prometheus_io_path": "/",
+  "prometheus_io_port": "12346",
+  "blackbox_path": "/hello",
+  "blackbox_port": "8080",
+  "blackbox_scheme": "http"
+}
+```
+
+删除pod，重启traefik，观察监控
+
+## 部署Grafana
+
+[grafana官方dockerhub地址](https://hub.docker.com/r/grafana/grafana)
+[grafana官方github地址](https://github.com/grafana/grafana)
+[grafana官网](https://grafana.com/)
+
+```bash
+docker pull grafana/grafana:7.5.5
+docker tag grafana/grafana:7.5.5 harbor.wzxmt.com/k8s/grafana:7.5.5
+docker push harbor.wzxmt.com/k8s/grafana:7.5.5
+```
+
+Deployment
+
+```yaml
+mkdir -p grafana && cd grafana
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: grafana
+  name: grafana
+  namespace: monitoring
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 7
+  selector:
+    matchLabels:
+      app: grafana
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      nodeName: n2
+      containers:
+      - image: harbor.wzxmt.com/k8s/grafana:7.5.5
+        imagePullPolicy: IfNotPresent
+        name: grafana
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: grafana-data
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 0
+      volumes:
+      - name: grafana-data
+        hostPath:
+          path: /data/prometheus/grafana
+          type: Directory
+EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  ports:
+  - port: 3000
+    protocol: TCP
+  selector:
+    app: grafana
+  type: ClusterIP
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - match: Host(`grafana.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: grafana
+      port: 3000
+EOF
+```
+
+部署
+
+```
+kubectl apply -f ./
+```
+
+解析域名
+
+```
+grafana	60 IN A 10.0.0.50
+```
+
+访问
+
+[http://grafana.wzxmt.com](http://grafana.wzxmt.com/)
+
+- 用户名：admin
+- 密 码：admin
+
+登录后需要修改管理员密码
+![grafana首次登录](../acess/grafana-password.png)
+
+### 配置grafana页面
+
+### 外观
+
+Configuration -> Preferences
+
+- UI Theme
+
+  > Light
+
+- Home Dashboard
+
+  > Default
+
+- Timezone
+
+  > Local browser time
+
+save
+
+### 插件
+
+Configuration -> Plugins
+
+- Kubernetes App
+
+安装方法一：
+
+```
+grafana-cli plugins install grafana-kubernetes-app
+```
+
+安装方法二：
+[下载地址](https://grafana.com/api/plugins/grafana-kubernetes-app/versions/1.0.1/download)
+
+- Clock Pannel
+
+安装方法一：
+
+```
+grafana-cli plugins install grafana-clock-panel
+```
+
+安装方法二：
+[下载地址](https://grafana.com/api/plugins/grafana-clock-panel/versions/1.0.2/download)
+
+- Pie Chart
+
+安装方法一：
+
+```
+grafana-cli plugins install grafana-piechart-panel
+```
+
+安装方法二：
+[下载地址](https://grafana.com/api/plugins/grafana-piechart-panel/versions/1.3.6/download)
+
+- D3 Gauge
+
+安装方法一：
+
+```
+grafana-cli plugins install briangann-gauge-panel
+```
+
+安装方法二：
+[下载地址](https://grafana.com/api/plugins/briangann-gauge-panel/versions/0.0.6/download)
+
+- Discrete
+
+安装方法一：
+
+```
+grafana-cli plugins install natel-discrete-panel
+```
+
+安装方法二：
+[下载地址](https://grafana.com/api/plugins/natel-discrete-panel/versions/0.0.9/download)
+
+- 重启grafana的pod
+- 依次enable插件
+
+### 配置grafana数据源
+
+Configuration -> Data Sources
+选择prometheus
+
+- HTTP
+
+| key    | value                                                       |
+| :----- | :---------------------------------------------------------- |
+| URL    | [http://prometheus.wzxmt.com](http://prometheus.wzxmt.com/) |
+| Access | Server(Default)                                             |
+
+- Save & Test
+
+![Grafana数据源](../acess/grafana-datasource.png)
+
+### 配置Kubernetes集群Dashboard
+
+kubernetes -> +New Cluster
+
+- Add a new cluster
+
+| key  | value |
+| :--- | :---- |
+| Name | myk8s |
+
+- HTTP
+
+| key    | value                                               |
+| :----- | :-------------------------------------------------- |
+| URL    | [https://10.0.0.150:7443](https://10.0.0.150:8443/) |
+| Access | Server(Default)                                     |
+
+- Auth
+
+| key             | value |
+| :-------------- | :---- |
+| TLS Client Auth | 勾选  |
+| With Ca Cert    | 勾选  |
+
+将ca.pem、client.pem和client-key.pem粘贴至文本框内
+
+- Prometheus Read
+
+| key        | value      |
+| :--------- | :--------- |
+| Datasource | Prometheus |
+
+- Save
+
+**注意：**
+
+- K8S Container中，所有Pannel的
+
+  > pod_name -> container_label_io_kubernetes_pod_name
+
+
+### 配置自定义dashboard
+
+根据Prometheus数据源里的数据，配置如下dashboard：
+
+- etcd dashboard
+- traefik dashboard
+- generic dashboard
+- JMX dashboard
+- blackbox dashboard
+
+## 部署alertmanager
+
+[alertmanager官方github地址](https://github.com/alertmanager/alert_manager)
+[alertmanager官网](https://prometheus.io)
+
+```bash
+docker pull docker.io/prom/alertmanager:v0.21.0
+docker tag docker.io/prom/alertmanager:v0.21.0 harbor.wzxmt.com/k8s/alertmanager:v0.21.0
+docker push harbor.wzxmt.com/k8s/alertmanager:v0.21.0
+```
+
+资源配置清单：
+
+```bash
+mkdir -p alertmanager && cd alertmanager
+```
+
+config
+
+```yaml
+cat << 'EOF' >/data/prometheus/alertmanager/config.yml
+global:
+  # 在没有报警的情况下声明为已解决的时间
+  resolve_timeout: 5m
+  # 配置邮件发送信息
+  smtp_smarthost: 'smtp.163.com:25'
+  smtp_from: 'xxx@163.com'
+  smtp_auth_username: 'xxx@163.com'
+  smtp_auth_password: 'xxxxxx'
+  smtp_require_tls: false
+# 所有报警信息进入后的根路由，用来设置报警的分发策略
+route:
+  # 这里的标签列表是接收到报警信息后的重新分组标签，例如，接收到的报警信息里面有许多具有 cluster=A 和 alertname=LatncyHigh 这样的标签的报警信息将会批量被聚合到一个分组里面
+  group_by: ['alertname', 'cluster']
+  # 当一个新的报警分组被创建后，需要等待至少group_wait时间来初始化通知，这种方式可以确保您能有足够的时间为同一分组来获取多个警报，然后一起触发这个报警信息。
+  group_wait: 30s
+  # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
+  group_interval: 5m
+  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
+  repeat_interval: 5m
+  # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
+  receiver: default
+receivers:
+- name: 'default'
+  email_configs:
+  - to: 'xxxx@qq.com'
+    send_resolved: true
+EOF
+```
+
+Deployment
+
+```yaml
+cat << EOF >dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+        app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      nodeName: n2
+      containers:
+      - name: alertmanager
+        image: harbor.wzxmt.com/k8s/alertmanager:v0.21.0
+        args:
+          - "--config.file=/etc/alertmanager/config.yml"
+          - "--storage.path=/alertmanager"
+        ports:
+        - name: alertmanager
+          containerPort: 9093
+        volumeMounts:
+        - name: alertmanager-data
+          mountPath: /etc/alertmanager
+      volumes:
+      - name: alertmanager-data
+        hostPath:
+          path: /data/prometheus/alertmanager     
+          type: Directory
+      imagePullSecrets:
+      - name: harborlogin
+EOF
+```
+
+Service
+
+```yaml
+cat << EOF >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+        app: alertmanager
+spec:
+  selector: 
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - match: Host(`alertmanager.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: alertmanager
+      port: 9093
+EOF
+```
+
+部署
+
+```bash
+kubectl apply -f ./
+```
+
+解析域名
+
+```
+alertmanager	60 IN A 10.0.0.50
+```
+
+访问
+
+http://alertmanager.wzxmt.com
+
+基础报警规则(nfs)：
+
+```bash
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules.yml
+groups:
+- name: hostStatsAlert
+  rules:
+  - alert: hostCpuUsageAlert
+    expr: sum(avg without (cpu)(irate(node_cpu{mode!='idle'}[5m]))) by (instance) > 0.85
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }} CPU usage above 85% (current value: {{ $value }}%)"
+  - alert: hostMemUsageAlert
+    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "{{ $labels.instance }} MEM usage above 85% (current value: {{ $value }}%)"
+  - alert: OutOfInodes
+    expr: node_filesystem_free{fstype="overlay",mountpoint ="/"} / node_filesystem_size{fstype="overlay",mountpoint ="/"} * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Out of inodes (instance {{ $labels.instance }})"
+      description: "Disk is almost running out of available inodes (< 10% left) (current value: {{ $value }})"
+  - alert: OutOfDiskSpace
+    expr: node_filesystem_free{fstype="overlay",mountpoint ="/rootfs"} / node_filesystem_size{fstype="overlay",mountpoint ="/rootfs"} * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Out of disk space (instance {{ $labels.instance }})"
+      description: "Disk is almost full (< 10% left) (current value: {{ $value }})"
+  - alert: UnusualNetworkThroughputIn
+    expr: sum by (instance) (irate(node_network_receive_bytes[2m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual network throughput in (instance {{ $labels.instance }})"
+      description: "Host network interfaces are probably receiving too much data (> 100 MB/s) (current value: {{ $value }})"
+  - alert: UnusualNetworkThroughputOut
+    expr: sum by (instance) (irate(node_network_transmit_bytes[2m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual network throughput out (instance {{ $labels.instance }})"
+      description: "Host network interfaces are probably sending too much data (> 100 MB/s) (current value: {{ $value }})"
+  - alert: UnusualDiskReadRate
+    expr: sum by (instance) (irate(node_disk_bytes_read[2m])) / 1024 / 1024 > 50
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk read rate (instance {{ $labels.instance }})"
+      description: "Disk is probably reading too much data (> 50 MB/s) (current value: {{ $value }})"
+  - alert: UnusualDiskWriteRate
+    expr: sum by (instance) (irate(node_disk_bytes_written[2m])) / 1024 / 1024 > 50
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk write rate (instance {{ $labels.instance }})"
+      description: "Disk is probably writing too much data (> 50 MB/s) (current value: {{ $value }})"
+  - alert: UnusualDiskReadLatency
+    expr: rate(node_disk_read_time_ms[1m]) / rate(node_disk_reads_completed[1m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk read latency (instance {{ $labels.instance }})"
+      description: "Disk latency is growing (read operations > 100ms) (current value: {{ $value }})"
+  - alert: UnusualDiskWriteLatency
+    expr: rate(node_disk_write_time_ms[1m]) / rate(node_disk_writes_completedl[1m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual disk write latency (instance {{ $labels.instance }})"
+      description: "Disk latency is growing (write operations > 100ms) (current value: {{ $value }})"
+- name: http_status
+  rules:
+  - alert: ProbeFailed
+    expr: probe_success == 0
+    for: 1m
+    labels:
+      severity: error
+    annotations:
+      summary: "Probe failed (instance {{ $labels.instance }})"
+      description: "Probe failed (current value: {{ $value }})"
+  - alert: StatusCode
+    expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
+    for: 1m
+    labels:
+      severity: error
+    annotations:
+      summary: "Status Code (instance {{ $labels.instance }})"
+      description: "HTTP status code is not 200-399 (current value: {{ $value }})"
+  - alert: SslCertificateWillExpireSoon
+    expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "SSL certificate will expire soon (instance {{ $labels.instance }})"
+      description: "SSL certificate expires in 30 days (current value: {{ $value }})"
+  - alert: SslCertificateHasExpired
+    expr: probe_ssl_earliest_cert_expiry - time()  <= 0
+    for: 5m
+    labels:
+      severity: error
+    annotations:
+      summary: "SSL certificate has expired (instance {{ $labels.instance }})"
+      description: "SSL certificate has expired already (current value: {{ $value }})"
+  - alert: BlackboxSlowPing
+    expr: probe_icmp_duration_seconds > 2
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Blackbox slow ping (instance {{ $labels.instance }})"
+      description: "Blackbox ping took more than 2s (current value: {{ $value }})"
+  - alert: BlackboxSlowRequests
+    expr: probe_http_duration_seconds > 2 
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Blackbox slow requests (instance {{ $labels.instance }})"
+      description: "Blackbox request took more than 2s (current value: {{ $value }})"
+  - alert: PodCpuUsagePercent
+    expr: sum(sum(label_replace(irate(container_cpu_usage_seconds_total[1m]),"pod","$1","container_label_io_kubernetes_pod_name", "(.*)"))by(pod) / on(pod) group_right kube_pod_container_resource_limits_cpu_cores *100 )by(container,namespace,node,pod,severity) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Pod cpu usage percent has exceeded 80% (current value: {{ $value }}%)"
+EOF
+```
+
+在prometheus.yml中添加配置：
+
+```
+#  vim /data/prometheus/prometheus/etc/prometheus.yml
+....
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager"]
+rule_files:
+ - "/data/etc/rules.yml"
+```
+
+重载配置：
+
+```
+# curl -X POST http://prometheus.wzxmt.com/-/reload
+```
+
+![img](../acess/1034759-20191218173411675-688635972.png)
+
+ 
+
+ 以上这些就是我们的告警规则
+
+测试告警：
+
+把app命名空间里的dubbo-demo-service给停掉：
+
+![img](../acess/1034759-20191218173935193-1795591117.png)
+
+ 
+
+ 看下blackbox里的信息：
+
+![img](../acess/1034759-20191218174004624-1646255779.png)
+
+ 
+
+看下alert：
+
+![img](../acess/1034759-20191218174052248-183200263.png)
+
+ 
+
+ 红色的时候就开会发邮件告警：
+
+![img](../acess/1034759-20191218174118507-915764907.png)
+
+ 
+
+ 已经收到告警了，后续上生产，还会更新如何添加微信、钉钉、短信告警
+
+![img](../acess/1034759-20191218174253105-950989449.png)
+
+ 如果需要自己定制告警规则和告警内容，需要研究一下promql，自己修改配置文件。

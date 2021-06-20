@@ -591,7 +591,7 @@ sh kubeadm_get_images.sh
 生成初始化配置文件
 
 ```bash
-cat << EOF > /root/kubeadm-config.yaml
+cat << EOF >kubeadm-config.yaml
 apiVersion: kubeadm.k8s.io/v1beta1
 kind: ClusterConfiguration
 kubernetesVersion: v1.16.3 # 指定版本
@@ -615,7 +615,7 @@ kubeadm init --config=kubeadm-config.yaml --upload-certs
 生成初始化配置文件
 
 ```bash
-cat << EOF > /root/kubeadm-config.yaml
+cat << EOF > kubeadm-config.yaml
 apiVersion: kubeadm.k8s.io/v1beta1
 kind: ClusterConfiguration
 kubernetesVersion: v1.16.3 # 指定版本
@@ -815,7 +815,7 @@ etcd-0               Healthy   {"health":"true"}
 #### 6.3 测试集群DNS是否可用
 
 ```bash
-kubectl run curl --image=radial/busyboxplus:curl -it
+kubectl run curl --rm --image=radial/busyboxplus:curl -it
 ```
 
 **发现创建的pod节点一直处于Pending状态，这时候需要去污(重要)**

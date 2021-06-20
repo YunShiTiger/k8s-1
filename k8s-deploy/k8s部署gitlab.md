@@ -194,10 +194,10 @@ sed -ri.bak "s/^#(.*)22$/\12222/g" ${GITLAB_DIR}/config/gitlab.rb
 ```bash
 #gitlab
 docker pull sameersbn/gitlab:12.1.6
-docker tag sameersbn/gitlab harbor.wzxmt.com/infra/gitlab:latest
+docker tag sameersbn/gitlab:12.1.6 harbor.wzxmt.com/infra/gitlab:latest
 docker push harbor.wzxmt.com/infra/gitlab:latest
 #postgresql
-docker pull sameersbn/postgresql
+docker pull sameersbn/postgresql:10
 docker tag sameersbn/postgresql harbor.wzxmt.com/infra/gitlab-postgresql:latest
 docker push harbor.wzxmt.com/infra/gitlab-postgresql:latest
 #sameersbn/redis
@@ -478,7 +478,7 @@ spec:
         - name: GITLAB_ROOT_PASSWORD
           value: gitlab123
         - name: GITLAB_ROOT_EMAIL
-          value: wzxmt@163.com
+          value: dukuan@haixiangjinfu.com
 
         - name: GITLAB_HOST
           value: gitlab.wzxmt.com
@@ -524,9 +524,9 @@ spec:
         - name: SMTP_PORT
           value: "465"
         - name: SMTP_USER
-          value: wzxmt@qq.com
+          value: dukuan@xxx.com
         - name: SMTP_PASS
-          value: "wzxmt"
+          value: "DKxxx"
         - name: SMTP_STARTTLS
           value: "true"
         - name: SMTP_AUTHENTICATION
@@ -546,7 +546,6 @@ spec:
           value: "true"
         - name: IMAP_STARTTLS
           value: "false"
-          
         - name: LDAP_ENABLED
           value: "true"
         - name: LDAP_LABEL
@@ -569,7 +568,6 @@ spec:
           value: 'false'
         - name: LDAP_METHOD
           value: 'plain'
-        
         ports:
         - name: http
           containerPort: 80
