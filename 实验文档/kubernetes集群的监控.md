@@ -1,5 +1,3 @@
-
-
 ## 部署kube-state-metrics
 
 创建名称空间
@@ -253,9 +251,9 @@ kubectl apply -f ./
 [node-expoerer官方github地址](https://github.com/prometheus/node_exporter)
 
 ```bash
-docker pull quay.io/prometheus/node-exporter:v1.0.1
-docker tag quay.io/prometheus/node-exporter:v1.0.1 harbor.wzxmt.com/k8s/node-exporter:v1.0.1
-docker push harbor.wzxmt.com/k8s/node-exporter:v1.0.1
+docker pull quay.io/prometheus/node-exporter:v1.1.2
+docker tag quay.io/prometheus/node-exporter:v1.1.2 harbor.wzxmt.com/k8s/node-exporter:v1.1.2
+docker push harbor.wzxmt.com/k8s/node-exporter:v1.1.2
 ```
 
 ### docker部署
@@ -266,10 +264,12 @@ docker run -d --rm --name node-exporter \
 -v "/sys:/host/sys" \
 -v "/:/rootfs" \
 --net=host \
-harbor.wzxmt.com/k8s/node-exporter:v1.0.1 \
+harbor.wzxmt.com/k8s/node-exporter:v1.1.2 \
 --path.procfs /host/proc \
 --path.sysfs /host/sys \
---collector.filesystem.ignored-mount-points "^/(sys|proc|dev|host|etc)($|/)"
+--collector.filesystem.ignored-mount-points '^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)' \
+--collector.netclass.ignored-devices '^(veth.*)$' \
+--collector.netdev.device-exclude '^(veth.*)$'
 ```
 
 创建目录
@@ -311,7 +311,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: node-exporter
-        image: harbor.wzxmt.com/k8s/node-exporter:v1.0.1
+        image: harbor.wzxmt.com/k8s/node-exporter:v1.1.2
         args:
         - --path.procfs=/host/proc
         - --path.sysfs=/host/sys
@@ -356,7 +356,7 @@ EOF
 部署
 
 ```bash
-kubectl apply -f node-exporter/ds.yaml
+kubectl apply -f ./
 ```
 
 ## 部署cadvisor
@@ -372,7 +372,7 @@ docker push harbor.wzxmt.com/k8s/cadvisor:v0.33.0
 
 ### docker部署
 
-```
+```bash
 #注意docker存储的位置
 docker run --rm --name=cadvisor -d \
    -v /:/rootfs:ro \
@@ -388,10 +388,13 @@ docker run --rm --name=cadvisor -d \
 
 ### k8s部署
 
+```bash
+mkdir -p cadvisor && cd cadvisor
+```
+
 DaemonSet
 
 ```yaml
-mkdir -p cadvisor && cd cadvisor
 cat << 'EOF' >ds.yaml
 apiVersion: apps/v1
 kind: DaemonSet
@@ -493,7 +496,7 @@ docker push harbor.wzxmt.com/k8s/blackbox-exporter:v0.19.0
 
 创建目录
 
-```
+```bash
 mkdir -p blackbox-exporter && cd blackbox-exporter
 ```
 
@@ -511,7 +514,7 @@ metadata:
 data:
   blackbox.yml: |-
     modules:
-      http_2xx:
+      http_2xx: # http 监测模块
         prober: http
         timeout: 2s
         http:
@@ -519,9 +522,18 @@ data:
           valid_status_codes: [200,301,302]
           method: GET
           preferred_ip_protocol: "ip4"
+      http_post_2xx: # http post 监测模块
+        prober: http
+        http:
+          method: POST
       tcp_connect:
         prober: tcp
         timeout: 2s
+      ping: # icmp 检测模块
+        prober: icmp
+        timeout: 5s
+        icmp:
+          preferred_ip_protocol: "ip4"
 EOF
 ```
 
@@ -662,7 +674,6 @@ docker push harbor.wzxmt.com/k8s/prometheus:v2.22.2
 
 ```bash
 mkdir -p prometheus && cd prometheus
-mkdir -p /data/prometheus/{prometheus/etc,grafana,alertmanager}
 ```
 
 RBAC
@@ -754,7 +765,7 @@ spec:
     spec:
       nodeName: n2
       containers:
-      - image: harbor.wzxmt.com/k8s/prometheus:v2.25.0
+      - image: harbor.wzxmt.com/k8s/prometheus:v2.22.0
         args:
         - --config.file=/data/etc/prometheus.yml
         - --storage.tsdb.path=/data/etc/prometheus-db
@@ -842,8 +853,8 @@ EOF
 
 - 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
 
-```
-mkdir -p /data/prometheus/prometheus/{etc,prom-db}
+```bash
+mkdir -p /data/prometheus/prometheus/{etc/rules,prom-db}
 ```
 
 - 准备配置
@@ -926,6 +937,8 @@ scrape_configs:
     replacement: ${1}:4194 #添加解析.wzxmt.com
   static_configs:
     - targets: ['10.0.0.20:4194']
+      labels:
+        instance: manage
 
 - job_name: 'node-export'
   kubernetes_sd_configs:
@@ -1036,8 +1049,7 @@ scrape_configs:
   static_configs:
     - targets: ['10.0.0.20:50']
       labels:
-        instance: 'port_status'
-        group: 'tcp'
+        instance: manage
   relabel_configs:
     - source_labels: [__address__]
       target_label: __param_target
@@ -1048,6 +1060,8 @@ scrape_configs:
 - job_name: 'kubernetes-kube-mange'
   static_configs:
     - targets: ['10.0.0.20:9100']
+      labels:
+         instance: manage
 EOF
 ```
 
@@ -1289,10 +1303,15 @@ docker tag grafana/grafana:7.5.5 harbor.wzxmt.com/k8s/grafana:7.5.5
 docker push harbor.wzxmt.com/k8s/grafana:7.5.5
 ```
 
+创建目录
+
+```bash
+mkdir -p grafana && cd grafana
+```
+
 Deployment
 
 ```yaml
-mkdir -p grafana && cd grafana
 cat << 'EOF' >dp.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -1561,8 +1580,8 @@ kubernetes -> +New Cluster
 [alertmanager官网](https://prometheus.io)
 
 ```bash
-docker pull docker.io/prom/alertmanager:v0.21.0
-docker tag docker.io/prom/alertmanager:v0.21.0 harbor.wzxmt.com/k8s/alertmanager:v0.21.0
+docker pull prom/alertmanager:v0.21.0
+docker tag prom/alertmanager:v0.21.0 harbor.wzxmt.com/k8s/alertmanager:v0.21.0
 docker push harbor.wzxmt.com/k8s/alertmanager:v0.21.0
 ```
 
@@ -1577,31 +1596,53 @@ config
 ```yaml
 cat << 'EOF' >/data/prometheus/alertmanager/config.yml
 global:
-  # 在没有报警的情况下声明为已解决的时间
-  resolve_timeout: 5m
+  resolve_timeout: 5m # 在没有报警的情况下声明为已解决的时间
   # 配置邮件发送信息
   smtp_smarthost: 'smtp.163.com:25'
   smtp_from: 'xxx@163.com'
   smtp_auth_username: 'xxx@163.com'
   smtp_auth_password: 'xxxxxx'
   smtp_require_tls: false
-# 所有报警信息进入后的根路由，用来设置报警的分发策略
+
 route:
-  # 这里的标签列表是接收到报警信息后的重新分组标签，例如，接收到的报警信息里面有许多具有 cluster=A 和 alertname=LatncyHigh 这样的标签的报警信息将会批量被聚合到一个分组里面
-  group_by: ['alertname', 'cluster']
-  # 当一个新的报警分组被创建后，需要等待至少group_wait时间来初始化通知，这种方式可以确保您能有足够的时间为同一分组来获取多个警报，然后一起触发这个报警信息。
-  group_wait: 30s
-  # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
-  group_interval: 5m
-  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
-  repeat_interval: 5m
-  # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
-  receiver: default
+  group_by: ['alertname']
+  group_wait: 30s     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
+  group_interval: 5m  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
+  repeat_interval: 5m # 重复报警的间隔时间
+  receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
+
+  routes:
+  - receiver: ops_notify
+    group_wait: 10s
+    match_re:
+      alertname: '实例存活告警|磁盘使用率告警'
+  - receiver: info_notify
+    group_wait: 10s
+    match_re:
+      alertname: '内存使用率告警|CPU使用率告警'
+
 receivers:
-- name: 'default'
+- name: 'ops_notify'
   email_configs:
   - to: 'xxxx@qq.com'
     send_resolved: true
+    
+- name: 'default'
+  webhook_configs:
+  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook1/send'
+    send_resolved: true
+    
+- name: 'info_notify'
+  webhook_configs:
+  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook2/send'
+    send_resolved: true
+
+inhibit_rules:            #告警收敛
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
 EOF
 ```
 
@@ -1632,7 +1673,7 @@ spec:
         image: harbor.wzxmt.com/k8s/alertmanager:v0.21.0
         args:
           - "--config.file=/etc/alertmanager/config.yml"
-          - "--storage.path=/alertmanager"
+          - "--storage.path=/etc/alertmanager/data"
         ports:
         - name: alertmanager
           containerPort: 9093
@@ -1646,6 +1687,8 @@ spec:
           type: Directory
       imagePullSecrets:
       - name: harborlogin
+      securityContext:
+        runAsUser: 0
 EOF
 ```
 
@@ -1709,7 +1752,7 @@ http://alertmanager.wzxmt.com
 基础报警规则(nfs)：
 
 ```bash
-cat << 'EOF' >/data/prometheus/prometheus/etc/rules.yml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/test.yml
 groups:
 - name: hostStatsAlert
   rules:
@@ -1861,7 +1904,7 @@ alerting:
     - static_configs:
         - targets: ["alertmanager"]
 rule_files:
- - "/data/etc/rules.yml"
+- "/data/etc/rules/*.yml"
 ```
 
 重载配置：
@@ -1907,3 +1950,117 @@ rule_files:
 ![img](../acess/1034759-20191218174253105-950989449.png)
 
  如果需要自己定制告警规则和告警内容，需要研究一下promql，自己修改配置文件。
+
+## 配置钉钉告警
+
+https://github.com/timonwong/prometheus-webhook-dingtalk
+
+制作镜像
+
+```bash
+docker pull timonwong/prometheus-webhook-dingtalk:master
+docker tag timonwong/prometheus-webhook-dingtalk:master harbor.wzxmt.com/k8s/prometheus-webhook-dingtalk:latest
+docker push harbor.wzxmt.com/k8s/prometheus-webhook-dingtalk:latest
+```
+
+资源配置清单：
+
+```bash
+mkdir -p prometheus-webhook-dingtalk && cd prometheus-webhook-dingtalk
+```
+
+钉钉机器人的webhook: https://oapi.dingtalk.com/robot/send?access_token=xxx
+
+Deployment
+
+```yaml
+cat << 'EOF' >dp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus-webhook-dingtalk
+  name: prometheus-webhook-dingtalk
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-webhook-dingtalk
+  template:
+    metadata:
+      labels:
+        app: prometheus-webhook-dingtalk
+    spec:
+      nodeName: n2
+      containers:
+      - image: harbor.wzxmt.com/k8s/prometheus-webhook-dingtalk:latest
+        args:
+        - "--ding.profile=webhook1=https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxx"
+        - "--ding.profile=webhook2=https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxx"
+        name: prometheus-webhook-dingtalk
+        ports:
+        - containerPort: 8060
+          protocol: TCP
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+      - name: harborlogin
+      restartPolicy: Always
+EOF
+```
+
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-webhook-dingtalk
+  namespace: monitoring
+  labels:
+    app: prometheus-webhook-dingtalk
+spec:
+  ports:
+  - port: 8060
+    protocol: TCP
+    name: prometheus
+  selector:
+    app: prometheus
+  type: ClusterIP
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dingtalk
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - match: Host(`dingtalk.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: prometheus-webhook-dingtalk
+      port: 8060
+EOF
+```
+
+部署
+
+```bash
+kubectl apply -f ./
+```
+
+测试
+
+```bash
+curl http://dingtalk.wzxmt.com/dingtalk/webhook1/send   -H 'Content-Type: application/json'    -d '{"msgtype": "text","text": {"content": "监控告警"}}'
+```
+
