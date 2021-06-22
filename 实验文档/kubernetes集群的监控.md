@@ -765,7 +765,7 @@ spec:
     spec:
       nodeName: n2
       containers:
-      - image: harbor.wzxmt.com/k8s/prometheus:v2.22.0
+      - image: harbor.wzxmt.com/k8s/prometheus:v2.22.2
         args:
         - --config.file=/data/etc/prometheus.yml
         - --storage.tsdb.path=/data/etc/prometheus-db
@@ -788,7 +788,9 @@ spec:
             memory: 100Mi
         volumeMounts:
         - mountPath: /data
-          name: data
+          name: prometheus-data
+        - name: date
+          mountPath: /etc/localtime
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
       - name: harborlogin
@@ -799,10 +801,14 @@ spec:
       serviceAccount: prometheus
       serviceAccountName: prometheus
       volumes:
-      - name: data
+      - name: prometheus-data
         hostPath:          
           type: Directory
           path: /data/prometheus/prometheus
+      - name: date
+        hostPath:
+          path: /etc/localtime
+          type: ''
 EOF
 ```
 
@@ -1805,21 +1811,21 @@ http://alertmanager.wzxmt.com
 
 基础报警规则
 
-probe_status
+### probe_status
 
 ```bash
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/probe_status.yml
 groups:
-- name: http_status
+- name: 站点状态-监控告警
   rules:
-  - alert: ProbeFailed
+  - alert: 网络检测
     expr: probe_success == 0
     for: 1m
     labels:
-      severity: error
+      status: 严重告警
     annotations:
-      summary: "Probe failed (instance {{ $labels.instance }})"
-      description: "Probe failed (current value: {{ $value }})"
+      summary: "{{$labels.instance}} 不能访问"
+      description: "{{$labels.instance}} 不能访问"
 
   - alert: StatusCode
     expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
@@ -1838,10 +1844,11 @@ groups:
     annotations:
       summary: "Blackbox slow requests (instance {{ $labels.instance }})"
       description: "Blackbox request took more than 2s (current value: {{ $value }})"
+
 EOF
 ```
 
-node_status
+### node_status
 
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/node_status.yml
@@ -1938,7 +1945,7 @@ groups:
 EOF
 ```
 
-other
+### others
 
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/others_status.yml
@@ -1946,7 +1953,7 @@ groups:
 - name: 实例存活告警规则
   rules:
   - alert: 实例存活告警
-    expr: up{job="prometheus"} == 0 or up{job="Linux-host"} == 0
+    expr: up{job="prometheus"} == 0
     for: 1m
     labels:
       severity: Disaster
@@ -1954,6 +1961,96 @@ groups:
       summary: "Instance {{ $labels.instance }} is down"
       description: "Instance {{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minutes."
       value: "{{ $value }}"
+EOF
+```
+
+### containers
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/containers_status.yml
+groups:
+- name:  Docker containers monitoring
+  rules: 
+  - alert: ContainerKilled
+    expr: time() - container_last_seen > 60
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Container killed (instance {{ $labels.instance }})"
+      description: "A container has disappeared\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ContainerCpuUsage
+    expr: (sum(rate(container_cpu_usage_seconds_total[3m])) BY (instance, name) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Container CPU usage (instance {{ $labels.instance }})"
+      description: "Container CPU usage is above 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ContainerMemoryUsage
+    expr: (sum(container_memory_usage_bytes) BY (instance, name) / sum(container_spec_memory_limit_bytes) BY (instance, name) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Container Memory usage (instance {{ $labels.instance }})"
+      description: "Container Memory usage is above 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ContainerVolumeUsage
+    expr: (1 - (sum(container_fs_inodes_free) BY (instance) / sum(container_fs_inodes_total) BY (instance)) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Container Volume usage (instance {{ $labels.instance }})"
+      description: "Container Volume usage is above 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ContainerVolumeIoUsage
+    expr: (sum(container_fs_io_current) BY (instance, name) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Container Volume IO usage (instance {{ $labels.instance }})"
+      description: "Container Volume IO usage is above 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ContainerHighThrottleRate
+    expr: rate(container_cpu_cfs_throttled_seconds_total[3m]) > 1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Container high throttle rate (instance {{ $labels.instance }})"
+      description: "Container is being throttled\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+EOF
+```
+
+### consul
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/Consul_status.yml
+groups:
+  - alert: ConsulServiceHealthcheckFailed
+    expr: consul_catalog_service_node_healthy == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Consul service healthcheck failed (instance {{ $labels.instance }})"
+      description: "Service: `{{ $labels.service_name }}` Healthcheck: `{{ $labels.service_id }}`\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ConsulMissingMasterNode
+    expr: consul_raft_peers < 3
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Consul missing master node (instance {{ $labels.instance }})"
+      description: "Numbers of consul raft peers should be 3, in order to preserve quorum.\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: ConsulAgentUnhealthy
+    expr: consul_health_node_status{status="critical"} == 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Consul agent unhealthy (instance {{ $labels.instance }})"
+      description: "A Consul agent is down\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
 EOF
 ```
 
