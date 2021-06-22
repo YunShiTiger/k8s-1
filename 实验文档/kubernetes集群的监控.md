@@ -1580,9 +1580,9 @@ kubernetes -> +New Cluster
 [alertmanager官网](https://prometheus.io)
 
 ```bash
-docker pull prom/alertmanager:v0.21.0
-docker tag prom/alertmanager:v0.21.0 harbor.wzxmt.com/k8s/alertmanager:v0.21.0
-docker push harbor.wzxmt.com/k8s/alertmanager:v0.21.0
+docker pull prom/alertmanager:v0.20.0
+docker tag prom/alertmanager:v0.20.0 harbor.wzxmt.com/k8s/alertmanager:v0.20.0
+docker push harbor.wzxmt.com/k8s/alertmanager:v0.20.0
 ```
 
 资源配置清单：
@@ -1598,11 +1598,18 @@ cat << 'EOF' >/data/prometheus/alertmanager/config.yml
 global:
   resolve_timeout: 5m # 在没有报警的情况下声明为已解决的时间
   # 配置邮件发送信息
-  smtp_smarthost: 'smtp.163.com:25'
-  smtp_from: 'xxx@163.com'
-  smtp_auth_username: 'xxx@163.com'
-  smtp_auth_password: 'xxxxxx'
+  smtp_smarthost: 'smtp.qq.com:25'
+  smtp_from: '2847182882@qq.com'
+  smtp_auth_username: '2847182882@qq.com'
+  smtp_auth_password: 'smsprvohacphdgfe'
   smtp_require_tls: false
+  # 配置企业微信发送信息
+  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+  wechat_api_corp_id: 'ww34fac7bd8c8ade8d'      # 企业微信中企业ID
+  wechat_api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4' #企业微信中，应用的Secret
+
+templates:
+  - '/etc/alertmanager/*.tmpl'
 
 route:
   group_by: ['alertname']
@@ -1612,29 +1619,34 @@ route:
   receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
 
   routes:
-  - receiver: ops_notify
+  - receiver: 'ops_notify'
     group_wait: 10s
     match_re:
       alertname: '实例存活告警|磁盘使用率告警'
-  - receiver: info_notify
+      
+  - receiver: 'info_notify'
     group_wait: 10s
     match_re:
       alertname: '内存使用率告警|CPU使用率告警'
 
 receivers:
-- name: 'ops_notify'
+- name: 'default'
   email_configs:
-  - to: 'xxxx@qq.com'
+  - to: '1451343603@qq.com'
     send_resolved: true
     
-- name: 'default'
-  webhook_configs:
-  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook1/send'
-    send_resolved: true
+- name: 'ops_notify'
+  wechat_configs:
+  - send_resolved: true
+    api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+    corp_id: 'ww34fac7bd8c8ade8d'
+    to_party: '1'         # 企业微信中创建的接收告警的部门【告警机器人】的部门ID
+    agent_id: '1000002'     # 企业微信中创建的应用的ID
+    api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'  # 企业微信中，应用的Secret
     
 - name: 'info_notify'
   webhook_configs:
-  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook2/send'
+  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook/send'
     send_resolved: true
 
 inhibit_rules:            #告警收敛
@@ -1643,6 +1655,48 @@ inhibit_rules:            #告警收敛
     target_match:
       severity: 'warning'
     equal: ['alertname', 'dev', 'instance']
+EOF
+```
+
+
+
+```yaml
+cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
+{{ define "wechat.default.message" }}
+{{- if gt (len .Alerts.Firing) 0 -}}
+{{- range $index, $alert := .Alerts -}}
+{{- if eq $index 0 }}
+========= 监控报警 =========
+告警状态：{{   .Status }}
+告警级别：{{ .Labels.severity }}
+告警类型：{{ $alert.Labels.alertname }}
+故障主机: {{ $alert.Labels.instance }}
+告警主题: {{ $alert.Annotations.summary }}
+告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};
+触发阀值：{{ .Annotations.value }}
+故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+========= = end =  =========
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if gt (len .Alerts.Resolved) 0 -}}
+{{- range $index, $alert := .Alerts -}}
+{{- if eq $index 0 }}
+========= 异常恢复 =========
+告警类型：{{ .Labels.alertname }}
+告警状态：{{   .Status }}
+告警主题: {{ $alert.Annotations.summary }}
+告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};
+故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+{{- if gt (len $alert.Labels.instance) 0 }}
+实例信息: {{ $alert.Labels.instance }}
+{{- end }}
+========= = end =  =========
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 EOF
 ```
 
@@ -1670,7 +1724,7 @@ spec:
       nodeName: n2
       containers:
       - name: alertmanager
-        image: harbor.wzxmt.com/k8s/alertmanager:v0.21.0
+        image: harbor.wzxmt.com/k8s/alertmanager:v0.20.0
         args:
           - "--config.file=/etc/alertmanager/config.yml"
           - "--storage.path=/etc/alertmanager/data"
@@ -1749,91 +1803,13 @@ alertmanager	60 IN A 10.0.0.50
 
 http://alertmanager.wzxmt.com
 
-基础报警规则(nfs)：
+基础报警规则
+
+probe_status
 
 ```bash
-cat << 'EOF' >/data/prometheus/prometheus/etc/rules/test.yml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/probe_status.yml
 groups:
-- name: hostStatsAlert
-  rules:
-  - alert: hostCpuUsageAlert
-    expr: sum(avg without (cpu)(irate(node_cpu{mode!='idle'}[5m]))) by (instance) > 0.85
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "{{ $labels.instance }} CPU usage above 85% (current value: {{ $value }}%)"
-  - alert: hostMemUsageAlert
-    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "{{ $labels.instance }} MEM usage above 85% (current value: {{ $value }}%)"
-  - alert: OutOfInodes
-    expr: node_filesystem_free{fstype="overlay",mountpoint ="/"} / node_filesystem_size{fstype="overlay",mountpoint ="/"} * 100 < 10
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Out of inodes (instance {{ $labels.instance }})"
-      description: "Disk is almost running out of available inodes (< 10% left) (current value: {{ $value }})"
-  - alert: OutOfDiskSpace
-    expr: node_filesystem_free{fstype="overlay",mountpoint ="/rootfs"} / node_filesystem_size{fstype="overlay",mountpoint ="/rootfs"} * 100 < 10
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Out of disk space (instance {{ $labels.instance }})"
-      description: "Disk is almost full (< 10% left) (current value: {{ $value }})"
-  - alert: UnusualNetworkThroughputIn
-    expr: sum by (instance) (irate(node_network_receive_bytes[2m])) / 1024 / 1024 > 100
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual network throughput in (instance {{ $labels.instance }})"
-      description: "Host network interfaces are probably receiving too much data (> 100 MB/s) (current value: {{ $value }})"
-  - alert: UnusualNetworkThroughputOut
-    expr: sum by (instance) (irate(node_network_transmit_bytes[2m])) / 1024 / 1024 > 100
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual network throughput out (instance {{ $labels.instance }})"
-      description: "Host network interfaces are probably sending too much data (> 100 MB/s) (current value: {{ $value }})"
-  - alert: UnusualDiskReadRate
-    expr: sum by (instance) (irate(node_disk_bytes_read[2m])) / 1024 / 1024 > 50
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual disk read rate (instance {{ $labels.instance }})"
-      description: "Disk is probably reading too much data (> 50 MB/s) (current value: {{ $value }})"
-  - alert: UnusualDiskWriteRate
-    expr: sum by (instance) (irate(node_disk_bytes_written[2m])) / 1024 / 1024 > 50
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual disk write rate (instance {{ $labels.instance }})"
-      description: "Disk is probably writing too much data (> 50 MB/s) (current value: {{ $value }})"
-  - alert: UnusualDiskReadLatency
-    expr: rate(node_disk_read_time_ms[1m]) / rate(node_disk_reads_completed[1m]) > 100
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual disk read latency (instance {{ $labels.instance }})"
-      description: "Disk latency is growing (read operations > 100ms) (current value: {{ $value }})"
-  - alert: UnusualDiskWriteLatency
-    expr: rate(node_disk_write_time_ms[1m]) / rate(node_disk_writes_completedl[1m]) > 100
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual disk write latency (instance {{ $labels.instance }})"
-      description: "Disk latency is growing (write operations > 100ms) (current value: {{ $value }})"
 - name: http_status
   rules:
   - alert: ProbeFailed
@@ -1844,6 +1820,7 @@ groups:
     annotations:
       summary: "Probe failed (instance {{ $labels.instance }})"
       description: "Probe failed (current value: {{ $value }})"
+
   - alert: StatusCode
     expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
     for: 1m
@@ -1852,30 +1829,7 @@ groups:
     annotations:
       summary: "Status Code (instance {{ $labels.instance }})"
       description: "HTTP status code is not 200-399 (current value: {{ $value }})"
-  - alert: SslCertificateWillExpireSoon
-    expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 30
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "SSL certificate will expire soon (instance {{ $labels.instance }})"
-      description: "SSL certificate expires in 30 days (current value: {{ $value }})"
-  - alert: SslCertificateHasExpired
-    expr: probe_ssl_earliest_cert_expiry - time()  <= 0
-    for: 5m
-    labels:
-      severity: error
-    annotations:
-      summary: "SSL certificate has expired (instance {{ $labels.instance }})"
-      description: "SSL certificate has expired already (current value: {{ $value }})"
-  - alert: BlackboxSlowPing
-    expr: probe_icmp_duration_seconds > 2
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Blackbox slow ping (instance {{ $labels.instance }})"
-      description: "Blackbox ping took more than 2s (current value: {{ $value }})"
+
   - alert: BlackboxSlowRequests
     expr: probe_http_duration_seconds > 2 
     for: 5m
@@ -1884,25 +1838,134 @@ groups:
     annotations:
       summary: "Blackbox slow requests (instance {{ $labels.instance }})"
       description: "Blackbox request took more than 2s (current value: {{ $value }})"
-  - alert: PodCpuUsagePercent
-    expr: sum(sum(label_replace(irate(container_cpu_usage_seconds_total[1m]),"pod","$1","container_label_io_kubernetes_pod_name", "(.*)"))by(pod) / on(pod) group_right kube_pod_container_resource_limits_cpu_cores *100 )by(container,namespace,node,pod,severity) > 80
+EOF
+```
+
+node_status
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/node_status.yml
+groups:
+- name: 内存告警规则
+  rules:
+  - alert: "内存使用率告警"
+    expr: (node_memory_MemTotal_bytes - (node_memory_MemFree_bytes+node_memory_Buffers_bytes+node_memory_Cached_bytes )) / node_memory_MemTotal_bytes * 100 > 75
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "服务器: {{ $labels.instance }} 内存报警"
+      description: "{{ $labels.instance }} 内存资源利用率大于75%！(当前值: {{ $value }}%)"
+      value: "{{ $value }}"
+
+- name: CPU报警规则
+  rules:
+  - alert: CPU使用率告警
+    expr: 100 - (avg by (instance)(irate(node_cpu_seconds_total{mode="idle"}[1m]) )) * 100 > 70
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "服务器: {{ $labels.instance }} CPU报警"
+      description: "服务器: CPU使用超过70%！(当前值: {{ $value }}%)"
+      value: "{{ $value }}"
+
+- name: 磁盘报警规则
+  rules:
+  - alert: 磁盘使用率告警
+    expr: (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes * 100 > 80
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "服务器: {{ $labels.instance }} 磁盘报警"
+      description: "服务器:{{ $labels.instance }},磁盘设备: 使用超过80%！(挂载点: {{ $labels.mountpoint }} 当前值: {{ $value }}%)"
+      value: "{{ $value }}"
+
+  - alert: 主机网络接收量
+    expr: sum by (instance) (irate(node_network_receive_bytes_total[2m])) / 1024 / 1024 > 100
     for: 5m
     labels:
       severity: warning
     annotations:
-      summary: "Pod cpu usage percent has exceeded 80% (current value: {{ $value }}%)"
+      summary: "异常的网络吞吐量: (instance {{ $labels.instance }})"
+      description: "主机网络接口可能接收了太多数据 (> 100 MB/s) (current value: {{ $value }})"
+ 
+  - alert: 主机网络发送量
+    expr: sum by (instance) (irate(node_network_transmit_bytes_total[2m])) / 1024 / 1024 > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "异常的网络吞吐量: (instance {{ $labels.instance }})"
+      description: "主机网络接口可能发送了太多数据 (> 100 MB/s) (current value: {{ $value }})"
+
+  - alert: 磁盘的读速率
+    expr: sum by (instance) (irate(node_disk_read_bytes_total[2m])) / 1024 / 1024 > 50
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "异常的磁盘读取率： (instance {{ $labels.instance }})"
+      description: "磁盘可能正在读取太多数据 (> 50 MB/s) (current value: {{ $value }})"
+
+  - alert: 磁盘的写速率
+    expr: sum by (instance) (irate(node_disk_written_bytes_total[2m])) / 1024 / 1024 > 50
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "异常的磁盘写入速率： (instance {{ $labels.instance }})"
+      description: "磁盘可能正在写入太多数据 (> 50 MB/s) (current value: {{ $value }})"
+
+  - alert: 异常磁盘读取延迟
+    expr: rate(node_disk_read_time_seconds_total[1m]) / rate(node_disk_reads_completed_total[1m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "异常的磁盘读取延迟 (instance {{ $labels.instance }})"
+      description: "磁盘延迟越来越大 (read operations > 100ms) (current value: {{ $value }})"
+
+  - alert: 异常磁盘写入延迟
+    expr: rate(node_disk_write_time_seconds_total[1m]) / rate(node_disk_writes_completed_total[1m]) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "异常的磁盘写入延迟 (instance {{ $labels.instance }})"
+      description: "磁盘延迟越来越大 (write operations > 100ms) (current value: {{ $value }})"
+EOF
+```
+
+other
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/others_status.yml
+groups:
+- name: 实例存活告警规则
+  rules:
+  - alert: 实例存活告警
+    expr: up{job="prometheus"} == 0 or up{job="Linux-host"} == 0
+    for: 1m
+    labels:
+      severity: Disaster
+    annotations:
+      summary: "Instance {{ $labels.instance }} is down"
+      description: "Instance {{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minutes."
+      value: "{{ $value }}"
 EOF
 ```
 
 在prometheus.yml中添加配置：
 
-```
+```yaml
 #  vim /data/prometheus/prometheus/etc/prometheus.yml
 ....
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ["alertmanager"]
+        - targets: ["alertmanager:9093"]
 rule_files:
 - "/data/etc/rules/*.yml"
 ```
@@ -1996,8 +2059,7 @@ spec:
       containers:
       - image: harbor.wzxmt.com/k8s/prometheus-webhook-dingtalk:latest
         args:
-        - "--ding.profile=webhook1=https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxx"
-        - "--ding.profile=webhook2=https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxx"
+        - "--ding.profile=webhook=https://oapi.dingtalk.com/robot/send?access_token=c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4"
         name: prometheus-webhook-dingtalk
         ports:
         - containerPort: 8060
@@ -2062,5 +2124,56 @@ kubectl apply -f ./
 
 ```bash
 curl http://dingtalk.wzxmt.com/dingtalk/webhook1/send   -H 'Content-Type: application/json'    -d '{"msgtype": "text","text": {"content": "监控告警"}}'
+```
+
+配置企业微信告警
+
+## 实现WeChat 告警
+
+step 1: 访问[网站](https://work.weixin.qq.com/) 注册企业微信账号（不需要企业认证）。
+step 2: 访问[apps](https://work.weixin.qq.com/wework_admin/loginpage_wx#apps) 创建第三方应用，点击创建应用按钮 -> 填写应用信息：
+![在这里插入图片描述](https://img-blog.csdn.net/20181016142743436?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI1OTM0NDAx/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+![在这里插入图片描述](https://img-blog.csdn.net/20181016142959912?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI1OTM0NDAx/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+部门ID：to_party 需要发送的组
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200402110728591.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI1OTM0NDAx,size_16,color_FFFFFF,t_70)
+可以查看微信告警接口[文档](https://work.weixin.qq.com/api/doc/90000/90135/90236#文本消息)：
+
+参数说明：
+
+corp_id: 企业微信账号唯一 ID， 可以在我的企业中查看。
+to_party: 需要发送的组。
+agent_id: 第三方企业应用的 ID，可以在自己创建的第三方企业应用详情页面查看。
+api_secret: 第三方企业应用的密钥，可以在自己创建的第三方企业应用详情页面查看。
+
+alertmanger 配置：
+
+```yaml
+cat << 'EOF' >/data/prometheus/alertmanager/config.yml
+global:
+  resolve_timeout: 30s
+  wechat_api_corp_id: 'ww34fac7bd8c8ade8d'
+  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+  wechat_api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'
+
+templates:
+  - '/etc/alertmanager/wechat.tmpl'
+
+route:
+  receiver: 'wechat'
+  group_by: ['env','instance','type','group','job','alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 5m
+
+receivers:
+- name: 'wechat'
+  wechat_configs:
+  - send_resolved: true
+    corp_id: 'ww34fac7bd8c8ade8d'
+    to_party: '1'
+    api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+    agent_id: '1000002'
+    api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'
+EOF
 ```
 
