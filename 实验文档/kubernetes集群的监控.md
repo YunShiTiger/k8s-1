@@ -870,6 +870,12 @@ cat << 'EOF' >/data/prometheus/prometheus/etc/prometheus.yml
 global:
   scrape_interval:     15s
   evaluation_interval: 15s
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+rule_files:
+- "/data/etc/rules/*.yml"
 scrape_configs:
 - job_name: 'kubernetes-etcd'
   tls_config:
@@ -941,30 +947,25 @@ scrape_configs:
     regex: (.+)
     target_label: __address__
     replacement: ${1}:4194 #添加解析.wzxmt.com
-  static_configs:
+  static_configs: #k8s集群外部配置
     - targets: ['10.0.0.20:4194']
       labels:
         instance: manage
 
-- job_name: 'node-export'
+- job_name: 'kubernetes-node-export'
   kubernetes_sd_configs:
-  - role: pod
+  - role: node
   relabel_configs:
   - action: labelmap
-    regex: __meta_kubernetes_pod_label_(.+)
-  - source_labels: [__meta_kubernetes_namespace]
-    action: replace
-    target_label: kubernetes_namespace
-  - source_labels: [__meta_kubernetes_pod_name]
-    action: replace
-    target_label: kubernetes_pod_name
-  - source_labels: [__meta_kubernetes_pod_label_prometheus]
-    regex: .*true.*
-    action: keep
-  - source_labels: ['__meta_kubernetes_pod_label_daemon', '__meta_kubernetes_pod_node_name']
-    regex: 'node-exporter;(.*)'
-    action: replace
-    target_label: nodename
+    regex: __meta_kubernetes_node_label_(.+)
+  - source_labels: [__meta_kubernetes_node_name]
+    regex: (.+)
+    target_label: __address__
+    replacement: ${1}:9100 #添加dns解析.wzxmt.com
+  static_configs: #k8s集群外部配置
+    - targets: ['10.0.0.20:9100']
+      labels:
+        instance: manage
 
 - job_name: 'blackbox_http_pod_probe'
   metrics_path: /probe
@@ -1048,14 +1049,18 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_pod_name]
     action: replace
     target_label: kubernetes_pod_name
-- job_name: 'prometheus_service_status' #外部服务
+    
+- job_name: 'prometheus_service_tcp_status' #外部服务
   metrics_path: /probe
   params:
-    module: [http_2xx]
+    module: [tcp_connect]
   static_configs:
-    - targets: ['10.0.0.20:50']
+    - targets: ['10.0.0.20:80']
       labels:
-        instance: manage
+        service: harbor
+    - targets: ['10.0.0.11:80']
+      labels:
+        service: slb-nginx
   relabel_configs:
     - source_labels: [__address__]
       target_label: __param_target
@@ -1063,11 +1068,41 @@ scrape_configs:
       target_label: instance
     - target_label: __address__
       replacement: blackbox-exporter.monitoring:9115
-- job_name: 'kubernetes-kube-mange'
+
+- job_name: 'prometheus_service_http_status' #外部服务
+  metrics_path: /probe
+  params:
+    module: [http_2xx]
   static_configs:
-    - targets: ['10.0.0.20:9100']
+    - targets: ['10.0.0.20:80']
       labels:
-         instance: manage
+        service_http: harbor
+    - targets: ['10.0.0.50:443']
+      labels:
+        service_http: slb-nginx
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter.monitoring:9115
+
+- job_name: '主机存活检测'
+  metrics_path: /probe
+  params:
+    module: [ping]
+  static_configs:
+    - targets: ['10.0.0.20','10.0.0.11','10.0.0.31','10.0.0.32','10.0.0.33','10.0.0.41','10.0.0.42','10.0.0.43']
+      labels:
+        group: '深圳主机网络PING监控'
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: blackbox-exporter.monitoring:9115
 EOF
 ```
 
@@ -1813,28 +1848,37 @@ http://alertmanager.wzxmt.com
 
 ### probe_status
 
-```bash
+```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/probe_status.yml
 groups:
 - name: 站点状态-监控告警
   rules:
-  - alert: 网络检测
-    expr: probe_success == 0
+  - alert: 主机存活性检测
+    expr: probe_success{group!=""} == 0
     for: 1m
     labels:
       status: 严重告警
     annotations:
-      summary: "{{$labels.instance}} 不能访问"
-      description: "{{$labels.instance}} 不能访问"
+      summary: "{{$labels.instance}} 主机已宕机，请尽快查看！"
+      description: "{{$labels.instance}} 主机已宕机，请尽快查看！"
 
+  - alert: 服务存活性检测[tcp]
+    expr: probe_success{service!=""} == 0
+    for: 1m
+    labels:
+      status: 严重告警
+    annotations:
+      summary: "{{$labels.instance}} 服务已不能正常访问，请查看！"
+      description: "{{$labels.instance}} 服务已不能正常访问，请查看！" 
+ 
   - alert: StatusCode
     expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
     for: 1m
     labels:
       severity: error
     annotations:
-      summary: "Status Code (instance {{ $labels.instance }})"
-      description: "HTTP status code is not 200-399 (current value: {{ $value }})"
+      summary: "HTTP状态码(instance {{ $labels.instance }})"
+      description: "HTTP状态码不在 200-399 (current value: {{ $value }})"
 
   - alert: BlackboxSlowRequests
     expr: probe_http_duration_seconds > 2 
@@ -1842,9 +1886,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Blackbox slow requests (instance {{ $labels.instance }})"
-      description: "Blackbox request took more than 2s (current value: {{ $value }})"
-
+      summary: "慢请求 (instance {{ $labels.instance }})"
+      description: "太多的请求，已超过2s (current value: {{ $value }})"
 EOF
 ```
 
@@ -1942,25 +1985,6 @@ groups:
     annotations:
       summary: "异常的磁盘写入延迟 (instance {{ $labels.instance }})"
       description: "磁盘延迟越来越大 (write operations > 100ms) (current value: {{ $value }})"
-EOF
-```
-
-### others
-
-```yaml
-cat << 'EOF' >/data/prometheus/prometheus/etc/rules/others_status.yml
-groups:
-- name: 实例存活告警规则
-  rules:
-  - alert: 实例存活告警
-    expr: up{job="prometheus"} == 0
-    for: 1m
-    labels:
-      severity: Disaster
-    annotations:
-      summary: "Instance {{ $labels.instance }} is down"
-      description: "Instance {{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minutes."
-      value: "{{ $value }}"
 EOF
 ```
 
