@@ -1,5 +1,9 @@
 ## 部署kube-state-metrics
 
+[kube-state-metricsgithub 项目地址](https://github.com/kubernetes/kube-state-metrics)
+
+kube-state-metrics 是一个简单的服务，它侦听 Kubernetes API 服务器并生成有关对象状态的指标
+
 创建名称空间
 
 ```bash
@@ -239,11 +243,58 @@ spec:
 EOF
 ```
 
+Service
+
+```yaml
+cat << 'EOF' >svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.8
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    name: kube-state-metrics
+  selector:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.9.8
+  type: ClusterIP
+EOF
+```
+
+Ingress
+
+```yaml
+cat << 'EOF' >ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kube-state-metrics
+  namespace: monitoring
+spec:
+  entryPoints:
+  - web
+  routes:
+  - match: Host(`kubestate.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: kube-state-metrics
+      port: 8080
+EOF
+```
+
 部署
 
 ```
 kubectl apply -f ./
 ```
+
+http://kubestate.wzxmt.com/metrics
 
 ## 部署node-exporter
 
@@ -329,6 +380,13 @@ spec:
           hostPort: 9100
           containerPort: 9100
           protocol: TCP
+        resources:
+          limits:
+            cpu: 150m
+            memory: 150Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
         volumeMounts:
         - name: proc
           mountPath: /host/proc
@@ -441,6 +499,13 @@ spec:
           - name: http
             containerPort: 4194
             protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
         readinessProbe:
           tcpSocket:
             port: 4194
@@ -577,9 +642,9 @@ spec:
         resources:
           limits:
             cpu: 200m
-            memory: 256Mi
+            memory: 200Mi
           requests:
-            cpu: 100m
+            cpu: 50m
             memory: 50Mi
         volumeMounts:
         - name: config
@@ -781,8 +846,8 @@ spec:
           protocol: TCP
         resources:
           limits:
-            cpu: 500m
-            memory: 2500Mi
+            cpu: 1024m
+            memory: 1024Mi
           requests:
             cpu: 100m
             memory: 100Mi
@@ -860,10 +925,10 @@ EOF
 - 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
 
 ```bash
-mkdir -p /data/prometheus/prometheus/{etc/rules,prom-db}
+mkdir -p /data/prometheus/{prometheus/{etc/rules,prom-db},alertmanager,grafana}
 ```
 
-- 准备配置
+- 准备配置文件
 
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/prometheus.yml
@@ -900,7 +965,33 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
     action: keep
     regex: default;kubernetes;https
-
+    
+- job_name: 'kube-state-metrics'
+  scheme: http
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  metrics_path: /metrics
+  tls_config:
+    insecure_skip_verify: true
+  kubernetes_sd_configs:
+    - api_server: https://10.0.0.150:8443
+      role: pod
+      tls_config:
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: pod
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_pod_ip]
+    regex: (.+)
+    target_label: __address__
+    replacement: ${1}:8080
+  - source_labels:  ["__meta_kubernetes_pod_container_name"]
+    regex: "^kube-state-metrics.*"
+    action: keep 
+    
 - job_name: 'kubernetes-pods'
   kubernetes_sd_configs:
   - role: pod
@@ -1061,6 +1152,10 @@ scrape_configs:
     - targets: ['10.0.0.11:80']
       labels:
         service: slb-nginx
+  file_sd_configs:
+    - refresh_interval: 10s
+      files:
+      - "/data/etc/tcp_status.yml"
   relabel_configs:
     - source_labels: [__address__]
       target_label: __param_target
@@ -1070,14 +1165,15 @@ scrape_configs:
       replacement: blackbox-exporter.monitoring:9115
 
 - job_name: 'prometheus_service_http_status' #外部服务
+  scrape_interval: 5s
   metrics_path: /probe
   params:
     module: [http_2xx]
   static_configs:
-    - targets: ['10.0.0.20:80']
+    - targets: ['https://www.baidu.com']
       labels:
-        service_http: harbor
-    - targets: ['10.0.0.50:443']
+        service_http: www
+    - targets: ['http://10.0.0.20:8888']
       labels:
         service_http: slb-nginx
   relabel_configs:
@@ -1103,6 +1199,19 @@ scrape_configs:
       target_label: instance
     - target_label: __address__
       replacement: blackbox-exporter.monitoring:9115
+EOF
+```
+
+file
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/tcp_status.yml
+- targets: ['10.0.0.150:8443']
+  labels:
+    service: kubernetes
+- targets: ['10.0.0.50:443']
+  labels:
+    service: slb-nginx
 EOF
 ```
 
@@ -1386,6 +1495,13 @@ spec:
         ports:
         - containerPort: 3000
           protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
         volumeMounts:
         - mountPath: /var/lib/grafana
           name: grafana-data
@@ -1632,115 +1748,6 @@ docker push harbor.wzxmt.com/k8s/alertmanager:v0.20.0
 mkdir -p alertmanager && cd alertmanager
 ```
 
-config
-
-```yaml
-cat << 'EOF' >/data/prometheus/alertmanager/config.yml
-global:
-  resolve_timeout: 5m # 在没有报警的情况下声明为已解决的时间
-  # 配置邮件发送信息
-  smtp_smarthost: 'smtp.qq.com:25'
-  smtp_from: '2847182882@qq.com'
-  smtp_auth_username: '2847182882@qq.com'
-  smtp_auth_password: 'smsprvohacphdgfe'
-  smtp_require_tls: false
-  # 配置企业微信发送信息
-  wechat_api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
-  wechat_api_corp_id: 'ww34fac7bd8c8ade8d'      # 企业微信中企业ID
-  wechat_api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4' #企业微信中，应用的Secret
-
-templates:
-  - '/etc/alertmanager/*.tmpl'
-
-route:
-  group_by: ['alertname']
-  group_wait: 30s     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
-  group_interval: 5m  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
-  repeat_interval: 5m # 重复报警的间隔时间
-  receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
-
-  routes:
-  - receiver: 'ops_notify'
-    group_wait: 10s
-    match_re:
-      alertname: '实例存活告警|磁盘使用率告警'
-      
-  - receiver: 'info_notify'
-    group_wait: 10s
-    match_re:
-      alertname: '内存使用率告警|CPU使用率告警'
-
-receivers:
-- name: 'default'
-  email_configs:
-  - to: '1451343603@qq.com'
-    send_resolved: true
-    
-- name: 'ops_notify'
-  wechat_configs:
-  - send_resolved: true
-    api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
-    corp_id: 'ww34fac7bd8c8ade8d'
-    to_party: '1'         # 企业微信中创建的接收告警的部门【告警机器人】的部门ID
-    agent_id: '1000002'     # 企业微信中创建的应用的ID
-    api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'  # 企业微信中，应用的Secret
-    
-- name: 'info_notify'
-  webhook_configs:
-  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook/send'
-    send_resolved: true
-
-inhibit_rules:            #告警收敛
-  - source_match:
-      severity: 'critical'
-    target_match:
-      severity: 'warning'
-    equal: ['alertname', 'dev', 'instance']
-EOF
-```
-
-
-
-```yaml
-cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
-{{ define "wechat.default.message" }}
-{{- if gt (len .Alerts.Firing) 0 -}}
-{{- range $index, $alert := .Alerts -}}
-{{- if eq $index 0 }}
-========= 监控报警 =========
-告警状态：{{   .Status }}
-告警级别：{{ .Labels.severity }}
-告警类型：{{ $alert.Labels.alertname }}
-故障主机: {{ $alert.Labels.instance }}
-告警主题: {{ $alert.Annotations.summary }}
-告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};
-触发阀值：{{ .Annotations.value }}
-故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
-========= = end =  =========
-{{- end }}
-{{- end }}
-{{- end }}
-{{- if gt (len .Alerts.Resolved) 0 -}}
-{{- range $index, $alert := .Alerts -}}
-{{- if eq $index 0 }}
-========= 异常恢复 =========
-告警类型：{{ .Labels.alertname }}
-告警状态：{{   .Status }}
-告警主题: {{ $alert.Annotations.summary }}
-告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};
-故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
-恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
-{{- if gt (len $alert.Labels.instance) 0 }}
-实例信息: {{ $alert.Labels.instance }}
-{{- end }}
-========= = end =  =========
-{{- end }}
-{{- end }}
-{{- end }}
-{{- end }}
-EOF
-```
-
 Deployment
 
 ```yaml
@@ -1772,6 +1779,13 @@ spec:
         ports:
         - name: alertmanager
           containerPort: 9093
+        resources:
+          limits:
+            cpu: 150m
+            memory: 150Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
         volumeMounts:
         - name: alertmanager-data
           mountPath: /etc/alertmanager
@@ -1844,6 +1858,111 @@ alertmanager	60 IN A 10.0.0.50
 
 http://alertmanager.wzxmt.com
 
+配置文件
+
+```yaml
+cat << 'EOF' >/data/prometheus/alertmanager/config.yml
+global:
+  resolve_timeout: 5m # 在没有报警的情况下声明为已解决的时间
+  # 配置邮件发送信息
+  smtp_smarthost: 'smtp.qq.com:25'
+  smtp_from: '2847182882@qq.com'
+  smtp_auth_username: '2847182882@qq.com'
+  smtp_auth_password: 'smsprvohacphdgfe'
+  smtp_require_tls: false
+
+templates:
+  - '/etc/alertmanager/*.tmpl'
+
+route:
+  group_by: ['alertname']
+  group_wait: 30s     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
+  group_interval: 5m  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
+  repeat_interval: 5m # 重复报警的间隔时间
+  receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
+
+  routes:
+  - receiver: 'ops_notify'
+    group_wait: 10s
+    match_re:
+      alertname: '实例存活告警|磁盘使用率告警'
+      
+  - receiver: 'info_notify'
+    group_wait: 10s
+    match_re:
+      alertname: '内存使用率告警|CPU使用率告警'
+
+receivers:
+- name: 'default'
+  email_configs:
+  - to: '1451343603@qq.com'
+    send_resolved: true
+    
+- name: 'ops_notify'
+  wechat_configs:
+  - send_resolved: true
+    api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+    corp_id: 'ww34fac7bd8c8ade8d'
+    to_party: '1'         # 企业微信中创建的接收告警的部门【告警机器人】的部门ID
+    agent_id: '1000002'     # 企业微信中创建的应用的ID
+    api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'  # 企业微信中，应用的Secret
+    
+- name: 'info_notify'
+  webhook_configs:
+  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook/send'
+    send_resolved: true
+
+inhibit_rules:            #告警收敛
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
+EOF
+```
+
+企业微信告警模板
+
+```yaml
+cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
+{{ define "wechat.default.message" }}
+{{- if gt (len .Alerts.Firing) 0 -}}
+{{- range $index, $alert := .Alerts -}}
+{{- if eq $index 0 }}
+========= 监控报警 =========
+告警状态：{{   .Status }}
+告警级别：{{ .Labels.severity }}
+告警类型：{{ $alert.Labels.alertname }}
+故障主机: {{ $alert.Labels.instance }}
+告警主题: {{ $alert.Annotations.summary }}
+告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};
+触发阀值：{{ .Annotations.value }}
+故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+========= = end =  =========
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if gt (len .Alerts.Resolved) 0 -}}
+{{- range $index, $alert := .Alerts -}}
+{{- if eq $index 0 }}
+========= 异常恢复 =========
+告警类型：{{ .Labels.alertname }}
+告警状态：{{   .Status }}
+告警主题: {{ $alert.Annotations.summary }}
+告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};
+故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+{{- if gt (len $alert.Labels.instance) 0 }}
+实例信息: {{ $alert.Labels.instance }}
+{{- end }}
+========= = end =  =========
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+EOF
+```
+
 基础报警规则
 
 ### probe_status
@@ -1871,14 +1990,14 @@ groups:
       summary: "{{$labels.instance}} 服务已不能正常访问，请查看！"
       description: "{{$labels.instance}} 服务已不能正常访问，请查看！" 
  
-  - alert: StatusCode
-    expr: probe_http_status_code <= 199 OR probe_http_status_code >= 400
+  - alert: 服务存活性检测[http]
+    expr: probe_success{service_http!=""} == 0
     for: 1m
     labels:
-      severity: error
+      status: 严重告警
     annotations:
-      summary: "HTTP状态码(instance {{ $labels.instance }})"
-      description: "HTTP状态码不在 200-399 (current value: {{ $value }})"
+      summary: "{{$labels.instance}} 服务已不能正常访问，请查看！"
+      description: "{{$labels.instance}} 服务已不能正常访问，请查看！"
 
   - alert: BlackboxSlowRequests
     expr: probe_http_duration_seconds > 2 
@@ -1899,25 +2018,25 @@ groups:
 - name: 内存告警规则
   rules:
   - alert: "内存使用率告警"
-    expr: (node_memory_MemTotal_bytes - (node_memory_MemFree_bytes+node_memory_Buffers_bytes+node_memory_Cached_bytes )) / node_memory_MemTotal_bytes * 100 > 75
+    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
     for: 1m
     labels:
       severity: warning
     annotations:
       summary: "服务器: {{ $labels.instance }} 内存报警"
-      description: "{{ $labels.instance }} 内存资源利用率大于75%！(当前值: {{ $value }}%)"
+      description: "{{ $labels.instance }} 内存资源利用率大于80%！(当前值: {{ $value }}%)"
       value: "{{ $value }}"
 
 - name: CPU报警规则
   rules:
   - alert: CPU使用率告警
-    expr: 100 - (avg by (instance)(irate(node_cpu_seconds_total{mode="idle"}[1m]) )) * 100 > 70
+    expr: 100 - (avg by (instance)(irate(node_cpu_seconds_total{mode="idle"}[5m]) )) * 100 > 80
     for: 1m
     labels:
       severity: warning
     annotations:
       summary: "服务器: {{ $labels.instance }} CPU报警"
-      description: "服务器: CPU使用超过70%！(当前值: {{ $value }}%)"
+      description: "服务器: CPU使用超过80%！(当前值: {{ $value }}%)"
       value: "{{ $value }}"
 
 - name: 磁盘报警规则
@@ -1932,8 +2051,8 @@ groups:
       description: "服务器:{{ $labels.instance }},磁盘设备: 使用超过80%！(挂载点: {{ $labels.mountpoint }} 当前值: {{ $value }}%)"
       value: "{{ $value }}"
 
-  - alert: 主机网络接收量
-    expr: sum by (instance) (irate(node_network_receive_bytes_total[2m])) / 1024 / 1024 > 100
+  - alert: 主机网络出速率(MiB/s)
+    expr: sum by (instance) (irate(node_network_receive_bytes_total[5m])) / 1024 / 1024 > 100
     for: 5m
     labels:
       severity: warning
@@ -1941,8 +2060,8 @@ groups:
       summary: "异常的网络吞吐量: (instance {{ $labels.instance }})"
       description: "主机网络接口可能接收了太多数据 (> 100 MB/s) (current value: {{ $value }})"
  
-  - alert: 主机网络发送量
-    expr: sum by (instance) (irate(node_network_transmit_bytes_total[2m])) / 1024 / 1024 > 100
+  - alert: 主机网络入速率(MiB/s)
+    expr: sum by (instance) (irate(node_network_transmit_bytes_total[5m])) / 1024 / 1024 > 100
     for: 5m
     labels:
       severity: warning
@@ -1951,7 +2070,7 @@ groups:
       description: "主机网络接口可能发送了太多数据 (> 100 MB/s) (current value: {{ $value }})"
 
   - alert: 磁盘的读速率
-    expr: sum by (instance) (irate(node_disk_read_bytes_total[2m])) / 1024 / 1024 > 50
+    expr: sum by (instance) (irate(node_disk_read_bytes_total[5m])) / 1024 / 1024 > 50
     for: 5m
     labels:
       severity: warning
@@ -1960,7 +2079,7 @@ groups:
       description: "磁盘可能正在读取太多数据 (> 50 MB/s) (current value: {{ $value }})"
 
   - alert: 磁盘的写速率
-    expr: sum by (instance) (irate(node_disk_written_bytes_total[2m])) / 1024 / 1024 > 50
+    expr: sum by (instance) (irate(node_disk_written_bytes_total[5m])) / 1024 / 1024 > 50
     for: 5m
     labels:
       severity: warning
@@ -1969,7 +2088,7 @@ groups:
       description: "磁盘可能正在写入太多数据 (> 50 MB/s) (current value: {{ $value }})"
 
   - alert: 异常磁盘读取延迟
-    expr: rate(node_disk_read_time_seconds_total[1m]) / rate(node_disk_reads_completed_total[1m]) > 100
+    expr: rate(node_disk_read_time_seconds_total[5m]) / rate(node_disk_reads_completed_total[5m]) > 100
     for: 5m
     labels:
       severity: warning
@@ -1978,7 +2097,7 @@ groups:
       description: "磁盘延迟越来越大 (read operations > 100ms) (current value: {{ $value }})"
 
   - alert: 异常磁盘写入延迟
-    expr: rate(node_disk_write_time_seconds_total[1m]) / rate(node_disk_writes_completed_total[1m]) > 100
+    expr: rate(node_disk_write_time_seconds_total[5m]) / rate(node_disk_writes_completed_total[5m]) > 100
     for: 5m
     labels:
       severity: warning
