@@ -1876,9 +1876,9 @@ templates:
 
 route:
   group_by: ['alertname']
-  group_wait: 30s     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
+  group_wait: 5m     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
   group_interval: 5m  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
-  repeat_interval: 5m # 重复报警的间隔时间
+  repeat_interval: 30m # 重复报警的间隔时间
   receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
 
   routes:
