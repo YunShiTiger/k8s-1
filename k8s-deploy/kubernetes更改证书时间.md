@@ -23,6 +23,12 @@ front-proxy-ca          Dec 13, 2030 09:27 UTC   9y              no
 
 服务器的k8s master上需要安装两个工具git和go (这里就省略了)
 
+```
+wget https://golang.org/dl/go1.16.5.linux-amd64.tar.gz
+tar xf go1.16.5.linux-amd64.tar.gz -C /usr/local/
+export PATH=$PATH:/usr/local/go/bin
+```
+
 下载源码
 
 ```
