@@ -925,7 +925,7 @@ EOF
 - 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
 
 ```bash
-mkdir -p /data/prometheus/{prometheus/{etc/rules,prom-db},alertmanager,grafana}
+mkdir -p /data/prometheus/{prometheus/{etc/rules,prom-db,conf},alertmanager,grafana}
 ```
 
 - 准备配置文件
@@ -1155,7 +1155,7 @@ scrape_configs:
   file_sd_configs:
     - refresh_interval: 10s
       files:
-      - "/data/etc/tcp_status.yml"
+      - "/data/etc/conf/tcp_status.yml"
   relabel_configs:
     - source_labels: [__address__]
       target_label: __param_target
@@ -1205,7 +1205,7 @@ EOF
 file
 
 ```yaml
-cat << 'EOF' >/data/prometheus/prometheus/etc/tcp_status.yml
+cat << 'EOF' >/data/prometheus/prometheus/etc/conf/tcp_status.yml
 - targets: ['10.0.0.150:8443']
   labels:
     service: kubernetes
@@ -1730,6 +1730,17 @@ kubernetes -> +New Cluster
 - generic dashboard
 - JMX dashboard
 - blackbox dashboard
+
+模板推荐：
+
+```
+13105   Kubernetes for Prometheus Dashboard
+8919	Node Exporter for Prometheus Dashboard
+9965	Blackbox Exporter 0.14 for Prometheus
+11600	Docker Container
+10856 	K8 Cluster Detail Dashboard
+11543    blackbox
+```
 
 ## 部署alertmanager
 
