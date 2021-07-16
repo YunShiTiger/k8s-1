@@ -15,7 +15,7 @@ Argo CD 可在指定的目标环境中自动部署所需的应用程序状态，
 
 ## 架构
 
-![ArgoCD架构](https://mmbiz.qpic.cn/mmbiz_png/z9BgVMEm7Ysc8aQu4Ykd1yhibU82PibyTyp3hQXeqKgRDYRBVO0VzJ2h2Iy8yPz9njdS7uptVDSicdqEdcDlK84ibQ/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![ArgoCD架构](../acess/aegocd.jpg)
 
 Argo CD 是通过一个 Kubernetes 控制器来实现的，它持续 watch 正在运行的应用程序并将当前的实时状态与所需的目标状态（ Git 存储库中指定的）进行比较。已经部署的应用程序的实际状态与目标状态有差异，则被认为是 `OutOfSync` 状态，Argo CD 会报告显示这些差异，同时提供工具来自动或手动将状态同步到期望的目标状态。在 Git 仓库中对期望目标状态所做的任何修改都可以自动应用反馈到指定的目标环境中去。
 
@@ -251,23 +251,23 @@ Context 'argocd.wzxmt.com' updated
 
 ## 配置集群
 
-由于 Argo CD 支持部署应用到多集群，所以如果你要将应用部署到外部集群的时候，需要先将外部集群的认证信息注册到 Argo CD 中，如果是在内部部署（运行 Argo CD 的同一个集群，默认不需要配置），应该使用 `https://kubernetes.default.svc` 作为应用的 K8S APIServer 地址。
+由于 Argo CD 支持部署应用到多集群，所以如果你要将应用部署到外部集群的时候，需要先将外部集群的认证信息注册到 Argo CD 中，如果是在内部部署（运行 Argo CD 的同一个集群，默认不需要配置），应该使用 https://kubernetes.default.svc 作为应用的 K8S APIServer 地址。
 
 首先列出当前 kubeconfig 中的所有集群上下文：
 
-```
+```bash
 kubectl config get-contexts -o name
 ```
 
 从列表中选择一个上下文名称并将其提供给 `argocd cluster add CONTEXTNAME`，比如对于 `docker-desktop`上下文，运行：
 
-```
+```bash
 argocd cluster add admin@kubernetes
 ```
 
 上述命令会将 ServiceAccount (argocd-manager) 安装到该 kubectl 上下文的 kube-system 命名空间中，并将 ServiceAccount 绑定到管理员级别的 ClusterRole，Argo CD 使用此 ServiceAccount 令牌来执行任务管理（部署/监控）。
 
-> `argocd-manager-role` 可以修改 Role 的规则，使其仅对有限的一组命名空间、组、种类具有 create、update、patch、delete 等权限，但是对于 Argo CD 需要 get，list，watch 的权限在 ClusterRole 范围内。
+> argocd-manager-role 可以修改 Role 的规则，使其仅对有限的一组命名空间、组、种类具有 create、update、patch、delete 等权限，但是对于 Argo CD 需要 get，list，watch 的权限在 ClusterRole 范围内。
 
 ## 创建应用
 
@@ -275,11 +275,10 @@ Git 仓库 https://github.com/argoproj/argocd-example-apps.git 是一个包含�
 
 ### 通过 CLI 创建应用
 
-我们可以通过 `argocd app create xxx` 命令来创建一个应用：
+我们可以通过 **argocd app create xxx** 命令来创建一个应用：
 
 ```bash
 argocd app create --help
-
 ...
         # Create a directory app
         argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
@@ -310,9 +309,9 @@ application 'guestbook' created
 
 ### 通过 UI 创建应用
 
-除了可以通过 CLI 工具来创建应用，我们也可以通过 UI 界面来创建，定位到 `argocd.wzxmt.com` 页面，登录后，点击 `+New App` 新建应用按钮，如下图：
+除了可以通过 CLI 工具来创建应用，我们也可以通过 UI 界面来创建，http://argocd.wzxmt.com页面，登录后，点击 `+New App` 新建应用按钮，如下图：
 
-![图片](data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==)![image-20210710212743584](C:\Users\wzxmt\Desktop\k8s\acess\02a45f9db4fc4d68bda0c.jpg)
+![image-20210710212743584](../acess/02a45f9db4fc4d68bda0c.jpg)
 
 将应用命名为 guestbook，使用 default project，并将同步策略设置为 `Manual`：![图片](data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==)![image-20210711095114540](../acess/image-20210711095114540.png)
 

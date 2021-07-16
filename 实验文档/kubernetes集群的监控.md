@@ -417,6 +417,99 @@ EOF
 kubectl apply -f ./
 ```
 
+## 部署missing-container-metrics 
+
+missing-container-metrics 这个项目弥补了 cAdvisor 的缺陷，新增了OOM kill、容器重启的次数和容器的退出码指标，集群管理员可以利用这些指标迅速定位某些故障。例如，假设某个容器有多个子进程，其中某个子进程被 OOM kill，但容器还在运行，如果不对 OOM kill 进行监控，管理员很难对故障进行定位。
+
+```bash
+docker pull dmilhdef/missing-container-metrics:v0.21.0
+docker tag dmilhdef/missing-container-metrics:v0.21.0 harbor.wzxmt.com/k8s/missing-container-metrics:v0.21.0
+docker push harbor.wzxmt.com/k8s/missing-container-metrics:v0.21.0
+```
+
+创建目录
+
+```bash
+mkdir -p missing-container-metrics && cd missing-container-metrics
+```
+
+DaemonSet
+
+```yaml
+cat << 'EOF' >ds.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: missing-container-metrics
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: missing-container-metrics
+    app.kubernetes.io/instance: missing-container-metrics
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: missing-container-metrics
+      app.kubernetes.io/instance: missing-container-metrics
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "3001"
+        prometheus.io/scrape: "true"
+      labels:
+        app.kubernetes.io/name: missing-container-metrics
+        app.kubernetes.io/instance: missing-container-metrics
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      imagePullSecrets:
+      - name: harborlogin
+      volumes:
+      - name: dockersock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: containerdsock
+        hostPath:
+          path: /run/containerd/containerd.sock
+      containers:
+        - name: missing-container-metrics
+          image: harbor.wzxmt.com/k8s/missing-container-metrics:v0.21.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DOCKER
+              value: "true"
+            - name: CONTAINERD
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 3001
+              hostPort: 3001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+          volumeMounts:
+          - name: dockersock
+            mountPath: /var/run/docker.sock
+          - name: containerdsock
+            mountPath: /run/containerd/containerd.sock
+EOF
+```
+
+部署
+
+```bash
+kubectl apply -f ds.yaml
+```
+
+
+
 ## 部署cadvisor
 
 [cadvisor官方dockerhub地址](https://hub.docker.com/r/google/cadvisor)
@@ -544,7 +637,7 @@ ll /sys/fs/cgroup|grep cpu
 部署
 
 ```bash
-kubectl apply -f ds.yaml
+kubectl apply -f ./
 ```
 
 ## 部署blackbox-exporter
@@ -925,7 +1018,7 @@ EOF
 - 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
 
 ```bash
-mkdir -p /data/prometheus/{prometheus/{etc/rules,prom-db,conf},alertmanager,grafana}
+mkdir -p /data/prometheus/{prometheus/etc/{rules,prom-db,conf},alertmanager,grafana}
 ```
 
 - 准备配置文件
@@ -1042,6 +1135,17 @@ scrape_configs:
     - targets: ['10.0.0.20:4194']
       labels:
         instance: manage
+
+- job_name: 'kubernetes-missing'
+  kubernetes_sd_configs:
+  - role: node
+  relabel_configs:
+  - action: labelmap
+    regex: __meta_kubernetes_node_label_(.+)
+  - source_labels: [__meta_kubernetes_node_name]
+    regex: (.+)
+    target_label: __address__
+    replacement: ${1}:3001 #添加解析.wzxmt.com
 
 - job_name: 'kubernetes-node-export'
   kubernetes_sd_configs:
@@ -2238,6 +2342,28 @@ groups:
 EOF
 ```
 
+### missing-container-metrics
+
+```yaml
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/missing_status.yml
+groups:
+- name:  Docker containers monitoring
+  rules:
+  - alert: ContainerOOMObserved
+    annotations:
+      message: A process in this Pod has been OOMKilled due to exceeding the Kubernetes memory limit at least twice in the last 15 minutes. Look at the metrics to determine if a memory limit increase is required.
+    expr: sum(increase(container_ooms[15m])) by (exported_namespace, exported_pod) > 2
+    labels:
+      severity: warning
+  - alert: ContainerOOMObserved
+    annotations:
+      message: A process in this Pod has been OOMKilled due to exceeding the Kubernetes memory limit at least ten times in the last 15 minutes. Look at the metrics to determine if a memory limit increase is required.
+    expr: sum(increase(container_ooms[15m])) by (exported_namespace, exported_pod) > 10
+    labels:
+      severity: critical
+EOF
+```
+
 在prometheus.yml中添加配置：
 
 ```yaml
@@ -2254,7 +2380,7 @@ rule_files:
 重载配置：
 
 ```
-# curl -X POST http://prometheus.wzxmt.com/-/reload
+curl -X POST http://prometheus.wzxmt.com/-/reload
 ```
 
 ![img](../acess/1034759-20191218173411675-688635972.png)

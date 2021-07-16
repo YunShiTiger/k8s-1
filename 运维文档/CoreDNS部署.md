@@ -32,8 +32,8 @@ ExecStart=/apps/etcd/bin/etcd \
 --logger=zap \
 --enable-v2=true \
 --name=etcd \
---listen-client-urls=http://192.168.31.20:2379,http://127.0.0.1:2379 \
---advertise-client-urls=http://192.168.31.20:2379 \
+--listen-client-urls=http://0.0.0.0:2379 \
+--advertise-client-urls=http://0.0.0.0:2379 \
 --max-request-bytes=33554432 \
 --quota-backend-bytes=6442450944 \
 --heartbeat-interval=250 \
@@ -48,7 +48,7 @@ EOF
 #### 启动etcd
 
 ```bash
-systemctl enable etcd
+systemctl enable --now etcd
 systemctl start etcd
 ```
 
@@ -82,7 +82,7 @@ useradd coredns -s /sbin/nologin
 ```
 
 ### Corefile 有两种方案
-#### 方案1:
+#### 方案1
 ```bash
 .:53 {
     errors
@@ -109,7 +109,7 @@ useradd coredns -s /sbin/nologin
   forward . 172.100.0.10:53
   }
 ```
-#### 方案2: 
+#### 方案2
 ```bash
 # 添加本地解析域名
 xxxx.net {
@@ -267,8 +267,7 @@ EOF
 #### 启动服务
 
 ```bash
-systemctl enable coredns
-systemctl start coredns
+systemctl enable coredns --now
 ```
 
 ### 测试添加相应记录
@@ -285,7 +284,7 @@ etcdctl put /coredns/com/leffss/www '{"host":"1.1.1.1","ttl":10}'
 查询结果：
 
 ```
-[root@dns conf]# dig @localhost +short www.leffss.com      
+[root@dns ~]# dig @localhost +short www.leffss.com
 1.1.1.1
 ```
 
@@ -303,7 +302,7 @@ etcdctl put /coredns/com/leffss/www/x2 '{"host":"1.1.1.3","ttl":10}'
 查询结果：
 
 ```
-[root@dns conf]# dig @localhost +short www.leffss.com      
+[root@dns ~]# dig @localhost +short www.leffss.com      
 1.1.1.2
 1.1.1.3
 ```
@@ -319,7 +318,7 @@ etcdctl put /coredns/com/leffss/www '{"host":"1002::4:2","ttl":10}'
 查询结果：
 
 ```
-[root@dns conf]# dig -t AAAA @localhost +short www.leffss.com    
+[root@dns ~]# dig -t AAAA @localhost +short www.leffss.com
 1002::4:2
 ```
 
@@ -332,7 +331,7 @@ etcdctl put /coredns/com/leffss01/www '{"host":"www.baidu.com","ttl":10}'
 查询结果：
 
 ```
-[root@dns conf]# dig -t CNAME @localhost +short www.leffss01.com 
+[root@dns ~]# dig -t CNAME @localhost +short www.leffss01.com 
 www.baidu.com.
 ```
 
@@ -349,7 +348,7 @@ etcdctl put /coredns/com/leffss/www '{"host":"www.baidu.com","port":80,"ttl":10}
 查询结果：
 
 ```
-[root@dns conf]# dig -t SRV @localhost +short www.leffss.com 
+[root@dns ~]# dig -t SRV @localhost +short www.leffss.com 
 10 50 0 x1.www.leffss.com.
 10 50 0 x2.www.leffss.com.
 ```
@@ -363,7 +362,7 @@ etcdctl put /coredns/com/leffss/www '{"text":"This is text!","ttl":10}'
 查询结果：
 
 ```
-[root@dns conf]# dig -t TXT @localhost +short www.leffss.com
+[root@dns ~]# dig -t TXT @localhost +short www.leffss.com
 "This is text!"
 ```
 
