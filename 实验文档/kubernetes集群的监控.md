@@ -1018,7 +1018,7 @@ EOF
 - 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
 
 ```bash
-mkdir -p /data/prometheus/{prometheus/etc/{rules,prom-db,conf},alertmanager,grafana}
+mkdir -p /data/prometheus/{prometheus/etc/{rules,conf},alertmanager,grafana}
 ```
 
 - 准备配置文件
@@ -1084,7 +1084,27 @@ scrape_configs:
   - source_labels:  ["__meta_kubernetes_pod_container_name"]
     regex: "^kube-state-metrics.*"
     action: keep 
-    
+
+- job_name: 'kube-dns-metrics'
+  scheme: http
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  metrics_path: /metrics
+  kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_name]
+    action: replace
+    target_label: pod
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - source_labels: [__meta_kubernetes_pod_ip]
+    regex: (.+)
+    target_label: __address__
+    replacement: ${1}:9153
+  - source_labels:  ["__meta_kubernetes_pod_container_name"]
+    regex: "^coredns.*"
+    action: keep
+
 - job_name: 'kubernetes-pods'
   kubernetes_sd_configs:
   - role: pod
