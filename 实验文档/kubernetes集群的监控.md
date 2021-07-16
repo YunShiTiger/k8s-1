@@ -480,7 +480,7 @@ spec:
             - name: DOCKER
               value: "true"
             - name: CONTAINERD
-              value: "true"
+              value: "false"
           ports:
             - name: http
               containerPort: 3001
@@ -553,15 +553,18 @@ metadata:
   name: cadvisor
   namespace: monitoring
   labels:
-    app: cadvisor
+    app.kubernetes.io/name: cadvisor
+    app.kubernetes.io/version: v0.33.0
 spec:
   selector:
     matchLabels:
-      name: cadvisor
+      app.kubernetes.io/name: cadvisor
+      app.kubernetes.io/version: v0.33.0
   template:
     metadata:
       labels:
-        name: cadvisor
+        app.kubernetes.io/name: cadvisor
+        app.kubernetes.io/version: v0.33.0
     spec:
       hostNetwork: true
       tolerations:
@@ -1058,7 +1061,25 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
     action: keep
     regex: default;kubernetes;https
-    
+
+- job_name: 'kubernetes-scheduler'
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+  - targets:
+    - '10.0.0.31:10251'
+    - '10.0.0.32:10251'
+    - '10.0.0.33:10251'
+
+- job_name: 'kubernetes-controller'
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+  - targets:
+    - '10.0.0.31:10252'
+    - '10.0.0.32:10252'
+    - '10.0.0.33:10252'
+
 - job_name: 'kube-state-metrics'
   scheme: http
   bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1403,7 +1424,7 @@ prometheus	60 IN A 10.0.0.50
 "annotations": {
   "prometheus_io_scheme": "traefik",
   "prometheus_io_path": "/metrics",
-  "prometheus_io_port": "8080"
+  "prometheus_io_port": "8090"
 }
 ```
 
