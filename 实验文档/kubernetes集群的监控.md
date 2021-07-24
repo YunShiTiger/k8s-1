@@ -924,7 +924,6 @@ spec:
       labels:
         app: prometheus
     spec:
-      nodeName: n2
       containers:
       - image: harbor.wzxmt.com/k8s/prometheus:v2.22.2
         args:
@@ -965,7 +964,7 @@ spec:
       - name: prometheus-data
         hostPath:          
           type: Directory
-          path: /data/prometheus/prometheus
+          path: /data/docker-monitor/prometheus-data/prometheus
       - name: date
         hostPath:
           path: /etc/localtime
@@ -1029,8 +1028,9 @@ mkdir -p /data/prometheus/{prometheus/etc/{rules,conf},alertmanager,grafana}
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/prometheus.yml
 global:
-  scrape_interval:     15s
+  scrape_interval:     30s
   evaluation_interval: 15s
+  scrape_timeout: 30s
 alerting:
   alertmanagers:
     - static_configs:
@@ -1300,7 +1300,7 @@ scrape_configs:
   file_sd_configs:
     - refresh_interval: 10s
       files:
-      - "/data/etc/conf/tcp_status.yml"
+      - "/data/etc/conf/*.yml"
   relabel_configs:
     - source_labels: [__address__]
       target_label: __param_target
@@ -2164,8 +2164,8 @@ groups:
     labels:
       status: 严重告警
     annotations:
-      summary: "{{$labels.instance}} 主机已宕机，请尽快查看！"
-      description: "{{$labels.instance}} 主机已宕机，请尽快查看！"
+      summary: "{{$labels.instance}} 主机icmp探测失败，请尽快查看！"
+      description: "{{$labels.instance}} 主机icmp探测失败，请尽快查看！"
 
   - alert: 服务存活性检测[tcp]
     expr: probe_success{service!=""} == 0

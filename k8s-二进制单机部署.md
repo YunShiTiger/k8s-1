@@ -1,6 +1,6 @@
 ## 1. 系统优化
 
-#### 1.1 关闭,关闭selinux与swap
+#### 1 关闭,关闭selinux与swap
 
 **关闭防火墙**
 
@@ -33,7 +33,7 @@ KUBELET_EXTRA_ARGS=--fail-swap-on=false
 EOF
 ```
 
-#### 1.2 更新 yum 源
+#### 2 更新 yum 源
 
 ```bash
 cd /etc/yum.repos.d
@@ -44,7 +44,7 @@ curl https://mirrors.aliyun.com/repo/epel-7.repo -o epel.repo
 cd -
 ```
 
-#### 1.3 设置系统参数 
+#### 3 设置系统参数 
 
 允许路由转发，不对bridge的数据进行处理
 
@@ -59,7 +59,7 @@ EOF
 modprobe br_netfilter
 ```
 
-#### 1.4 最终内核参数优化
+#### 4 最终内核参数优化
 
 ```bash
 cat << EOF >/etc/sysctl.d/99-sysctl.conf
@@ -84,7 +84,7 @@ EOF
 sysctl -p 
 ```
 
-#### 1.5 kube-proxy开启ipvs的前置条件
+#### 5 kube-proxy开启ipvs的前置条件
 
 由于ipvs已经加入到了内核的主干，所以为kube-proxy开启ipvs的前提需要加载以下的内核模块：
 
@@ -112,7 +112,7 @@ yum install -y ipset ipvsadm
 
 如果以上前提条件如果不满足，则即使kube-proxy的配置开启了ipvs模式，也会退回到iptables模式。
 
-#### 1.6 调整系统时区
+#### 6 调整系统时区
 
 ```bash
 # 设置系统时区为中国/上海
@@ -122,7 +122,7 @@ timedatectl set-timezone Asia/Shanghai
 systemctl restart crond
 ```
 
-#### 1.7 设置 rsyslogd 和 systemd journald
+#### 7 设置 rsyslogd 和 systemd journald
 
 ```bash
 mkdir /var/log/journal # 持久化保存日志的目录
@@ -148,7 +148,7 @@ EOF
 systemctl restart systemd-journald
 ```
 
-#### 1.8 升级系统内核为 4.44
+#### 8 升级系统内核为 4.44
 
 CentOS 7.x 系统自带的 3.10.x 内核存在一些 Bugs，导致运行的 Docker、Kubernetes 不稳定 
 
@@ -182,7 +182,7 @@ uname -r
 4.4.218-1.el7.elrepo.x86_64
 ```
 
-#### 1.9 关闭 NUMA
+#### 9 关闭 NUMA
 
 备份grub
 
@@ -204,19 +204,13 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 
 ## 2. 集群基础设置
 
-#### 2.1.1节点信息
+#### 1 节点信息
 
 | 节点角色 |   IP地址   | Hostname | CPU  | 内存 |                            server                            |
 | :------: | :--------: | :------: | :--: | ---- | :----------------------------------------------------------: |
-|          | 10.0.0.100 | k8s-vip  |  1   | 2G   |                                                              |
-| master01 | 10.0.0.31  |    m1    |  1   | 2G   | etcd  apiserver scheduler controller-manager  kubectl  haproxy keepalived |
-| master02 | 10.0.0.32  |    m2    |  1   | 2G   | etcd  apiserver scheduler controller-manager kubectl  haproxy keepalived |
-| master03 | 10.0.0.33  |    m3    |  1   | 2G   | etcd  apiserver scheduler controller-manager kubectl  haproxy keepalived |
-|  node01  | 10.0.0.41  |    n1    |  1   | 2G   |                  docker kubelet kube-proxy                   |
-|  node02  | 10.0.0.42  |    n2    |  1   | 2G   |                  docker kubelet kube-proxy                   |
-|  node03  | 10.0.0.43  |    n3    |  1   | 2G   |                  docker kubelet kube-proxy                   |
+| master01 | 10.0.0.180 |   k8s    |  4   | 8G   | etcd  apiserver scheduler controller-manager  kubectl  docker kubelet kube-proxy |
 
-#### 2.1.2 网络配置信息
+#### 2 网络配置信息
 
 node网段：
 
@@ -236,30 +230,7 @@ pod网段：
 172.16.0.0/16
 ```
 
-#### 2.2 hosts解析
-
-```bash
-cat << EOF >>/etc/hosts
-10.0.0.31 m1
-10.0.0.32 m2
-10.0.0.33 m3
-10.0.0.41 n1
-10.0.0.42 n2
-10.0.0.43 n3
-EOF
-```
-
-#### 2.3 节点互信
-
-```bash
-#生成密钥
-ssh-keygen -t dsa -f "/root/.ssh/id_dsa" -N "" -q
-#将公钥作为认证信息
-cat /root/.ssh/id_dsa.pub >/root/.ssh/authorized_keys
-for n in m{2..3} n{1..3};do scp -r /root/.ssh $n:/root/;done
-```
-
-#### 2.4 设置环境变量
+#### 3 设置环境变量
 
 ```bash
 cat << EOF >>/root/.bash_profile
@@ -267,18 +238,14 @@ TOKEN_ID=$(openssl rand -hex 3)
 TOKEN_SECRET=$(openssl rand -hex 8)
 ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
 AUTH_EXTRA_GROUPS="system:bootstrappers:default-node-token"
-ETCD_SERVER="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379"
-ETCD_ENDPOINTS="etcd-m1=https://10.0.0.31:2380,etcd-m2=https://10.0.0.32:2380,etcd-m3=https://10.0.0.33:2380"
-M_IP=(10.0.0.31 10.0.0.32 10.0.0.33)
-N_IP=(10.0.0.41 10.0.0.42 10.0.0.43)
-M_NAME=(m1 m2 m3)
-n_NAME=(n1 n2 n3)
-VIP=10.0.0.150
+ETCD_SERVER="https://10.0.0.180:2379"
+ETCD_ENDPOINTS="etcd=https://10.0.0.180:2380"
 DNS=10.96.0.10
+ETCD_IP=10.0.0.180
 SERVICE_CIDR=10.96.0.0/16
 CLUSTER_CIDR=172.16.0.0/16
 NODE_PORT_RANGE=30000-32767
-KUBE_APISERVER="https://10.0.0.150:8443"
+KUBE_APISERVER="https://10.0.0.180:6443"
 CNI_DIR=/opt/cni
 K8S_DIR=/opt/kubernetes
 K8S_CONF=/etc/kubernetes
@@ -294,7 +261,7 @@ EOF
 source ~/.bash_profile
 ```
 
-#### 2.6 下载集群所需软件
+#### 4 下载集群所需软件
 
 [kubernetes](https://dl.k8s.io/v1.18.2/kubernetes-server-linux-amd64.tar.gz)
 [etcd](https://github.com/etcd-io/etcd/releases/download/v3.4.7/etcd-v3.4.7-linux-amd64.tar.gz)
@@ -305,8 +272,7 @@ source ~/.bash_profile
 **创建目录**
 
 ```bash
-for n in m{1..3};do ssh $n "mkdir -p /etc/kubernetes/pki /opt/kubernetes/bin /root/.kube /opt/cni/bin /data/kubernetes/logs";done
-for n in m{1..3} n{1..3};do ssh $n "mkdir -p /etc/kubernetes/{pki,manifests,kubelet-plugins} ${CNI_DIR}/{bin} /data/kubernetes/logs /etc/cni/net.d /opt/kubernetes/bin/";done
+mkdir -p  /opt/{kubernetes/bin,cni/bin} /root/.kube  /data/kubernetes/logs /etc/{cni/net.d,kubernetes/{pki,manifests,kubelet-plugins}}
 ```
 
 **kubernetes解压推送各节点**
@@ -315,10 +281,8 @@ for n in m{1..3} n{1..3};do ssh $n "mkdir -p /etc/kubernetes/{pki,manifests,kube
 tar -zxvf kubernetes-server-linux-amd64.tar
 cd kubernetes/server/bin/
 #复制可执行文件到其余master节点
-for n in m{1..3};do scp kube-apiserver kube-scheduler kube-controller-manager kube-proxy kubelet $n:${K8S_DIR}/bin/;done
-for n in m{1..3};do scp kubectl $n:/usr/local/bin/;done
-#复制可执行文件到其余node节点
-for n in n{1..3};do scp kubelet kube-proxy root@$n:${K8S_DIR}/bin/;done
+kube-apiserver kube-scheduler kube-controller-manager kube-proxy kubelet ${K8S_DIR}/bin/
+cp kubectl /usr/local/bin/
 ```
 
 **ETC解压推送各节点**
@@ -328,8 +292,8 @@ cd -
 tar zxvf etcd-v3.4.9-linux-amd64.tar.gz
 cd etcd-v3.4.9-linux-amd64
 #复制可执行文件到其余master节点
-for n in m{1..3};do rsync -av etcd $n:${K8S_DIR}/bin/;done
-for n in m{1..3};do rsync -av etcdctl $n:/usr/local/bin/;done
+cp etcd ${K8S_DIR}/bin/;done
+cp etcdctl /usr/local/bin/;done
 ```
 
 **cfssl下载**
@@ -343,26 +307,24 @@ chmod +x /usr/local/bin/cfssl*
 **cni解压推送各节点**
 
 ```bash
-for n in m{1..3} n{1..3};do scp cni-plugins-linux-amd64-v0.8.5.tgz $n:/root/ && ssh $n "tar -zxf cni-plugins-linux-amd64-v0.8.5.tgz -C /opt/cni/bin";done
+tar -zxf cni-plugins-linux-amd64-v0.8.5.tgz -C /opt/cni/bin
 ```
 
 **flanneld解压推送各节点**
 
 ```bash
-for n in n{1..3};do scp flannel-v0.12.0-linux-amd64.tar.gz $n:${K8S_DIR} && ssh $n tar xf ${K8S_DIR}/flannel-v0.12.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin/;done
+tar xf flannel-v0.12.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin/
 ```
 
 ## 3. 安装docker(node节点）
 
-### 3.1 yum安装
-
-#### 3.1.1 安装依赖
+#### 1 安装依赖
 
 ```bash
 yum install -y yum-utils device-mapper-persistent-data lvm2 nfs-utils
 ```
 
-#### 3.1.2 配置docker源
+#### 2 配置docker源
 
 ```bash
 yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
@@ -370,7 +332,7 @@ yum makecache fast
 rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
 ```
 
-#### 3.1.3 查看docker版号
+#### 3 查看docker版号
 
 ```bash
 yum list docker-ce.x86_64  --showduplicates |sort -r
@@ -378,71 +340,28 @@ yum list docker-ce.x86_64  --showduplicates |sort -r
 
  Kubernetes 1.16当前支持的docker版本列表是 Docker版本1.13.1、17.03、17.06、17.09、18.06、18.09 
 
-#### 3.1.4 安装 docker
+#### 4 安装 docker
 
 ```bash
 yum makecache fast
-yum install -y docker-ce-18.09.9-3.el7 
+yum install -y docker-ce-19.03.9-3.el7
 ```
 
-### 3.2 二进制安装
-
-#### 3.2.1 下载地址
-
-```bash
-wget https://download.docker.com/linux/static/stable/x86_64/docker-19.03.9.tgz
-```
-
-#### 3.2.2 解压安装
-
-```bash
-tar zxvf docker-19.03.9.tgz
-mv docker/* /usr/bin
-```
-
-#### 3.2.3 systemctl管理docker
-
-```bash
-cat << 'EOF' >/usr/lib/systemd/system/docker.service
-[Unit]
-Description=Docker Application Container Engine
-Documentation=https://docs.docker.com
-After=network-online.target firewalld.service
-Wants=network-online.target
-
-[Service]
-ExecStart=/usr/bin/dockerd
-ExecReload=/bin/kill -s HUP $MAINPID
-LimitNOFILE=infinity
-LimitNPROC=infinity
-LimitCORE=infinity
-TimeoutStartSec=0
-Delegate=yes
-KillMode=process
-Restart=on-failure
-StartLimitBurst=3
-StartLimitInterval=60s
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-### 3.3 配置所有ip的数据包转发
+#### 5 配置所有ip的数据包转发
 
 ```bash
 #找到ExecStart=xxx，在这行下面加入一行，内容如下：(k8s的网络需要)
 sed -i.bak '/ExecStart/a\ExecStartPost=/sbin/iptables -I FORWARD -s 0.0.0.0/0 -j ACCEPT' /lib/systemd/system/docker.service
 ```
 
-### 3.4 docker基础优化
+#### 6 docker基础优化
 
 ```bash
 mkdir -p /etc/docker/
 cat << EOF >/etc/docker/daemon.json
 {
     "log-driver": "json-file",
-    "graph":"/data/docker",
+    "graph":"/var/lib/docker",
     "log-opts": { "max-size": "100m"},
     "exec-opts": ["native.cgroupdriver=cgroupfs"],
     "registry-mirrors": ["https://s3w3uu4l.mirror.aliyuncs.com"],
@@ -455,7 +374,7 @@ cat << EOF >/etc/docker/daemon.json
 EOF
 ```
 
-### 3.5 启动服务
+#### 7 启动服务
 
 ```bash
 systemctl daemon-reload && systemctl enable --now docker
@@ -463,7 +382,7 @@ systemctl daemon-reload && systemctl enable --now docker
 
 ## 4. 集群证书生成
 
-#### 4.1 生成CA私钥和证书
+#### 1 生成CA私钥和证书
 
 ```bash
 cd $K8S_SSL
@@ -476,7 +395,7 @@ EOF
 cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 ```
 
-#### 4.2 生成Kubernetes webhook私钥和证书
+#### 2 生成Kubernetes webhook私钥和证书
 
 ```bash
 cat >aggregator-csr.json<<EOF
@@ -485,7 +404,7 @@ EOF
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes aggregator-csr.json | cfssljson -bare aggregator
 ```
 
-#### 4.3 生成Kubernetes admin私钥和证书
+#### 3 生成Kubernetes admin私钥和证书
 
 ```bash
 cat >admin-csr.json<<EOF
@@ -494,16 +413,16 @@ EOF
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes admin-csr.json| cfssljson -bare admin
 ```
 
-#### 4.4 生成kube-apiserver私钥和证书
+#### 4 生成kube-apiserver私钥和证书
 
 ```bash
 cat >server-csr.json <<EOF 
 {"CN":"kubernetes","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"k8s"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local,10.0.0.31,10.0.0.32,10.0.0.33,10.0.0.150,172.16.0.1,10.96.0.1,127.0.0.1 -profile=kubernetes server-csr.json|cfssljson -bare server
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local,10.0.0.180,172.16.0.1,10.96.0.1,127.0.0.1 -profile=kubernetes server-csr.json|cfssljson -bare server
 ```
 
-#### 4.5 生成kube-controller-manager私钥和证书
+#### 5 生成kube-controller-manager私钥和证书
 
 ```bash
 cat >controller-manager-csr.json <<EOF 
@@ -512,7 +431,7 @@ EOF
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes controller-manager-csr.json|cfssljson -bare kube-controller-manager
 ```
 
-#### 4.6 生成kube-scheduler私钥和证书
+#### 6 生成kube-scheduler私钥和证书
 
 ```bash
 cat >scheduler-csr.json <<EOF 
@@ -521,7 +440,7 @@ EOF
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes scheduler-csr.json|cfssljson -bare kube-scheduler
 ```
 
-#### 4.7 生成kube-proxy 私钥和证书
+#### 7 生成kube-proxy 私钥和证书
 
 ```bash
 cat > kube-proxy-csr.json << EOF
@@ -530,16 +449,16 @@ EOF
 cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes kube-proxy-csr.json | cfssljson -bare kube-proxy
 ```
 
-#### 4.8生成etcd私钥和证书
+#### 8生成etcd私钥和证书
 
 ```bash 
 cat > etcd-csr.json <<EOF 
 {"CN":"etcd","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"etcd"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.31,10.0.0.32,10.0.0.33 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
 ```
 
-#### 4.9 创建 flanneld 证书和私钥
+#### 9 创建 flanneld 证书和私钥
 
 ```bash
 cat >flanneld-csr.json <<EOF
@@ -554,16 +473,9 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 rm -f *.json *csr*
 ```
 
-分发证书及配置文件相应节点
-
-```bash
-for n in m{1..3};do rsync -av ${K8S_SSL} root@$n:/etc/kubernetes/;done
-for m in n{1..3};do rsync -av ${K8S_SSL}/{ca.pem,flanneld*} root@$m:${K8S_SSL}/;done
-```
-
 ## 5. 生成kubeconfig认证文件
 
-#### 5.1 scheduler-kubeconfig
+#### 1 scheduler-kubeconfig
 
 ```bash
 cd $K8S_SSL
@@ -576,7 +488,7 @@ kubectl config set-context system:kube-scheduler@kubernetes --cluster=kubernetes
 kubectl config use-context system:kube-scheduler@kubernetes --kubeconfig=${K8S_CONF}/kube-scheduler.kubeconfig
 ```
 
-#### 5.2 controller-manager-kubeconfig
+#### 2 controller-manager-kubeconfig
 
 ```bash
 kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_CONF}/kube-controller-manager.kubeconfig
@@ -588,7 +500,7 @@ kubectl config set-context system:kube-controller-manager@kubernetes --cluster=k
 kubectl config use-context system:kube-controller-manager@kubernetes --kubeconfig=${K8S_CONF}/kube-controller-manager.kubeconfig
 ```
 
-#### 5.3 kubelet bootstrapping kubeconfig
+#### 3 kubelet bootstrapping kubeconfig
 
 ```bash
 kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_CONF}/bootstrap-kubelet.kubeconfig
@@ -600,7 +512,7 @@ kubectl config set-context default --cluster=kubernetes --user=tls-bootstrap-tok
 kubectl config use-context default --kubeconfig=${K8S_CONF}/bootstrap-kubelet.kubeconfig
 ```
 
-#### 5.4 proxy-kubeconfig
+#### 4 proxy-kubeconfig
 
 ```bash
 kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_CONF}/kube-proxy.kubeconfig
@@ -612,7 +524,7 @@ kubectl config set-context default --cluster=kubernetes --user=kube-proxy --kube
 kubectl config use-context default --kubeconfig=${K8S_CONF}/kube-proxy.kubeconfig
 ```
 
-#### 5.5 admin-kubeconfig
+#### 5 admin-kubeconfig
 
 ```bash
 kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_CONF}/admin.kubeconfig
@@ -624,26 +536,18 @@ kubectl config set-context admin@kubernetes --cluster=kubernetes --user=admin --
 kubectl config use-context admin@kubernetes --kubeconfig=${K8S_CONF}/admin.kubeconfig
 ```
 
-分发配置
+kube
 
 ```bash
-for n in m{1..3};do scp ${K8S_CONF}/*.kubeconfig $n:${K8S_CONF}/;done
-for n in m{1..3};do ssh root@$n cp ${K8S_CONF}/admin.kubeconfig /root/.kube/config;done
-for n in n{1..3};do scp ${K8S_CONF}/{kube-proxy.kubeconfig,bootstrap-kubelet.kubeconfig} $n:${K8S_CONF}/;done
+ cp ${K8S_CONF}/admin.kubeconfig /root/.kube/config
 ```
 
-## 5 systemctl管理etcd
+## 6 etcd部署
+
+#### 1、systemctl管理etcd
 
 ```bash
-cd $HOME
-cat << 'AOF' >etcd-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_NAME=${M_NAME[i]}
-  NODE_IP=${M_IP[i]}
-cat << EOF >etcd.service 
+cat << EOF >/usr/lib/systemd/system/etcd.service 
 [Unit]
 Description=Etcd Server
 After=neCNork.target
@@ -652,7 +556,7 @@ Wants=network-online.target
 [Service]
 Type=notify
 ExecStart=${K8S_DIR}/bin/etcd \\
---advertise-client-urls=https://${NODE_IP}:2379 \\
+--advertise-client-urls=https://${ETCD_IP}:2379 \\
 --auto-compaction-mode=periodic \\
 --auto-compaction-retention=1 \\
 --cert-file=${K8S_SSL}/etcd.pem \\
@@ -661,16 +565,16 @@ ExecStart=${K8S_DIR}/bin/etcd \\
 --election-timeout=30000 \\
 --enable-v2=true \\
 --heartbeat-interval=6000 \\
---initial-advertise-peer-urls=https://${NODE_IP}:2380 \\
+--initial-advertise-peer-urls=https://${ETCD_IP}:2380 \\
 --initial-cluster=${ETCD_ENDPOINTS} \\
 --initial-cluster-state=new \\
 --initial-cluster-token=etcd-cluster \\
 --key-file=${K8S_SSL}/etcd-key.pem \\
---listen-client-urls=https://${NODE_IP}:2379,http://127.0.0.1:2379 \\
---listen-peer-urls=https://${NODE_IP}:2380 \\
+--listen-client-urls=https://${ETCD_IP}:2379,http://127.0.0.1:2379 \\
+--listen-peer-urls=https://${ETCD_IP}:2380 \\
 --logger=zap \\
 --max-request-bytes=33554432 \\
---name=etcd-${NODE_NAME} \\
+--name=etcd \\
 --peer-cert-file=${K8S_SSL}/etcd.pem \\
 --peer-client-cert-auth \\
 --peer-key-file=${K8S_SSL}/etcd-key.pem \\
@@ -683,25 +587,15 @@ LimitNOFILE=65536
 [Install]
 WantedBy=multi-user.target
 EOF
-rsync -av etcd.service ${NODE_IP}:/usr/lib/systemd/system/
-done
-   rm -f etcd*
-AOF
 ```
 
-#### 5.2 分发配置文件
+#### 2 启动etcd
 
 ```bash
-sh etcd-template.sh
+systemctl daemon-reload && systemctl enable --now etcd
 ```
 
-#### 5.3 启动etcd
-
-```bash
-for n in m{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now etcd";done
-```
-
-#### 5.4 检查etcd集群状态
+#### 3 检查etcd集群状态
 
 ```bash
 etcdctl --cacert=${K8S_SSL}/ca.pem \
@@ -710,12 +604,12 @@ etcdctl --cacert=${K8S_SSL}/ca.pem \
 --endpoints="${ETCD_SERVER}" endpoint health
 ```
 
-## 6. apiserver集群部署
+## 7. apiserver集群部署
 
-#### 6.1 创建审计策略
+#### 1 创建审计策略
 
 ```yaml
-cat << EOF >audit-policy.yaml
+cat << EOF >${K8S_CONF}/audit-policy.yaml
 apiVersion: audit.k8s.io/v1beta1
 kind: Policy
 rules:
@@ -906,10 +800,10 @@ rules:
 EOF
 ```
 
-#### 6.2 创建加密配置文件
+#### 2 创建加密配置文件
 
 ```yaml
-cat >encryption-config.yaml <<EOF
+cat<< EOF >${K8S_CONF}/encryption-config.yaml 
 kind: EncryptionConfig
 apiVersion: v1
 resources:
@@ -924,17 +818,10 @@ resources:
 EOF
 ```
 
-#### 6.1 systemctl管理apiserver
+#### 3 systemctl管理apiserver
 
 ```bash
-cat << 'AOF' >apiserver-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_NAME=${M_NAME[i]}
-  NODE_IP=${M_IP[i]}
-cat << EOF >kube-apiserver.service
+cat << EOF >/usr/lib/systemd/system/kube-apiserver.service
 [Unit]
 Description=Kubernetes API Server
 Documentation=https://github.com/kubernetes/kubernetes
@@ -1000,157 +887,36 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-rsync -av encryption-config.yaml audit-policy.yaml  ${NODE_IP}:${K8S_CONF}/
-rsync -av kube-apiserver.service ${NODE_IP}:/usr/lib/systemd/system/
-done
-   rm -f *apiserver* encryption-config.yaml audit-policy.yaml
-AOF
 ```
 
-#### 6.2 分发配置文件
+#### 4 启动服务
 
 ```bash
-sh apiserver-template.sh
+systemctl daemon-reload && systemctl enable --now kube-apiserver
 ```
 
-#### 6.3 启动服务
+#### 5 检查kube-apiserver监听的端口
 
 ```bash
-for n in m{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now kube-apiserver";done
+[root@k8s ~]# ss -lntup|grep 6443
+tcp    LISTEN     0      4096   [::]:6443               [::]:*                   users:(("kube-apiserver",pid=1944,fd=7))
 ```
 
-#### 6.4 检查kube-apiserver监听的端口
+#### 6 查看apiserver集群健康状况
 
 ```bash
-[root@m1 ~]# ss -lntup|grep 6443
-tcp    LISTEN     0      128    10.0.0.31:6443                  *:*                   users:(("kube-apiserver",pid=18425,fd=6))
+[root@k8s ~]# kubectl cluster-info
+Kubernetes master is running at https://10.0.0.180:6443
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 ```
 
-## 7. apiserver高可用部署
+## 7. scheduler 集群部署
 
-#### 7.1 各master节点安装haproxy keepalived
-
-```bash
-for m in m{1,2,3};do ssh root@$m yum -y install haproxy keepalived;done
-```
-
-#### 7.2 修改配置文件
-
-注意:keepalived配置文件，其余节点修改state为BACKUP，priority小于主节点即可；检查网卡名称并修改
+#### 1 systemctl管理scheduler
 
 ```bash
-cat<< EOF >/etc/keepalived/keepalived.conf
-vrrp_script chk_apiserver {
-        script "/etc/keepalived/check_apiserver.sh"
-        interval 4
-        weight 60  
-}
-vrrp_instance VI_1 {
-    state MASTER  
-    #state BACKUP
-    interface eth0
-    virtual_router_id 51
-    priority 150
-    advert_int 1
-    authentication {
-        auth_type PASS
-        auth_pass 1111
-    }
-    track_script {
-        chk_apiserver
-    }
-    virtual_ipaddress {
-        10.0.0.150
-    }
-}
-EOF
-cat << 'EOF' >/etc/keepalived/check_apiserver.sh
-#!/bin/bash
-flag=$(ps -ef|grep -v grep|grep -w 'kube-apiserver' &>/dev/null;echo $?)
-if [[ $flag != 0 ]];then
-        echo "kube-apiserver is down,close the keepalived"
-        systemctl stop keepalived
-fi
-EOF
-cat > /etc/haproxy/haproxy.cfg << EOF 
-global
-    log         127.0.0.1 local2
-    chroot      /var/lib/haproxy
-    pidfile     /var/run/haproxy.pid
-    maxconn     4000
-    user        haproxy
-    group       haproxy
-    daemon
-    stats socket /var/lib/haproxy/stats
-#---------------------------------------------------------------------
-defaults
-    mode                    http
-    log                     global
-    option                  httplog
-    option                  dontlognull
-    option http-server-close
-    option forwardfor       except 127.0.0.0/8
-    option                  redispatch
-    retries                 3
-    timeout http-request    10s
-    timeout queue           1m
-    timeout connect         10s
-    timeout client          1m
-    timeout server          1m
-    timeout http-keep-alive 10s
-    timeout check           10s
-    maxconn                 3000
-#---------------------------------------------------------------------
-listen stats
-    mode   http
-    bind :10000
-    stats   enable
-    stats realm Haproxy\ Statistics
-    stats   uri     /admin?stats
-    stats   auth    admin:admin
-    stats   admin   if TRUE
-#---------------------------------------------------------------------
-frontend  kube-apiserver 
-   bind *:8443
-   mode tcp
-   default_backend             apiserver
-#---------------------------------------------------------------------
-backend apiserver
-    balance     roundrobin
-    mode tcp
-    server  m1 10.0.0.31:6443 check weight 1 maxconn 2000 check inter 2000 rise 2 fall 3
-    server  m2 10.0.0.32:6443 check weight 1 maxconn 2000 check inter 2000 rise 2 fall 3
-    server  m3 10.0.0.33:6443 check weight 1 maxconn 2000 check inter 2000 rise 2 fall 3
-EOF
-```
-
-#### 7.3 修改state与priority,并启动服务
-
-```bash
-chmod 644 /etc/keepalived/keepalived.conf && chmod +x /etc/keepalived/check_apiserver.sh && systemctl enable --now haproxy keepalived
-#查看VIP是否工作正常
-ping 10.0.0.150 -c 3
-```
-
-#### 7.5 查看apiserver集群健康状况
-
-```bash
-kubectl cluster-info
-```
-
-## 8. scheduler 集群部署
-
-#### 8.1 systemctl管理scheduler
-
-```bash
-cat << 'AOF' >scheduler-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_IP=${M_IP[i]}
-
-cat << EOF >kube-scheduler.service 
+cat << EOF >/usr/lib/systemd/system/kube-scheduler.service 
 [Unit]
 Description=Kubernetes Controller Manager
 Documentation=https://github.com/kubernetes/kubernetes
@@ -1183,49 +949,32 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-rsync -av kube-scheduler.service ${NODE_IP}:/usr/lib/systemd/system/
-done
-   rm -f *scheduler*
-AOF
 ```
 
-#### 8.2 分发配置文件
+#### 2 启动服务
 
 ```bash
-sh scheduler-template.sh
+systemctl daemon-reload && systemctl enable --now kube-scheduler
 ```
 
-#### 8.3 启动服务
-
-```bash
-for n in m{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now kube-scheduler";done
-```
-
-#### 8.4 查看服务状态
+#### 3 查看服务状态
 
 ```bash
 systemctl status kube-scheduler.service
 ```
 
-#### 8.5 查看leader信息
+#### 4 查看leader信息
 
 ```bash
 kubectl get ep kube-scheduler -n kube-system -o yaml
 ```
 
-## 9. controller manager 集群部署
+## 8. controller manager 集群部署
 
-#### 9.1 systemctl管理controller-manager
+#### 1 systemctl管理controller-manager
 
 ```bash
-cat << 'AOF' >controller-manager-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_NAME=${M_NAME[i]}
-  NODE_IP=${M_IP[i]}
-cat << EOF >kube-controller-manager.service 
+cat << EOF >/usr/lib/systemd/system/kube-controller-manager.service 
 [Unit]
 Description=Kubernetes Controller Manager
 Documentation=https://github.com/kubernetes/kubernetes
@@ -1284,49 +1033,37 @@ RestartSec=10s
 [Install]
 WantedBy=multi-user.target
 EOF
-rsync -av kube-controller-manager.service ${NODE_IP}:/usr/lib/systemd/system/
-done
-   rm -f *controller*
-AOF
 ```
 
-#### 9.3 分发配置文件
+#### 2 启动服务
 
 ```bash
-sh controller-manager-template.sh
+systemctl daemon-reload && systemctl enable --now kube-controller-manager
 ```
 
-#### 9.4 启动服务
-
-```bash
-for n in m{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now kube-controller-manager";done
-```
-
-#### 9.5 查看服务状态
+#### 3 查看服务状态
 
 ```bash
 systemctl status kube-controller-manager.service
 ```
 
-#### 9.6 查看leader信息
+#### 4 查看leader信息
 
 ```bash
 kubectl get ep kube-controller-manager -n kube-system -o yaml
 ```
 
-查看集群状态
+#### 5 查看集群状态
 
 ```bash
-[root@m1 ~]# kubectl get cs
+[root@k8s ~]# kubectl get cs
 NAME                 STATUS    MESSAGE             ERROR
 controller-manager   Healthy   ok
 scheduler            Healthy   ok
-etcd-1               Healthy   {"health":"true"}
-etcd-2               Healthy   {"health":"true"}
 etcd-0               Healthy   {"health":"true"}
 ```
 
-## 10. TLS bootstrapping认证
+## 9. TLS bootstrapping认证
 
 每个节点的kubelet都必须使用kube-apiserver的CA的凭证后,才能与kube-apiserver进行沟通,而该过程需要手动针对每台节点单独签署凭证是一件繁琐的事情,且一旦节点增加会延伸出管理不易问题;而TLS bootstrapping目标就是解决该问题,通过让kubelet先使用一个预定低权限使用者连接到kube-apiserver,然后在对kube-apiserver申请凭证签署,当授权Token一致时,Node节点的kubelet凭证将由kube-apiserver动态签署提供。
 
@@ -1334,7 +1071,7 @@ TLS bootstraping 工作流程：
 
 ![img](acess/bootstrap-token.png)
 
-#### 10.1 建立TLS bootstrap secret来提供自动签证使用
+#### 1 建立TLS bootstrap secret来提供自动签证使用
 
 ```bash
 cat << EOF >bootstrap-secret.yaml
@@ -1356,7 +1093,7 @@ EOF
 kubectl apply -f  bootstrap-secret.yaml
 ```
 
-#### 10.2 将自定义的auth-extra-groups绑定角色system:node-bootstrapper
+#### 2 将自定义的auth-extra-groups绑定角色system:node-bootstrapper
 
 ```bash
 kubectl create clusterrolebinding kubelet-bootstrap \
@@ -1364,7 +1101,7 @@ kubectl create clusterrolebinding kubelet-bootstrap \
 --group ${AUTH_EXTRA_GROUPS}
 ```
 
-#### 10.3 将自定义的auth-extra-groups绑定角色,实现自动签署证书请求
+#### 3 将自定义的auth-extra-groups绑定角色,实现自动签署证书请求
 
 ```bash
 kubectl create clusterrolebinding node-autoapprove-bootstrap \
@@ -1372,7 +1109,7 @@ kubectl create clusterrolebinding node-autoapprove-bootstrap \
 --group ${AUTH_EXTRA_GROUPS}
 ```
 
-#### 10.4 将system:node绑定角色,实现自动刷新node节点过期证书
+#### 4 将system:node绑定角色,实现自动刷新node节点过期证书
 
 ```bash
 kubectl create clusterrolebinding node-autoapprove-certificate-rotation \
@@ -1380,18 +1117,12 @@ kubectl create clusterrolebinding node-autoapprove-certificate-rotation \
 --group system:node
 ```
 
-## 11. kubelet部署
+## 10. kubelet部署
 
-#### 11.1 系统配置文件
+#### 1 系统配置文件
 
 ```bash
-cat << 'AOF' >kubelet-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_IP=${N_IP[i]}
-cat << EOF >kubelet.service
+cat << EOF >/usr/lib/systemd/system/kubelet.service
 [Unit]
 Description=Kubernetes Kubelet
 Documentation=https://github.com/kubernetes/kubernetes
@@ -1423,7 +1154,12 @@ RestartSec=10s
 [Install]
 WantedBy=multi-user.target
 EOF
-cat << EOE >kubelet.yaml
+```
+
+**config**
+
+```yaml
+cat << EOE >${K8S_CONF}/kubelet.yaml
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 staticPodPath: "${K8S_CONF}/manifests"
@@ -1530,37 +1266,20 @@ allowedUnsafeSysctls:
 - fs.mqueue.*
 - net.*
 EOE
-rsync -av kubelet.yaml ${NODE_IP}:${K8S_CONF}
-rsync -av kubelet.service ${NODE_IP}:/usr/lib/systemd/system/
-done
-   rm -f kubelet*
-AOF
 ```
 
-#### 11.2 分发配置文件
-
-```
-sh kubelet-template.sh
-```
-
-#### 11.3 启动服务
+#### 2 启动服务
 
 ```bash
-for n in n{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now kubelet";done
+systemctl daemon-reload && systemctl enable --now kubelet
 ```
 
-## 12. kube-proxy部署
+## 11. kube-proxy部署
 
-#### 12.1  systemctl管理kube-proxy
+#### 1  systemctl管理kube-proxy
 
 ```bash
-cat << 'AOF' >proxy-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_IP=${N_IP[i]}
-cat << EOF >kube-proxy.service
+cat << EOF >/usr/lib/systemd/system/kube-proxy.service
 [Unit]
 Description=Kubernetes Kube Proxy
 Documentation=https://github.com/kubernetes/kubernetes
@@ -1568,7 +1287,7 @@ After=network.target
 [Service]
 ExecStart=${K8S_DIR}/bin/kube-proxy \\
 --alsologtostderr=true \\
---bind-address=${NODE_IP} \\
+--bind-address=${ETCD_IP} \\
 --cluster-cidr=${CLUSTER_CIDR} \\
 --feature-gates=ServiceTopology=true,EndpointSlice=true,TTLAfterFinished=true \\
 --ipvs-min-sync-period=5s \\
@@ -1585,49 +1304,38 @@ RestartSec=10s
 [Install]
 WantedBy=multi-user.target
 EOF
-rsync -av kube-proxy.service ${NODE_IP}:/usr/lib/systemd/system/
-done
-   rm -f *proxy*
-AOF
 ```
 
-#### 12.2 分发配置文件
-
-```
-sh proxy-template.sh
-```
-
-#### 12.3 启动服务
+#### 2 启动服务
 
 ```bash
-for n in n{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now kube-proxy";done
+systemctl daemon-reload && systemctl enable --now kube-proxy
 ```
 
-#### 12.4 查看节点状态
+#### 3 查看节点状态
 
 ```bash
-[root@m1 ~]# kubectl get node
-NAME     STATUS     ROLES    AGE   VERSION
-n1   NotReady   <none>   7s    v1.18.9
-n2   NotReady   <none>   4s    v1.18.9
+[root@k8s ~]# kubectl get node
+NAME   STATUS     ROLES    AGE   VERSION
+k8s    NotReady   <none>   32s   v1.18.14
 ```
 
-#### 12.5 node节点确认使用IPVS模式
+#### 4 node节点确认使用IPVS模式
 
 ```bash
-[root@n1 ~]# curl 10.0.0.41:10249/proxyMode
+[root@k8s ~]# curl 127.0.0.1:10249/proxyMode
 ipvs
 ```
 
-## 13 授权
+## 12 授权
 
-### 13.1 匿名用户访问
+#### 1 匿名用户访问
 
 ```bash
 kubectl create clusterrolebinding test:anonymous --clusterrole=cluster-admin --user=system:anonymous
 ```
 
-### 13.2  授权kubernetes用户访问
+#### 2  授权kubernetes用户访问
 
 ```yaml
 cat << EOF >kube-api-rbac.yaml
@@ -1717,53 +1425,47 @@ EOF
 kubectl apply -f  kube-api-rbac.yaml
 ```
 
-### 13.3. 添加system:nodes权限
+#### 3 添加system:nodes权限
 
 ```sh
 kubectl create clusterrolebinding system-node-role-bound --clusterrole=system:node --group=system:nodes
 ```
 
-## 14. flanneld网络部署
+## 13. flanneld网络部署
 
 kubernetes 要求集群内各节点(包括 master 节点)能通过 Pod 网段互联互通。flannel 使用 vxlan 技术为各节点创建一个可以互通的 Pod 网络，使用的端口为 UDP 8472。 第一次启动时，从 etcd 获取配置的 Pod 网段信息，为本节点分配一个未使用的地址段，然后创建flannel.1网络接口。flannel 将分配给自己的 Pod 网段信息写入 /run/flannel/docker 文件，docker 后续使用这个文件中的环境变量设置 docker0 网桥，从而从这个地址段为本节点的所有 Pod 容器分配 IP。
 
 flanneld并不简单，它上连etcd，利用etcd来管理可分配的IP地 址段资源，同时监控etcd中每个Pod的实际地址，并在内存中建立了一 个Pod节点路由表；它下连docker0和物理网络，使用内存中的Pod节点路由表，将docker0发给它的数据包包装起来，利用物理网络的连接将 数据包投递到目标flanneld上，从而完成Pod到Pod之间的直接地址通信。
 
-#### 14.1 向 etcd 写入集群 Pod 网段信息
+#### 1 向 etcd 写入集群 Pod 网段信息
 
 ```bash
 ETCDCTL_API=2  etcdctl \
 --ca-file=${K8S_SSL}/ca.pem \
 --cert-file=${K8S_SSL}/flanneld.pem \
 --key-file=${K8S_SSL}/flanneld-key.pem \
---endpoints="https://10.0.0.31:2379"  \
+--endpoints="https://10.0.0.180:2379"  \
 set /coreos.com/network/config \
 '{"Network" : "172.16.0.0/16","SubnetLen": 24, "Backend": {"Type" : "vxlan"}}'
 ```
 
 ,注意：本步骤只需执行一次,flanneld 当前版本 (v0.12.0) 不支持 etcd v3，故使用 etcd v2 API 写入配置 key 和网段数据
 
-#### 14.2 查看写入Pod网段信息
+#### 2 查看写入Pod网段信息
 
 ```bash
 ETCDCTL_API=2 etcdctl \
 --ca-file=${K8S_SSL}/ca.pem \
 --cert-file=${K8S_SSL}/flanneld.pem \
 --key-file=${K8S_SSL}/flanneld-key.pem \
---endpoints="https://10.0.0.31:2379"  \
+--endpoints="https://10.0.0.180:2379"  \
 get /coreos.com/network/config
 ```
 
-#### 14.3 systemctl管理flanneld
+#### 3 systemctl管理flanneld
 
 ```bash
-cat << 'AOF' >flanneld-template.sh
-#!/bin/bash
-source /root/.bash_profile
-for ((i=0;i<3;i++))
-do
-  NODE_IP=${N_IP[i]}
-cat << EOF >flanneld.service
+cat << EOF >/usr/lib/systemd/system/flanneld.service
 [Unit]
 Description=Flanneld overlay address etcd agent
 After=network.target
@@ -1782,7 +1484,12 @@ Restart=on-failure
 WantedBy=multi-user.target
 RequiredBy=docker.service
 EOF
-cat<< 'EOF' >10-flannel.conflist
+```
+
+**cni-config**
+
+```yaml
+cat<< 'EOF' >/etc/cni/net.d/10-flannel.conflist
 {
   "name": "cbr0",
   "cniVersion": "0.3.1",
@@ -1803,28 +1510,17 @@ cat<< 'EOF' >10-flannel.conflist
   ]
 }
 EOF
-rsync -av flanneld.service ${NODE_IP}:/usr/lib/systemd/system/
-rsync -av 10-flannel.conflist ${NODE_IP}:/etc/cni/net.d/
-done
-   rm -f *flannel*
-AOF
 ```
 
-#### 14.4 分发配置
+#### 4 启动flanneld服务并验证各节点flannel
 
 ```bash
-sh flanneld-template.sh
+systemctl daemon-reload && systemctl enable --now flanneld.service
+ip a s flannel.1|grep -w inet
+ping -c 1 `ip a s flannel.1|grep -w inet|awk -F '[/ ]+' '{print $3}'`
 ```
 
-#### 14.5 启动flanneld服务并验证各节点flannel
-
-```bash
-for n in n{1..3};do ssh $n "systemctl daemon-reload && systemctl enable --now flanneld.service";done
-for n in n{1..3};do ssh $n "ip a s flannel.1|grep -w inet";done
-for n in n{1..3};do ssh $n ping -c 1 `ip a s flannel.1|grep -w inet|awk -F '[/ ]+' '{print $3}'` 2>/dev/null;done
-```
-
-#### 14.6 配置主机网段
+#### 5 自定义主机网段
 
 ```bash
 cat << EOF >/run/flannel/subnet.env
@@ -1835,84 +1531,231 @@ FLANNEL_IPMASQ=true
 EOF
 ```
 
-#### 14.7 查看node状态
+#### 6 查看node状态
 
 ```bash
-[root@master01 k8s]# kubectl get node
-NAME       STATUS   ROLES    AGE   VERSION
-n1     Ready    <none>   18m   v1.18.0
-n2     Ready    <none>   18m   v1.18.0
-n3     Ready    <none>   18m   v1.18.0
+[root@k8s ~]# kubectl get node
+NAME   STATUS   ROLES    AGE   VERSION
+k8s    Ready    <none>   25m   v1.18.14
 ```
 
-## 15. 污点配置
+## 14. 部署coredns
 
-当我们的master也安装了kubelet与kube-proxy时，需要进行相应的污点配置。如：
+#### 1 yaml配置
 
-```bash
-[root@master01 k8s]# kubectl get node
-NAME       STATUS   ROLES    AGE   VERSION
-m1     Ready    <none>   18m   v1.18.0
-m2     Ready    <none>   18m   v1.18.0
-m3     Ready    <none>   18m   v1.18.0
-n1     Ready    <none>   18m   v1.18.0
-n2     Ready    <none>   18m   v1.18.0
+```yaml
+cat << 'EOF' >coredns.yml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coredns
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: system:coredns
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - endpoints
+    - services
+    - pods
+    - namespaces
+    verbs:
+    - list
+    - watch
+  - apiGroups:
+    - discovery.k8s.io
+    resources:
+    - endpointslices
+    verbs:
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: system:coredns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:coredns
+subjects:
+- kind: ServiceAccount
+  name: coredns
+  namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+          lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+          fallthrough in-addr.arpa ip6.arpa
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+          max_concurrent 1000
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coredns
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns
+    kubernetes.io/name: "CoreDNS"
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      k8s-app: kube-dns
+  template:
+    metadata:
+      labels:
+        k8s-app: kube-dns
+    spec:
+      priorityClassName: system-cluster-critical
+      serviceAccountName: coredns
+      tolerations:
+        - key: "CriticalAddonsOnly"
+          operator: "Exists"
+      nodeSelector:
+        kubernetes.io/os: linux
+      affinity:
+         podAntiAffinity:
+           preferredDuringSchedulingIgnoredDuringExecution:
+           - weight: 100
+             podAffinityTerm:
+               labelSelector:
+                 matchExpressions:
+                   - key: k8s-app
+                     operator: In
+                     values: ["kube-dns"]
+               topologyKey: kubernetes.io/hostname
+      containers:
+      - name: coredns
+        image: coredns/coredns:1.8.4
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            memory: 170Mi
+          requests:
+            cpu: 100m
+            memory: 70Mi
+        args: [ "-conf", "/etc/coredns/Corefile" ]
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/coredns
+          readOnly: true
+        ports:
+        - containerPort: 53
+          name: dns
+          protocol: UDP
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+        - containerPort: 9153
+          name: metrics
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - NET_BIND_SERVICE
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8181
+            scheme: HTTP
+      dnsPolicy: Default
+      volumes:
+        - name: config-volume
+          configMap:
+            name: coredns
+            items:
+            - key: Corefile
+              path: Corefile
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns
+  namespace: kube-system
+  annotations:
+    prometheus.io/port: "9153"
+    prometheus.io/scrape: "true"
+  labels:
+    k8s-app: kube-dns
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: "CoreDNS"
+spec:
+  selector:
+    k8s-app: kube-dns
+  clusterIP: 10.96.0.10
+  ports:
+  - name: dns
+    port: 53
+    protocol: UDP
+  - name: dns-tcp
+    port: 53
+    protocol: TCP
+  - name: metrics
+    port: 9153
+    protocol: TCP
+EOF
 ```
 
-#### 15.1 设定master节点加上污点Taint(注意这块只能是主机名)
+#### 2 部署dns
 
 ```bash
-for n in m{1..3};do kubectl taint nodes $n node-role.kubernetes.io/master="":NoSchedule;done
-```
-
-#### 15.2 设置label role
-
-```bash
-for n in m{1..3};do kubectl label node $n node-role.kubernetes.io/master=;done
-for n in n{1..3};do kubectl label node $n node-role.kubernetes.io/node=;done
-#删除role
-kubectl label node node01 node-role.kubernetes.io/node-
-```
-
-#### 15.3 查看node状态
-
-```bash
-[root@m1 ~]# kubectl get node
-NAME     STATUS   ROLES    AGE   VERSION
-m1   Ready    master   80m   v1.18.0
-m2   Ready    master   80m   v1.18.0
-m3   Ready    master   80m   v1.18.0
-n1   Ready    node     65m   v1.18.0
-n2   Ready    node     65m   v1.18.0
-```
-
-## 16. 部署coredns
-
-#### 16.1 安装依赖
-
-```bash
-yum -y install epel-release
-yum -y install jq
-```
-
-#### 16.2 下载配置文件
-
-```bash
-mkdir -p ${SOFT_DIR}/coredns
-cd ${SOFT_DIR}/coredns
-wget https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/coredns.yaml.sed
-wget https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/deploy.sh
-```
-
-#### 16.3 部署dns
-
-```bash
-chmod +x deploy.sh
-./deploy.sh -i 10.96.0.10 > coredns.yml
 kubectl apply -f coredns.yml
 ```
 
-#### 16.4 测试集群DNS是否可用
+#### 3 查看状态
+
+```
+kubectl get svc
+```
+
+#### 4 测试集群DNS是否可用
 
 ```bash
 kubectl run busybox --rm --image=busybox:1.28 -it
@@ -1921,15 +1764,18 @@ kubectl run busybox --rm --image=busybox:1.28 -it
 进入后执行nslookup kubernetes.default确认解析正常:
 
 ```bash
+[root@k8s ~]# kubectl run busybox --rm --image=busybox:1.28 -it
+If you don't see a command prompt, try pressing enter.
 / # nslookup kubernetes.default
 Server:    10.96.0.10
 Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
 
 Name:      kubernetes.default
 Address 1: 10.96.0.1 kubernetes.default.svc.cluster.local
+/ #
 ```
 
-#### 16.5 添加外部dns(修改coredns 的ConfigMap)
+#### 4 添加外部dns
 
 ```yaml
 data:
@@ -1964,7 +1810,7 @@ data:
     }
 ```
 
-## 17. 测试集群
+## 15. 测试集群
 
 ```yaml
 cat<< EOF >test.yaml
@@ -2028,23 +1874,19 @@ myapp        ClusterIP   10.96.120.124   <none>        80/TCP    44s
 Hello MyApp | Version: v2 | <a href="hostname.html">Pod Name</a>
 ```
 
-## 18. 添加node
+## 16. 添加node
 
-#### 18.1 分发密钥
+#### 1 系统优化
 
-```
-for n in n{1..3};do scp -r /root/.ssh $n:/root/;done
-```
+#### 2  安装docker及docker调优
 
-#### 18.2  安装docker及docker调优
-
-#### 18.3 创建目录
+#### 3 创建目录
 
 ```bash
 for n in n{1..3};do ssh $n "mkdir -p /opt/cni/bin ${K8S_DIR}/{manifests,pki} /etc/cni/net.d/ /data/logs/kubernetes/{kubelet,kube-proxy}";done
 ```
 
-#### 18.4 分发node所需软件
+#### 4 分发node所需软件
 
 ```bash
 #kubernetes
@@ -2059,13 +1901,13 @@ cd -
 for n in n{1..3};do scp flannel-v0.12.0-linux-amd64.tar.gz $n:/usr/local/bin/ && ssh $n "cd /usr/local/bin/ && tar xf flannel-v0.12.0-linux-amd64.tar.gz";done
 ```
 
-#### 18.5 分发证书
+#### 5 分发证书
 
 ```shell
 for n in n{1..3};do scp ${K8S_SSL}/{flanneld.pem,flanneld-key.pem,ca.pem} root@$n:${K8S_SSL};done
 ```
 
-#### 18.6 复制配置文件及启动文件到相应节点
+#### 6 复制配置文件及启动文件到相应节点
 
 ```bash
 for n in n{1..3};do scp -r /etc/cni $n:/etc/;done
@@ -2073,7 +1915,7 @@ for n in n{1..3};do scp ${K8S_DIR}/{kube-proxy.kubeconfig,kube-proxy.conf,bootst
 for n in n{1..3};do scp ${SYSTEM_SERVICE_DIR}/{kubelet.service,kube-proxy.service,flannel.service} $n:${SYSTEM_SERVICE_DIR};done
 ```
 
-#### 18.7 启动服务
+#### 7 启动服务
 
 ```bash
 for n in n{1..3};do ssh $n "systemctl enable  flannel.service";done
@@ -2083,7 +1925,7 @@ for n in n{1..3};do ssh $n "systemctl enable  kubelet.service";done
 
 查看node信息
 
-## 19. 报错解决
+## 17. 报错解决
 
 1. Failed to list IPVS destinations, error: parseIP Error ip=[10 244 3 2 0 0 0 0 0 0 0 0 0 0 0 0]
    Failed to sync endpoint for service: 10.96.0.10:9153/TCP, err: parseIP Error ip=[10 244 3 2 0 0 0 0 0 0 0 0 0 0 0]
@@ -2134,7 +1976,7 @@ for n in m{1..3} n{1..3};do ssh $n "yum install -y conntrack-tools";done
 for n in m{1..3} n{1..3};do ssh $n "systemctl restart kube-proxy.service kubelet.service";done
 ```
 
-## 20.参数优化
+## 18.参数优化
 
 1.主机宕机，运行在上面的POD不调度或者调度时间太久？
 
