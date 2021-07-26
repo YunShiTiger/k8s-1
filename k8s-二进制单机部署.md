@@ -208,7 +208,7 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 
 | 节点角色 |   IP地址   | Hostname | CPU  | 内存 |                            server                            |
 | :------: | :--------: | :------: | :--: | ---- | :----------------------------------------------------------: |
-| master01 | 10.0.0.180 |   k8s    |  4   | 8G   | etcd  apiserver scheduler controller-manager  kubectl  docker kubelet kube-proxy |
+|   k8s    | 10.0.0.180 |   k8s    |  4   | 8G   | etcd  apiserver scheduler controller-manager  kubectl  docker kubelet kube-proxy |
 
 #### 2 网络配置信息
 
@@ -282,7 +282,7 @@ tar -zxvf kubernetes-server-linux-amd64.tar
 cd kubernetes/server/bin/
 #复制可执行文件到其余master节点
 kube-apiserver kube-scheduler kube-controller-manager kube-proxy kubelet ${K8S_DIR}/bin/
-cp kubectl /usr/local/bin/
+cp ${K8S_DIR}/bin/kubectl /usr/local/bin/
 ```
 
 **ETC解压推送各节点**
@@ -293,7 +293,7 @@ tar zxvf etcd-v3.4.9-linux-amd64.tar.gz
 cd etcd-v3.4.9-linux-amd64
 #复制可执行文件到其余master节点
 cp etcd ${K8S_DIR}/bin/;done
-cp etcdctl /usr/local/bin/;done
+etcdctl /usr/local/bin/
 ```
 
 **cfssl下载**
@@ -1445,11 +1445,11 @@ ETCDCTL_API=2  etcdctl \
 --cert-file=${K8S_SSL}/flanneld.pem \
 --key-file=${K8S_SSL}/flanneld-key.pem \
 --endpoints="https://10.0.0.180:2379"  \
-set /coreos.com/network/config \
+set /kubernetes/network/config \
 '{"Network" : "172.16.0.0/16","SubnetLen": 24, "Backend": {"Type" : "vxlan"}}'
 ```
 
-,注意：本步骤只需执行一次,flanneld 当前版本 (v0.12.0) 不支持 etcd v3，故使用 etcd v2 API 写入配置 key 和网段数据
+注意：本步骤只需执行一次,flanneld 当前版本 (v0.12.0) 不支持 etcd v3，故使用 etcd v2 API 写入配置 key 和网段数据
 
 #### 2 查看写入Pod网段信息
 
@@ -1459,7 +1459,7 @@ ETCDCTL_API=2 etcdctl \
 --cert-file=${K8S_SSL}/flanneld.pem \
 --key-file=${K8S_SSL}/flanneld-key.pem \
 --endpoints="https://10.0.0.180:2379"  \
-get /coreos.com/network/config
+get /kubernetes/network/config
 ```
 
 #### 3 systemctl管理flanneld
@@ -1773,6 +1773,14 @@ Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
 Name:      kubernetes.default
 Address 1: 10.96.0.1 kubernetes.default.svc.cluster.local
 / #
+```
+
+查看是否通外网
+
+```bash
+/ # ping www.baidu.com
+PING www.baidu.com (163.177.151.109): 56 data bytes
+64 bytes from 163.177.151.109: seq=0 ttl=127 time=11.640 ms
 ```
 
 #### 4 添加外部dns

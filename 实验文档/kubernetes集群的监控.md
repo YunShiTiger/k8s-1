@@ -212,7 +212,6 @@ spec:
     type: RollingUpdate
   template:
     metadata:
-      creationTimestamp: null
       labels:
         app.kubernetes.io/name: kube-state-metrics
         app.kubernetes.io/version: 1.9.8
@@ -928,7 +927,7 @@ spec:
       - image: harbor.wzxmt.com/k8s/prometheus:v2.22.2
         args:
         - --config.file=/data/etc/prometheus.yml
-        - --storage.tsdb.path=/data/etc/prometheus-db
+        - --storage.tsdb.path=/data/db/prometheus-db
         - --storage.tsdb.retention=200h
         - --web.enable-lifecycle
         - --web.console.libraries=/data/etc/console_libraries
@@ -936,6 +935,7 @@ spec:
         command:
         - /bin/prometheus
         name: prometheus
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9090
           protocol: TCP
@@ -947,11 +947,12 @@ spec:
             cpu: 100m
             memory: 100Mi
         volumeMounts:
-        - mountPath: /data
-          name: prometheus-data
+        - name: config
+          mountPath: /data/etc
+        - name: data
+          mountPath: /data/db
         - name: date
           mountPath: /etc/localtime
-        imagePullPolicy: IfNotPresent
       imagePullSecrets:
       - name: harborlogin
       securityContext:
@@ -961,10 +962,14 @@ spec:
       serviceAccount: prometheus
       serviceAccountName: prometheus
       volumes:
-      - name: prometheus-data
+      - name: data
         hostPath:          
           type: Directory
-          path: /data/docker-monitor/prometheus-data/prometheus
+          path: /data/prometheus/data
+      - name: config
+        hostPath:          
+          type: Directory
+          path: /data/prometheus/config
       - name: date
         hostPath:
           path: /etc/localtime
@@ -1020,13 +1025,13 @@ EOF
 - 拷贝ETCD证书ca.pem、etcd.pem、etcd-key.pem到/data/prometheus/prometheus/etc
 
 ```bash
-mkdir -p /data/prometheus/{prometheus/etc/{rules,conf},alertmanager,grafana}
+mkdir -p /data/{prometheus/{rules,conf},alertmanager/{conf，data},grafana/data}
 ```
 
 - 准备配置文件
 
 ```yaml
-cat << 'EOF' >/data/prometheus/prometheus/etc/prometheus.yml
+cat << 'EOF' >/data/prometheus/prometheus.yml
 global:
   scrape_interval:     30s
   evaluation_interval: 15s
@@ -1632,11 +1637,18 @@ spec:
       labels:
         app: grafana
     spec:
-      nodeName: n2
       containers:
       - image: harbor.wzxmt.com/k8s/grafana:7.5.5
         imagePullPolicy: IfNotPresent
         name: grafana
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: "admin"
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "false"
         ports:
         - containerPort: 3000
           protocol: TCP
@@ -1658,7 +1670,7 @@ spec:
       volumes:
       - name: grafana-data
         hostPath:
-          path: /data/prometheus/grafana
+          path: /data/grafana/data
           type: Directory
 EOF
 ```
@@ -1939,12 +1951,12 @@ spec:
       labels:
         app: alertmanager
     spec:
-      nodeName: n2
       containers:
       - name: alertmanager
         image: harbor.wzxmt.com/k8s/alertmanager:v0.20.0
+        imagePullPolicy: IfNotPresent
         args:
-          - "--config.file=/etc/alertmanager/config.yml"
+          - "--config.file=/etc/alertmanager/conf/config.yml"
           - "--storage.path=/etc/alertmanager/data"
         ports:
         - name: alertmanager
@@ -1958,11 +1970,17 @@ spec:
             memory: 50Mi
         volumeMounts:
         - name: alertmanager-data
-          mountPath: /etc/alertmanager
+          mountPath: /etc/alertmanager/data
+        - name: alertmanager-config
+          mountPath: /etc/alertmanager/conf
       volumes:
       - name: alertmanager-data
         hostPath:
-          path: /data/prometheus/alertmanager     
+          path: /data/alertmanager/data     
+          type: Directory
+      - name: alertmanager-conf
+        hostPath:
+          path: /data/alertmanager/conf     
           type: Directory
       imagePullSecrets:
       - name: harborlogin
@@ -2042,7 +2060,7 @@ global:
   smtp_require_tls: false
 
 templates:
-  - '/etc/alertmanager/*.tmpl'
+  - '/etc/alertmanager/conf/*.tmpl'
 
 route:
   group_by: ['alertname']
