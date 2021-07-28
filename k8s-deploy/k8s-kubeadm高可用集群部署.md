@@ -697,12 +697,15 @@ chown $(id -u):$(id -g) $HOME/.kube/config
 如果集群初始化遇到问题，可以使用下面的命令进行清理：
 
 ```bash
-kubeadm reset
+kubeadm reset -f
 ifconfig cni0 down
 ip link delete cni0
+ifconfig kube-ipvs0 down 
+ip link delete kube-ipvs0
+ipvsadm --clear
 ifconfig flannel.1 down
 ip link delete flannel.1
-rm -rf /var/lib/cni/
+rm -rf /var/lib/cni /etc/kubernetes
 ```
 
 ####  6.2 安装Pod Network
@@ -903,12 +906,15 @@ kubectl drain node01 --delete-local-data --force --ignore-daemonsets
 在node01上执行：
 
 ```bash
-kubeadm reset
+kubeadm reset -f
 ifconfig cni0 down
 ip link delete cni0
+ifconfig kube-ipvs0 down 
+ip link delete kube-ipvs0
+ipvsadm --clear
 ifconfig flannel.1 down
 ip link delete flannel.1
-rm -rf /var/lib/cni/
+rm -rf /var/lib/cni /etc/kubernetes
 ```
 
 在master上执行：
@@ -926,6 +932,12 @@ kubectl delete node node01
 #常规用户如何使用kubectl访问集群配置mkdir -p $HOME/.kube
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+移除kubelet
+
+```bash
+yum remove -y kubeadm kubelet kubectl
 ```
 
 #### 6.6 添加master

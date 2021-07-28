@@ -257,6 +257,8 @@ CIPHER_TLS="TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_G
 ENABLE_ADMISSION_PLUGINS="DefaultStorageClass,DefaultTolerationSeconds,LimitRanger,NamespaceExists,NamespaceLifecycle,NodeRestriction,PodNodeSelector,PersistentVolumeClaimResize,PodTolerationRestriction,ResourceQuota,ServiceAccount,StorageObjectInUseProtection,MutatingAdmissionWebhook,ValidatingAdmissionWebhook"
 #禁用插件disable-admission-plugins 
 DISABLE_ADMISSION_PLUGINS="DenyEscalatingExec,ExtendedResourceToleration,ImagePolicyWebhook,LimitPodHardAntiAffinityTopology,NamespaceAutoProvision,Priority,EventRateLimit,PodSecurityPolicy"
+FEATURE_GATES_API="RotateKubeletServerCertificate=true,RotateKubeletClientCertificate=true,DynamicAuditing=true,ServiceTopology=true,EndpointSlice=true"
+FEATURE_GATES="ServiceTopology=true,EndpointSlice=true,TTLAfterFinished=true"
 EOF
 source ~/.bash_profile
 ```
@@ -856,7 +858,7 @@ ExecStart=${K8S_DIR}/bin/kube-apiserver \\
 --etcd-prefix=/registry \\
 --etcd-servers=${ETCD_SERVER} \\
 --event-ttl=1h \\
---feature-gates=RotateKubeletServerCertificate=true,RotateKubeletClientCertificate=true,DynamicAuditing=true,ServiceTopology=true,EndpointSlice=true \\
+--feature-gates=${FEATURE_GATES_API} \\
 --kubelet-client-certificate=${K8S_SSL}/server.pem \\
 --kubelet-client-key=${K8S_SSL}/server-key.pem \\
 --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname \\
@@ -928,7 +930,7 @@ ExecStart=${K8S_DIR}/bin/kube-scheduler \\
 --authentication-kubeconfig=${K8S_CONF}/kube-scheduler.kubeconfig \\
 --authorization-kubeconfig=${K8S_CONF}/kube-scheduler.kubeconfig \\
 --client-ca-file=${K8S_SSL}/ca.pem \\
---feature-gates=ServiceTopology=true,EndpointSlice=true,TTLAfterFinished=true \\
+--feature-gates=${FEATURE_GATES} \\
 --kube-api-burst=100 \\
 --kube-api-qps=100 \\
 --kubeconfig=${K8S_CONF}/kube-scheduler.kubeconfig \\
@@ -998,7 +1000,7 @@ ExecStart=${K8S_DIR}/bin/kube-controller-manager \\
 --deployment-controller-sync-period=10s \\
 --enable-garbage-collector=true \\
 --experimental-cluster-signing-duration=876000h0m0s \\
---feature-gates=ServiceTopology=true,EndpointSlice=true,TTLAfterFinished=true \\
+--feature-gates=${FEATURE_GATES} \\
 --flex-volume-plugin-dir=${K8S_CONF}/volume \\
 --horizontal-pod-autoscaler-sync-period=10s \\
 --horizontal-pod-autoscaler-use-rest-clients=true \\
@@ -1289,7 +1291,7 @@ ExecStart=${K8S_DIR}/bin/kube-proxy \\
 --alsologtostderr=true \\
 --bind-address=${ETCD_IP} \\
 --cluster-cidr=${CLUSTER_CIDR} \\
---feature-gates=ServiceTopology=true,EndpointSlice=true,TTLAfterFinished=true \\
+--feature-gates=${FEATURE_GATES} \\
 --ipvs-min-sync-period=5s \\
 --ipvs-scheduler=rr \\
 --ipvs-sync-period=5s \\
@@ -1821,12 +1823,11 @@ data:
 ## 15. 测试集群
 
 ```yaml
-cat<< EOF >test.yaml
+cat<< 'EOF' >test.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: myapp-deploy
-  namespace: default
 spec:
   replicas: 3
   selector:
@@ -1852,7 +1853,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: myapp
-  namespace: default
 spec:
   type: ClusterIP
   selector:
@@ -1862,6 +1862,20 @@ spec:
   - name: http
     port: 80
     targetPort: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: test-myapp
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`test.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: myapp
+      port: 80
 EOF
 kubectl apply -f test.yaml
 ```
