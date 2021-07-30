@@ -1,8 +1,4 @@
-## 部署kube-state-metrics
-
-[kube-state-metricsgithub 项目地址](https://github.com/kubernetes/kube-state-metrics)
-
-kube-state-metrics 是一个简单的服务，它侦听 Kubernetes API 服务器并生成有关对象状态的指标
+## 基础准备
 
 创建名称空间
 
@@ -19,6 +15,30 @@ kubectl create secret docker-registry harborlogin \
 --docker-username=admin \
 --docker-password=admin
 ```
+
+生成自签证书
+
+```bash
+mkdir ssl -p
+```
+
+自签证书
+
+```bash
+openssl req -x509 -sha256 -nodes -days 3650 -newkey rsa:2048 -keyout ssl/wzxmt.com.key -out ssl/wzxmt.com.crt -subj "/CN=wzxmt.com"
+```
+
+生成monitor secrets
+
+```bash
+kubectl create secret tls monitor-certs -n monitoring --key ssl/wzxmt.com.key --cert ssl/wzxmt.com.crt
+```
+
+## 部署kube-state-metrics
+
+[kube-state-metricsgithub 项目地址](https://github.com/kubernetes/kube-state-metrics)
+
+kube-state-metrics 是一个简单的服务，它侦听 Kubernetes API 服务器并生成有关对象状态的指标
 
 准备kube-state-metrics镜像
 
@@ -266,24 +286,53 @@ spec:
 EOF
 ```
 
-Ingress
+Ingressroute
 
 ```yaml
-cat << 'EOF' >ingress.yaml
+cat << 'EOF' >ingressroute.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name:  kube-state-metrics-redirect-https
+  namespace: monitoring
+spec:
+  redirectScheme:
+    scheme: https
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: kube-state-metrics
+  name: kube-state-metrics-http
   namespace: monitoring
 spec:
   entryPoints:
-  - web
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`kubestate.wzxmt.com`) && PathPrefix(`/`)
+      priority: 11
+      middlewares:
+        - name: kube-state-metrics-redirect-https
+      services:
+        - name: kube-state-metrics
+          port: 8080
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kube-state-metrics-https
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
   routes:
   - match: Host(`kubestate.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: kube-state-metrics
       port: 8080
+  tls:
+    secretName: monitor-certs
 EOF
 ```
 
@@ -506,8 +555,6 @@ EOF
 ```bash
 kubectl apply -f ds.yaml
 ```
-
-
 
 ## 部署cadvisor
 
@@ -795,21 +842,50 @@ EOF
 Ingress
 
 ```yaml
-cat << 'EOF' >ingress.yaml
+cat << 'EOF' >ingressroute.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: blackbox-redirect-https
+  namespace: monitoring
+spec:
+  redirectScheme:
+    scheme: https
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: blackbox-exporter
+  name: blackbox-http
   namespace: monitoring
 spec:
   entryPoints:
     - web
   routes:
-  - match: HostRegexp(`blackbox.wzxmt.com`)
+    - kind: Rule
+      match: Host(`blackbox.wzxmt.com`) && PathPrefix(`/`)
+      priority: 11
+      middlewares:
+        - name: blackbox-redirect-https
+      services:
+        - name: blackbox-exporter
+          port: 9115
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: blackbox-https
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`blackbox.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: blackbox-exporter
       port: 9115
+  tls:
+    secretName: monitor-certs
 EOF
 ```
 
@@ -1011,24 +1087,53 @@ spec:
 EOF
 ```
 
-Ingress
+Ingressroute
 
 ```yaml
-cat << 'EOF' >ingress.yaml
+cat << 'EOF' >ingressrote.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: prometheus-redirect-https
+  namespace: monitoring
+spec:
+  redirectScheme:
+    scheme: https
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: prometheus
+  name: prometheus-http
   namespace: monitoring
 spec:
   entryPoints:
-  - web
+    - web
   routes:
-  - match: Host(`prometheus.wzxmt.com`) && PathPrefix(`/`)
+    - kind: Rule
+      match: Host(`prom.wzxmt.com`) && PathPrefix(`/`)
+      priority: 11
+      middlewares:
+        - name: prometheus-redirect-https
+      services:
+        - name: prometheus
+          port: 9090
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus-https
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`prom.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: prometheus
       port: 9090
+  tls:
+    secretName: monitor-certs
 EOF
 ```
 
@@ -1391,7 +1496,7 @@ prometheus	60 IN A 10.0.0.50
 
 访问
 
-[http://prometheus.wzxmt.com](http://prometheus.wzxmt.com/)
+[http://prom.wzxmt.com](http://prom.wzxmt.com/)
 
 ### etcd
 
@@ -1708,24 +1813,53 @@ spec:
 EOF
 ```
 
-Ingress
+Ingressroute
 
 ```yaml
-cat << 'EOF' >ingress.yaml
+cat << 'EOF' >ingressroute.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: grafana-redirect-https
+  namespace: monitoring
+spec:
+  redirectScheme:
+    scheme: https
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: grafana
+  name: grafana-http
   namespace: monitoring
 spec:
   entryPoints:
-  - web
+    - web
   routes:
-  - match: Host(`grafana.wzxmt.com`) && PathPrefix(`/`)
+    - kind: Rule
+      match: Host(`monitor.wzxmt.com`) && PathPrefix(`/`)
+      priority: 11
+      middlewares:
+        - name: grafana-redirect-https
+      services:
+        - name: grafana
+          port: 3000
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana-https
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`monitor.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: grafana
       port: 3000
+  tls:
+    secretName: monitor-certs
 EOF
 ```
 
@@ -2021,24 +2155,53 @@ spec:
 EOF
 ```
 
-Ingress
+Ingressroute
 
 ```yaml
-cat << 'EOF' >ingress.yaml
+cat << 'EOF' >ingressroute.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: alertmanager-redirect-https
+  namespace: monitoring
+spec:
+  redirectScheme:
+    scheme: https
+---
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: alertmanager
+  name: alertmanager-http
   namespace: monitoring
 spec:
   entryPoints:
-  - web
+    - web
   routes:
-  - match: Host(`alertmanager.wzxmt.com`) && PathPrefix(`/`)
+    - kind: Rule
+      match: Host(`alert.wzxmt.com`) && PathPrefix(`/`)
+      priority: 11
+      middlewares:
+        - name: alertmanager-redirect-https
+      services:
+        - name: alertmanager
+          port: 9093
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager-https
+  namespace: monitoring
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`alert.wzxmt.com`) && PathPrefix(`/`)
     kind: Rule
     services:
     - name: alertmanager
       port: 9093
+  tls:
+    secretName: monitor-certs
 EOF
 ```
 
@@ -2056,7 +2219,7 @@ alertmanager	60 IN A 10.0.0.50
 
 访问
 
-http://alertmanager.wzxmt.com
+http://alert.wzxmt.com
 
 配置文件
 
@@ -2451,7 +2614,7 @@ rule_files:
 重载配置：
 
 ```
-curl -X POST http://prometheus.wzxmt.com/-/reload
+curl -k -X POST https://prom.wzxmt.com/-/reload
 ```
 
 ![img](../acess/1034759-20191218173411675-688635972.png)
