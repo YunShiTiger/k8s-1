@@ -212,23 +212,11 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 
 #### 2 网络配置信息
 
-node网段：
-
-```bash
-10.0.0.0/24
-```
-
-service网段：
-
-```bash
-10.96.0.0/24
-```
-
-pod网段：
-
-```bash
-172.16.0.0/16
-```
+| 网段名称    | IP段信息      |
+| ----------- | ------------- |
+| node网段    | 10.0.0.0/24   |
+| service网段 | 10.96.0.0/24  |
+| pod网段     | 172.16.0.0/16 |
 
 #### 3 设置环境变量
 
@@ -859,6 +847,7 @@ ExecStart=${K8S_DIR}/bin/kube-apiserver \\
 --etcd-servers=${ETCD_SERVER} \\
 --event-ttl=1h \\
 --feature-gates=${FEATURE_GATES_API} \\
+--insecure-port=0 \\
 --kubelet-client-certificate=${K8S_SSL}/server.pem \\
 --kubelet-client-key=${K8S_SSL}/server-key.pem \\
 --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname \\
@@ -971,6 +960,12 @@ systemctl status kube-scheduler.service
 kubectl get ep kube-scheduler -n kube-system -o yaml
 ```
 
+#### 5 查看metrics指标
+
+```bash
+curl -s 127.0.0.1:10251/metrics|tail -5
+```
+
 ## 8. controller manager 集群部署
 
 #### 1 systemctl管理controller-manager
@@ -1055,7 +1050,13 @@ systemctl status kube-controller-manager.service
 kubectl get ep kube-controller-manager -n kube-system -o yaml
 ```
 
-#### 5 查看集群状态
+#### 5 查看metrics指标
+
+```bash
+curl -s 127.0.0.1:10252/metrics|tail -5
+```
+
+#### 6 查看集群状态
 
 ```bash
 [root@k8s ~]# kubectl get cs

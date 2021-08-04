@@ -751,8 +751,11 @@ data:
           - expect: "PING :([^ ]+)"
             send: "PONG ${1}"
           - expect: "^:[^ ]+ 001"
-      icmp:
+      ping: # icmp 检测模块
         prober: icmp
+        timeout: 5s
+        icmp:
+          preferred_ip_protocol: "ip4"
 EOF
 ```
 
