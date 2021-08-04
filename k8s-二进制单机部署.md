@@ -227,9 +227,8 @@ TOKEN_SECRET=$(openssl rand -hex 8)
 ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
 AUTH_EXTRA_GROUPS="system:bootstrappers:default-node-token"
 ETCD_SERVER="https://10.0.0.180:2379"
-ETCD_ENDPOINTS="etcd=https://10.0.0.180:2380"
+ETCD_ENDPOINTS="etcd-k8s=https://10.0.0.180:2380"
 DNS=10.96.0.10
-ETCD_IP=10.0.0.180
 SERVICE_CIDR=10.96.0.0/16
 CLUSTER_CIDR=172.16.0.0/16
 NODE_PORT_RANGE=30000-32767
@@ -546,7 +545,7 @@ Wants=network-online.target
 [Service]
 Type=notify
 ExecStart=${K8S_DIR}/bin/etcd \\
---advertise-client-urls=https://${ETCD_IP}:2379 \\
+--advertise-client-urls=https://0.0.0.0:2379 \\
 --auto-compaction-mode=periodic \\
 --auto-compaction-retention=1 \\
 --cert-file=${K8S_SSL}/etcd.pem \\
@@ -555,16 +554,16 @@ ExecStart=${K8S_DIR}/bin/etcd \\
 --election-timeout=30000 \\
 --enable-v2=true \\
 --heartbeat-interval=6000 \\
---initial-advertise-peer-urls=https://${ETCD_IP}:2380 \\
+--initial-advertise-peer-urls=https://0.0.0.0:2380 \\
 --initial-cluster=${ETCD_ENDPOINTS} \\
 --initial-cluster-state=new \\
 --initial-cluster-token=etcd-cluster \\
 --key-file=${K8S_SSL}/etcd-key.pem \\
---listen-client-urls=https://${ETCD_IP}:2379,http://127.0.0.1:2379 \\
---listen-peer-urls=https://${ETCD_IP}:2380 \\
+--listen-client-urls=https://0.0.0.0:2379 \\
+--listen-peer-urls=https://0.0.0.0:2380 \\
 --logger=zap \\
 --max-request-bytes=33554432 \\
---name=etcd \\
+--name=etcd-$(hostname) \\
 --peer-cert-file=${K8S_SSL}/etcd.pem \\
 --peer-client-cert-auth \\
 --peer-key-file=${K8S_SSL}/etcd-key.pem \\
