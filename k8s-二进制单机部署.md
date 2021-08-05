@@ -252,8 +252,8 @@ source ~/.bash_profile
 
 #### 4 下载集群所需软件
 
-[kubernetes](https://dl.k8s.io/v1.18.2/kubernetes-server-linux-amd64.tar.gz)
-[etcd](https://github.com/etcd-io/etcd/releases/download/v3.4.7/etcd-v3.4.7-linux-amd64.tar.gz)
+[kubernetes](https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz)
+[etcd](https://github.com/etcd-io/etcd/releases/download/v3.4.9/etcd-v3.4.9-linux-amd64.tar.gz)
 [cni](https://github.com/containernetworking/plugins/releases/download/v0.8.5/cni-plugins-linux-amd64-v0.8.5.tgz)
 [flanneld](https://github.com/coreos/flannel/releases/download/v0.12.0/flannel-v0.12.0-linux-amd64.tar.gz)
 [docker](https://download.docker.com/linux/static/stable/x86_64/docker-19.03.9.tgz)
@@ -267,11 +267,11 @@ mkdir -p  /opt/{kubernetes/bin,cni/bin} /root/.kube  /data/kubernetes/logs /etc/
 **kubernetes解压推送各节点**
 
 ```bash
-tar -zxvf kubernetes-server-linux-amd64.tar
+tar -zxvf kubernetes-server-linux-amd64.tar.gz
 cd kubernetes/server/bin/
 #复制可执行文件到其余master节点
-kube-apiserver kube-scheduler kube-controller-manager kube-proxy kubelet ${K8S_DIR}/bin/
-cp ${K8S_DIR}/bin/kubectl /usr/local/bin/
+cp kube-apiserver kube-scheduler kube-controller-manager kube-proxy kubelet ${K8S_DIR}/bin
+cp kubectl /usr/local/bin
 ```
 
 **ETC解压推送各节点**
@@ -281,8 +281,8 @@ cd -
 tar zxvf etcd-v3.4.9-linux-amd64.tar.gz
 cd etcd-v3.4.9-linux-amd64
 #复制可执行文件到其余master节点
-cp etcd ${K8S_DIR}/bin/;done
-etcdctl /usr/local/bin/
+cp etcd ${K8S_DIR}/bin
+cp etcdctl /usr/local/bin
 ```
 
 **cfssl下载**
@@ -302,7 +302,7 @@ tar -zxf cni-plugins-linux-amd64-v0.8.5.tgz -C /opt/cni/bin
 **flanneld解压推送各节点**
 
 ```bash
-tar xf flannel-v0.12.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin/
+tar xf flannel-v0.12.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin
 ```
 
 ## 3. 安装docker(node节点）
@@ -327,13 +327,11 @@ rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
 yum list docker-ce.x86_64  --showduplicates |sort -r
 ```
 
- Kubernetes 1.16当前支持的docker版本列表是 Docker版本1.13.1、17.03、17.06、17.09、18.06、18.09 
-
 #### 4 安装 docker
 
 ```bash
 yum makecache fast
-yum install -y docker-ce-19.03.9-3.el7
+yum install -y docker-ce-19.03.15-3.el7
 ```
 
 #### 5 配置所有ip的数据包转发
@@ -350,7 +348,7 @@ mkdir -p /etc/docker/
 cat << EOF >/etc/docker/daemon.json
 {
     "log-driver": "json-file",
-    "graph":"/var/lib/docker",
+    "data-root":"/var/lib/docker",
     "log-opts": { "max-size": "100m"},
     "exec-opts": ["native.cgroupdriver=cgroupfs"],
     "registry-mirrors": ["https://s3w3uu4l.mirror.aliyuncs.com"],
@@ -444,7 +442,7 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 cat > etcd-csr.json <<EOF 
 {"CN":"etcd","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"etcd"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180,0.0.0.0 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
 ```
 
 #### 9 创建 flanneld 证书和私钥
@@ -554,7 +552,7 @@ ExecStart=${K8S_DIR}/bin/etcd \\
 --election-timeout=30000 \\
 --enable-v2=true \\
 --heartbeat-interval=6000 \\
---initial-advertise-peer-urls=https://0.0.0.0:2380 \\
+--initial-advertise-peer-urls=https://$(hostname -i|awk '{print $1}'):2380 \\
 --initial-cluster=${ETCD_ENDPOINTS} \\
 --initial-cluster-state=new \\
 --initial-cluster-token=etcd-cluster \\
@@ -1471,6 +1469,9 @@ cat << EOF >/usr/lib/systemd/system/flanneld.service
 [Unit]
 Description=Flanneld overlay address etcd agent
 After=network.target
+After=network-online.target
+Wants=network-online.target
+After=etcd.service
 Before=docker.service
 [Service]
 ExecStart=${K8S_DIR}/bin/flanneld \\
@@ -1514,26 +1515,34 @@ cat<< 'EOF' >/etc/cni/net.d/10-flannel.conflist
 EOF
 ```
 
-#### 4 启动flanneld服务并验证各节点flannel
+#### 4 自定义主机网段
+
+```bash
+mkdir /run/flannel -p
+cat << EOF >/run/flannel/subnet.env
+FLANNEL_NETWORK=172.16.0.0/16
+FLANNEL_SUBNET=172.16.180.1/24
+FLANNEL_MTU=1450
+FLANNEL_IPMASQ=true
+EOF
+#开机自动创建目录
+echo 'mkdir /run/flannel -p' >>echo 'mkdir /run/flannel -p' >>/etc/rc.local
+```
+
+#### 5 启动flanneld服务并重启docker
 
 ```bash
 systemctl daemon-reload && systemctl enable --now flanneld.service
+```
+
+#### 6 并验证各节点flannel
+
+```bash
 ip a s flannel.1|grep -w inet
 ping -c 1 `ip a s flannel.1|grep -w inet|awk -F '[/ ]+' '{print $3}'`
 ```
 
-#### 5 自定义主机网段
-
-```bash
-cat << EOF >/run/flannel/subnet.env
-FLANNEL_NETWORK=172.16.0.0/16
-FLANNEL_SUBNET=172.16.43.1/24
-FLANNEL_MTU=1450
-FLANNEL_IPMASQ=true
-EOF
-```
-
-#### 6 查看node状态
+#### 7 查看node状态
 
 ```bash
 [root@k8s ~]# kubectl get node
