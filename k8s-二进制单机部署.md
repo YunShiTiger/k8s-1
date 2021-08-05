@@ -1542,6 +1542,17 @@ ip a s flannel.1|grep -w inet
 ping -c 1 `ip a s flannel.1|grep -w inet|awk -F '[/ ]+' '{print $3}'`
 ```
 
+#### 7 查看已分配的 Pod 子网段列表
+
+```bash
+ETCDCTL_API=2 etcdctl \
+--ca-file=${K8S_SSL}/ca.pem \
+--cert-file=${K8S_SSL}/flanneld.pem \
+--key-file=${K8S_SSL}/flanneld-key.pem \
+--endpoints="https://10.0.0.180:2379"  \
+ls /kubernetes/network/subnets
+```
+
 #### 7 查看node状态
 
 ```bash
