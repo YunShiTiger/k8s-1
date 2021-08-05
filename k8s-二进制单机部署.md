@@ -1553,7 +1553,7 @@ ETCDCTL_API=2 etcdctl \
 ls /kubernetes/network/subnets
 ```
 
-#### 7 查看node状态
+#### 8 查看node状态
 
 ```bash
 [root@k8s ~]# kubectl get node
