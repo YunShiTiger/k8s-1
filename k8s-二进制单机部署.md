@@ -1529,7 +1529,7 @@ EOF
 echo 'mkdir /run/flannel -p' >>echo 'mkdir /run/flannel -p' >>/etc/rc.local
 ```
 
-#### 5 启动flanneld服务并重启docker
+#### 5 启动flanneld服务
 
 ```bash
 systemctl daemon-reload && systemctl enable --now flanneld.service
