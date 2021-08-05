@@ -1553,7 +1553,18 @@ ETCDCTL_API=2 etcdctl \
 ls /kubernetes/network/subnets
 ```
 
-#### 8 查看node状态
+#### 8 查看某一 Pod 网段对应的节点 IP 和 flannel 接口地址
+
+```bash
+ETCDCTL_API=2 etcdctl \
+--ca-file=${K8S_SSL}/ca.pem \
+--cert-file=${K8S_SSL}/flanneld.pem \
+--key-file=${K8S_SSL}/flanneld-key.pem \
+--endpoints="https://10.0.0.180:2379"  \
+get /kubernetes/network/subnets/172.16.180.0-24
+```
+
+#### 9 查看node状态
 
 ```bash
 [root@k8s ~]# kubectl get node
