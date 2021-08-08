@@ -99,8 +99,9 @@ spec:
         - containerPort: 9000
           protocol: TCP
         args:
-        - server
-        - /data
+          command: [ "/bin/sh",
+            "-ce",
+            "/usr/bin/docker-entrypoint.sh minio -S /etc/minio/certs/ server  http://minio-{0...3}.minio-svc.minio.svc.cluster.local/export" ]
         env:
         - name: MINIO_ACCESS_KEY
           value: admin
