@@ -46,7 +46,7 @@ sed -i "s/^SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
 
 ```bash
 swapoff -a
-echo "vm.swappiness = 0" >>/etc/sysctl.d/kubernetes.conf
+echo "vm.swappiness = 0" >>/etc/sysctl.d/99-sysctl.conf
 sed -i 's/.*swap.*/#&/' /etc/fstab
 ```
 
@@ -73,7 +73,7 @@ cd -
 
 ```bash
 #写入配置文件
-cat <<EOF > /etc/sysctl.d/kubernetes.conf
+cat <<EOF > /etc/sysctl.d/99-sysctl.conf
 net.ipv4.ip_forward = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
@@ -85,7 +85,7 @@ modprobe br_netfilter
 #### 2.5 最终内核参数优化
 
 ```bash
-cat << EOF >/etc/sysctl.d/kubernetes.conf
+cat << EOF >/etc/sysctl.d/99-sysctl.conf
 net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
 net.ipv4.ip_forward=1
@@ -94,7 +94,8 @@ vm.swappiness=0 # 禁止使用 swap 空间，只有当系统 OOM 时才允许使
 vm.overcommit_memory=1 # 不检查物理内存是否够用
 vm.panic_on_oom=0 # 开启 OOM
 fs.inotify.max_user_instances=8192
-fs.inotify.max_user_watches=1048576fs.file-max=52706963
+fs.inotify.max_user_watches=1048576
+fs.file-max=52706963
 fs.nr_open=52706963
 net.ipv6.conf.all.disable_ipv6=1
 net.netfilter.nf_conntrack_max=2310720
@@ -104,7 +105,7 @@ EOF
 加载内核
 
 ```
-sysctl -p /etc/sysctl.d/kubernetes.conf
+sysctl -p
 ```
 
 #### 2.6 kube-proxy开启ipvs的前置条件
