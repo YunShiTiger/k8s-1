@@ -1474,6 +1474,7 @@ Wants=network-online.target
 After=etcd.service
 Before=docker.service
 [Service]
+ExecStartPre=-/usr/bin/mkdir -p /run/flannel \
 ExecStart=${K8S_DIR}/bin/flanneld \\
   -etcd-cafile=${K8S_SSL}/ca.pem \\
   -etcd-certfile=${K8S_SSL}/flanneld.pem \\
@@ -1525,8 +1526,6 @@ FLANNEL_SUBNET=172.16.180.1/24
 FLANNEL_MTU=1450
 FLANNEL_IPMASQ=true
 EOF
-#开机自动创建目录
-echo 'mkdir /run/flannel -p' >>echo 'mkdir /run/flannel -p' >>/etc/rc.local
 ```
 
 #### 5 启动flanneld服务
