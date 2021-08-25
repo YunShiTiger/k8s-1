@@ -71,7 +71,8 @@ vm.swappiness=0 # 禁止使用 swap 空间，只有当系统 OOM 时才允许使
 vm.overcommit_memory=1 # 不检查物理内存是否够用
 vm.panic_on_oom=0 # 开启 OOM
 fs.inotify.max_user_instances=8192
-fs.inotify.max_user_watches=1048576fs.file-max=52706963
+fs.inotify.max_user_watches=1048576
+fs.file-max=52706963
 fs.nr_open=52706963
 net.ipv6.conf.all.disable_ipv6=1
 net.netfilter.nf_conntrack_max=2310720
