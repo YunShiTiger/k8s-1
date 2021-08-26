@@ -21,16 +21,7 @@ sed -i "s/^SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
 
 ```bash
 swapoff -a
-echo "vm.swappiness = 0" >>/etc/sysctl.d/99-sysctl.conf
 sed -i 's/.*swap.*/#&/' /etc/fstab
-```
-
-因为这里本次用于测试两台主机上还运行其他服务，关闭swap可能会对其他服务产生影响，所以这里修改kubelet的配置去掉这个限制。 使用kubelet的启动参数--fail-swap-on=false去掉必须关闭swap的限制，修改vim /etc/sysconfig/kubelet，加入：
-
-```bash
-cat<< EOF >/etc/sysconfig/kubelet
-KUBELET_EXTRA_ARGS=--fail-swap-on=false
-EOF
 ```
 
 #### 2 更新 yum 源
@@ -44,38 +35,54 @@ curl https://mirrors.aliyun.com/repo/epel-7.repo -o epel.repo
 cd -
 ```
 
-#### 3 设置系统参数 
-
-允许路由转发，不对bridge的数据进行处理
-
-```bash
-#写入配置文件
-cat <<EOF > /etc/sysctl.d/99-sysctl.conf
-net.ipv4.ip_forward = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-EOF
-#生效配置文件
-modprobe br_netfilter
-```
-
-#### 4 最终内核参数优化
+#### 3 内核参数优化
 
 ```bash
 cat << EOF >/etc/sysctl.d/99-sysctl.conf
+net.ipv4.tcp_slow_start_after_idle=0
+net.core.rmem_max=16777216
+fs.inotify.max_user_watches=524288
+kernel.softlockup_all_cpu_backtrace=1
+kernel.softlockup_panic=1
+fs.file-max=2097152
+fs.nr_open=2097152
+fs.inotify.max_user_instances=8192
+fs.inotify.max_queued_events=16384
+vm.max_map_count=262144
+net.core.netdev_max_backlog=16384
+net.ipv4.tcp_wmem=4096 12582912 16777216
+net.core.wmem_max=16777216
+net.core.somaxconn=32768
+net.ipv4.ip_forward=1
+net.ipv4.tcp_max_syn_backlog=8096
 net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
-net.ipv4.ip_forward=1
-net.ipv4.tcp_tw_recycle=0
-vm.swappiness=0 # 禁止使用 swap 空间，只有当系统 OOM 时才允许使用它
-vm.overcommit_memory=1 # 不检查物理内存是否够用
-vm.panic_on_oom=0 # 开启 OOM
-fs.inotify.max_user_instances=8192
-fs.inotify.max_user_watches=1048576
-fs.file-max=52706963
-fs.nr_open=52706963
+net.bridge.bridge-nf-call-arptables=1
+net.ipv4.tcp_rmem=4096 12582912 16777216
+vm.swappiness=0
+kernel.sysrq=1
+net.ipv4.neigh.default.gc_stale_time=120
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
+net.ipv4.conf.default.arp_announce=2
+net.ipv4.conf.lo.arp_announce=2
+net.ipv4.conf.all.arp_announce=2
+net.ipv4.tcp_max_tw_buckets=5000
+net.ipv4.tcp_syncookies=1
+net.ipv4.tcp_synack_retries=2
+net.ipv6.conf.lo.disable_ipv6=1
 net.ipv6.conf.all.disable_ipv6=1
-net.netfilter.nf_conntrack_max=2310720
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv4.ip_local_port_range=1024 65535
+net.ipv4.tcp_keepalive_time=600
+net.ipv4.tcp_keepalive_probes=10
+net.ipv4.tcp_keepalive_intvl=30
+net.nf_conntrack_max=25000000
+net.netfilter.nf_conntrack_max=25000000
+net.netfilter.nf_conntrack_tcp_timeout_established=180
+net.netfilter.nf_conntrack_tcp_timeout_time_wait=120
+net.netfilter.nf_conntrack_tcp_timeout_close_wait=60
+net.netfilter.nf_conntrack_tcp_timeout_fin_wait=12
 EOF
 ```
 
@@ -85,7 +92,7 @@ EOF
 sysctl -p 
 ```
 
-#### 5 kube-proxy开启ipvs的前置条件
+#### 4 开启ipvs前置条件
 
 由于ipvs已经加入到了内核的主干，所以为kube-proxy开启ipvs的前提需要加载以下的内核模块：
 
@@ -113,7 +120,7 @@ yum install -y ipset ipvsadm
 
 如果以上前提条件如果不满足，则即使kube-proxy的配置开启了ipvs模式，也会退回到iptables模式。
 
-#### 6 调整系统时区
+#### 5 调整系统时区
 
 ```bash
 # 设置系统时区为中国/上海
@@ -123,7 +130,7 @@ timedatectl set-timezone Asia/Shanghai
 systemctl restart crond
 ```
 
-#### 7 设置 rsyslogd 和 systemd journald
+#### 6  systemd journald
 
 ```bash
 mkdir /var/log/journal # 持久化保存日志的目录
@@ -149,7 +156,7 @@ EOF
 systemctl restart systemd-journald
 ```
 
-#### 8 升级系统内核为 4.44
+#### 7 升级系统内核为 4.44
 
 CentOS 7.x 系统自带的 3.10.x 内核存在一些 Bugs，导致运行的 Docker、Kubernetes 不稳定 
 
@@ -183,7 +190,7 @@ uname -r
 4.4.218-1.el7.elrepo.x86_64
 ```
 
-#### 9 关闭 NUMA
+#### 8 关闭 NUMA
 
 备份grub
 
