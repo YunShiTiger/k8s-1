@@ -135,6 +135,12 @@ Argo CD 会运行一个 gRPC 服务（由 CLI 使用）和 HTTP/HTTPS 服务（�
 
 由于 Traefik 它可以在同一端口处理 TCP 和 HTTP 连接，所以我们不需要定义多个 IngressRoute 来暴露 HTTP 和 gRPC 服务，然后应在禁用 TLS 的情况下运行 API 服务，编辑 argocd-server Deployment 以将 `--insecure` 标志添加到 argocd-server 命令中：
 
+```
+kubectl -n argocd edit deployments.apps argocd-server
+```
+
+修改
+
 ```bash
 spec:
   template:
