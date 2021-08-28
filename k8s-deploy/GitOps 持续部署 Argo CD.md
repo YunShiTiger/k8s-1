@@ -148,11 +148,8 @@ spec:
       containers:
       - name: argocd-server
         command:
-        - argocd-server
-        - --staticassets
-        - /shared/app
-        - --repo-server
-        - argocd-repo-server:8081
+        - argocd-serve
+        ...
         - --insecure  # 需要禁用 tls，否则会redirected you too many times,注意顺序
 ```
 
