@@ -2485,7 +2485,7 @@ groups:
 EOF
 ```
 
-### containers
+### containers_status
 
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/containers_status.yml
@@ -2543,7 +2543,7 @@ groups:
 EOF
 ```
 
-### pod
+### pod_status
 
 ```bash
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/pod_status.yml
@@ -2579,7 +2579,7 @@ groups:
       description: 'namespace: {{ $labels.namespace }}, pod: {{ $labels.pod }} restart {{ $value }} times'
 
   - alert: daemonset_unavailable
-    expr: kube_daemonset_status_number_unavailable #最近30分钟pod重启
+    expr: kube_daemonset_status_number_unavailable >0
     for: 2s
     labels:
       severity: warning
@@ -2590,7 +2590,7 @@ groups:
 EOF
 ```
 
-### consul
+### consul_status
 
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/Consul_status.yml
