@@ -2352,7 +2352,7 @@ EOF
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/probe_status.yml
 groups:
-- name: 站点状态-监控告警
+- name: 服务状态告警规则
   rules:
   - alert: 主机存活性检测
     expr: probe_success{group!=""} == 0
@@ -2397,7 +2397,7 @@ EOF
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/node_status.yml
 groups:
-- name: 内存告警规则
+- name: 系统告警规则
   rules:
   - alert: "内存使用率告警"
     expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
@@ -2409,8 +2409,6 @@ groups:
       description: "{{ $labels.instance }} 内存资源利用率大于80%！(当前值: {{ $value }}%)"
       value: "{{ $value }}"
 
-- name: CPU报警规则
-  rules:
   - alert: CPU使用率告警
     expr: 100 - (avg by (instance)(irate(node_cpu_seconds_total{mode="idle"}[5m]) )) * 100 > 80
     for: 1m
@@ -2421,8 +2419,6 @@ groups:
       description: "服务器: CPU使用超过80%！(当前值: {{ $value }}%)"
       value: "{{ $value }}"
 
-- name: 磁盘报警规则
-  rules:
   - alert: 磁盘使用率告警
     expr: (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes * 100 > 80
     for: 1m
@@ -2494,7 +2490,7 @@ EOF
 ```yaml
 cat << 'EOF' >/data/prometheus/prometheus/etc/rules/containers_status.yml
 groups:
-- name:  Docker containers monitoring
+- name:  containers告警规则
   rules: 
   - alert: ContainerKilled
     expr: time() - container_last_seen > 60
@@ -2544,6 +2540,43 @@ groups:
     annotations:
       summary: "Container high throttle rate (instance {{ $labels.instance }})"
       description: "Container is being throttled\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+EOF
+```
+
+### pod
+
+```bash
+cat << 'EOF' >/data/prometheus/prometheus/etc/rules/pod_status.yml
+groups:
+- name: pod监控告警
+  rules:
+  - alert: PodDown
+    expr: kube_pod_container_status_running != 1  
+    for: 2s
+    labels:
+      severity: warning
+      cluster: k8s
+    annotations:
+      summary: 'Container: {{ $labels.container }} down'
+      description: 'Namespace: {{ $labels.namespace }}, Pod: {{ $labels.pod }} is not running'
+  - alert: PodReady
+    expr: kube_pod_container_status_ready != 1  
+    for: 5m   #Ready持续5分钟，说明启动有问题
+    labels:
+      severity: warning
+      cluster: k8s
+    annotations:
+      summary: 'Container: {{ $labels.container }} ready'
+      description: 'Namespace: {{ $labels.namespace }}, Pod: {{ $labels.pod }} always ready for 5 minitue'
+  - alert: PodRestart
+    expr: changes(kube_pod_container_status_restarts_total[30m])>0 #最近30分钟pod重启
+    for: 2s
+    labels:
+      severity: warning
+      cluster: k8s
+    annotations:
+      summary: 'Container: {{ $labels.container }} restart'
+      description: 'namespace: {{ $labels.namespace }}, pod: {{ $labels.pod }} restart {{ $value }} times'
 EOF
 ```
 
