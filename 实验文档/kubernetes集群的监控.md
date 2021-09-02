@@ -2550,7 +2550,7 @@ cat << 'EOF' >/data/prometheus/prometheus/etc/rules/pod_status.yml
 groups:
 - name: pod监控告警
   rules:
-  - alert: PodDown
+  - alert: Pod_Down
     expr: kube_pod_container_status_running != 1  
     for: 2s
     labels:
@@ -2559,7 +2559,7 @@ groups:
     annotations:
       summary: 'Container: {{ $labels.container }} down'
       description: 'Namespace: {{ $labels.namespace }}, Pod: {{ $labels.pod }} is not running'
-  - alert: PodReady
+  - alert: Pod_Ready
     expr: kube_pod_container_status_ready != 1  
     for: 5m   #Ready持续5分钟，说明启动有问题
     labels:
@@ -2568,7 +2568,7 @@ groups:
     annotations:
       summary: 'Container: {{ $labels.container }} ready'
       description: 'Namespace: {{ $labels.namespace }}, Pod: {{ $labels.pod }} always ready for 5 minitue'
-  - alert: PodRestart
+  - alert: Pod_Restart
     expr: changes(kube_pod_container_status_restarts_total[30m])>0 #最近30分钟pod重启
     for: 2s
     labels:
@@ -2577,6 +2577,16 @@ groups:
     annotations:
       summary: 'Container: {{ $labels.container }} restart'
       description: 'namespace: {{ $labels.namespace }}, pod: {{ $labels.pod }} restart {{ $value }} times'
+
+  - alert: daemonset_unavailable
+    expr: kube_daemonset_status_number_unavailable #最近30分钟pod重启
+    for: 2s
+    labels:
+      severity: warning
+      cluster: k8s
+    annotations:
+      summary: 'Daemonset: {{ $labels.daemonset }} is unavailable'
+      description: 'namespace: {{ $labels.namespace }}, daemonset: {{ $labels.daemonset }} is unavailable'
 EOF
 ```
 
