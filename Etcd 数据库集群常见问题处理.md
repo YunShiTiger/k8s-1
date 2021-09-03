@@ -531,10 +531,11 @@ cat << 'EOF' >/usr/local/scripts/etcd-backup-v2.sh
 timestamp=`date +%Y%m%d-%H%M%S`
 data_dir=/data/etcd/data
 back_dir=/data/backup/etcd
-mkdir -p ${back_dir} ${back_dir}
+cluster_name=test
+
+mkdir -p ${back_dir} && cd ${back_dir}
 ETCDCTL_API=2 etcdctl backup --data-dir ${data_dir} -backup-dir ${back_dir}/etcd-${timestamp}
-cd ${back_dir}
-tar zcvf etcd-${timestamp}.tar.gz etcd-${timestamp} --remove-files
+tar zcvf ${cluster_name}_snapshot_${timestamp}.tar.gz etcd-${timestamp} --remove-files
 EOF
 chmod +x /usr/local/scripts/*
 echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v2.sh" >>/var/spool/cron/root
@@ -548,20 +549,19 @@ cat << 'EOF' >/usr/local/scripts/etcd-backup-v3.sh
 #!/bin/bash
 timestamp=`date +%Y%m%d-%H%M%S`
 back_dir=/data/backup/etcd
-endpoints=https://10.0.0.31:2379
+etcd_ip=https://10.0.0.31:2379
 ssl_dir=/etc/kubernetes/pki
-cert_file=${ssl_dir}/etcd.pem
-key_file=${ssl_dir}/etcd-key.pem
-cacert_file=${ssl_dir}/ca.pem
+cluster_name=test
+file_name=${back_dir}/${cluster_name}_snapshot_$timestamp.db
 
 mkdir -p $back_dir
 ETCDCTL_API=3 etcdctl \
---endpoints="${endpoints}" \
---cert=${cert_file} \
---key=${key_file} \
---cacert=${cacert_file} \
-snapshot save ${back_dir}/snapshot_$timestamp.db
-gzip ${back_dir}/snapshot_$timestamp.db
+--endpoints="https://${etcd_ip}:2379" \
+--cert=${ssl_dir}/etcd.pem \
+--key=${ssl_dir}/etcd-key.pem \
+--cacert=${ssl_dir}/ca.pem \
+snapshot save ${file_name}
+gzip ${file_name}
 EOF
 chmod +x /usr/local/scripts/*
 echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v3.sh" >>/var/spool/cron/root
