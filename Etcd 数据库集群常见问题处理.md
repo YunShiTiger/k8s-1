@@ -549,7 +549,7 @@ cat << 'EOF' >/usr/local/scripts/etcd-backup-v3.sh
 #!/bin/bash
 timestamp=`date +%Y%m%d-%H%M%S`
 back_dir=/data/backup/etcd
-etcd_ip=https://10.0.0.31:2379
+etcd_ip=10.0.0.31
 ssl_dir=/etc/kubernetes/pki
 cluster_name=test
 file_name=${back_dir}/${cluster_name}_snapshot_$timestamp.db
