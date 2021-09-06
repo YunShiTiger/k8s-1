@@ -534,11 +534,11 @@ back_dir=/data/backup/etcd
 cluster_name=test
 
 mkdir -p ${back_dir} && cd ${back_dir}
-ETCDCTL_API=2 etcdctl backup --data-dir ${data_dir} -backup-dir ${back_dir}/etcd-${timestamp}
+ETCDCTL_API=2 /usr/local/bin/etcdctl backup --data-dir ${data_dir} -backup-dir ${back_dir}/etcd-${timestamp}
 tar zcvf ${cluster_name}_snapshot_${timestamp}.tar.gz etcd-${timestamp} --remove-files
 EOF
 chmod +x /usr/local/scripts/*
-echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v2.sh" >>/var/spool/cron/root
+echo -e "\n#etcd backup \n0 0 * * * /usr/local/scripts/etcd-backup-v2.sh" >>/var/spool/cron/root
 ```
 
 v3
@@ -555,7 +555,7 @@ cluster_name=test
 file_name=${back_dir}/${cluster_name}_snapshot_$timestamp.db
 
 mkdir -p $back_dir
-ETCDCTL_API=3 etcdctl \
+ETCDCTL_API=3 /usr/local/bin/etcdctl \
 --endpoints="https://${etcd_ip}:2379" \
 --cert=${ssl_dir}/etcd.pem \
 --key=${ssl_dir}/etcd-key.pem \
@@ -564,7 +564,7 @@ snapshot save ${file_name}
 gzip ${file_name}
 EOF
 chmod +x /usr/local/scripts/*
-echo -e "\n#etcd backup \n* 0 * * * /usr/local/scripts/etcd-backup-v3.sh" >>/var/spool/cron/root
+echo -e "\n#etcd backup \n0 0 * * * /usr/local/scripts/etcd-backup-v3.sh" >>/var/spool/cron/root
 ```
 
 #  三、ETCD常见问题
