@@ -1251,6 +1251,18 @@ EOE
 systemctl daemon-reload && systemctl enable --now kubelet
 ```
 
+#### 3 查看服务状态
+
+```bash
+systemctl status kubelet.service
+```
+
+#### 4 查看metrics指标
+
+```bash
+curl -s 127.0.0.1:10255/metrics|tail -5
+```
+
 ## 11. kube-proxy部署
 
 #### 1  systemctl管理kube-proxy
@@ -1297,11 +1309,16 @@ NAME   STATUS     ROLES    AGE   VERSION
 k8s    NotReady   <none>   32s   v1.18.14
 ```
 
-#### 4 node节点确认使用IPVS模式
+#### 4 查看metrics指标
 
 ```bash
-[root@k8s ~]# curl 127.0.0.1:10249/proxyMode
-ipvs
+curl -s 127.0.0.1:10249/metrics|tail -5
+```
+
+#### 5 node节点确认使用IPVS模式
+
+```bash
+curl 127.0.0.1:10249/proxyMode
 ```
 
 ## 12 授权
