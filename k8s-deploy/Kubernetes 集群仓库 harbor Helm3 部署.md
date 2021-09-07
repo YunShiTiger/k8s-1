@@ -398,7 +398,8 @@ helm package hello
 # 推送 chart 进行测试
 helm push hello-0.1.0.tgz myrepo
 
-Pushing hello-0.1.0.tgz to myrepo...
+#下载 chart 进行测试
+helm fetch myrepo/library/hello --untar
 ```
 
 ## 八、遇到的问题

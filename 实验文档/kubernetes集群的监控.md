@@ -2587,6 +2587,16 @@ groups:
     annotations:
       summary: 'Daemonset: {{ $labels.daemonset }} is unavailable'
       description: 'namespace: {{ $labels.namespace }}, daemonset: {{ $labels.daemonset }} is unavailable'
+
+  - alert: node_unavailable
+    expr: kube_node_status_condition{job="kube-state-metrics",condition="Ready",status="true"} !=1
+    for: 2s
+    labels:
+      severity: warning
+      cluster: k8s
+    annotations:
+      summary: 'Node: {{ $labels.node }} not Ready'
+      description: 'node: {{ $labels.node }} not Ready'
 EOF
 ```
 

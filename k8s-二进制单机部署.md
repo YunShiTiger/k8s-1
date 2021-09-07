@@ -263,7 +263,7 @@ source ~/.bash_profile
 [kubernetes](https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz)
 [etcd](https://github.com/etcd-io/etcd/releases/download/v3.4.9/etcd-v3.4.9-linux-amd64.tar.gz)
 [cni](https://github.com/containernetworking/plugins/releases/download/v0.8.5/cni-plugins-linux-amd64-v0.8.5.tgz)
-[flanneld](https://github.com/coreos/flannel/releases/download/v0.12.0/flannel-v0.12.0-linux-amd64.tar.gz)
+[flanneld](https://github.com/flannel-io/flannel/releases/download/v0.14.0/flannel-v0.14.0-linux-amd64.tar.gz)
 [docker](https://download.docker.com/linux/static/stable/x86_64/docker-19.03.9.tgz)
 
 **创建目录**
@@ -310,7 +310,7 @@ tar -zxf cni-plugins-linux-amd64-v0.8.5.tgz -C /opt/cni/bin
 **flanneld解压推送各节点**
 
 ```bash
-tar xf flannel-v0.12.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin
+tar xf flannel-v0.14.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin
 ```
 
 ## 3. 安装docker(node节点）
@@ -1279,6 +1279,7 @@ ExecStart=${K8S_DIR}/bin/kube-proxy \\
 --bind-address=${ETCD_IP} \\
 --cluster-cidr=${CLUSTER_CIDR} \\
 --feature-gates=${FEATURE_GATES} \\
+--metrics-bind-address=0.0.0.0:10249 \\
 --ipvs-min-sync-period=5s \\
 --ipvs-scheduler=rr \\
 --ipvs-sync-period=5s \\
@@ -1429,7 +1430,7 @@ kubectl create clusterrolebinding system-node-role-bound --clusterrole=system:no
 
 kubernetes 要求集群内各节点(包括 master 节点)能通过 Pod 网段互联互通。flannel 使用 vxlan 技术为各节点创建一个可以互通的 Pod 网络，使用的端口为 UDP 8472。 第一次启动时，从 etcd 获取配置的 Pod 网段信息，为本节点分配一个未使用的地址段，然后创建flannel.1网络接口。flannel 将分配给自己的 Pod 网段信息写入 /run/flannel/docker 文件，docker 后续使用这个文件中的环境变量设置 docker0 网桥，从而从这个地址段为本节点的所有 Pod 容器分配 IP。
 
-flanneld并不简单，它上连etcd，利用etcd来管理可分配的IP地 址段资源，同时监控etcd中每个Pod的实际地址，并在内存中建立了一 个Pod节点路由表；它下连docker0和物理网络，使用内存中的Pod节点路由表，将docker0发给它的数据包包装起来，利用物理网络的连接将 数据包投递到目标flanneld上，从而完成Pod到Pod之间的直接地址通信。
+[flanneld](https://github.com/flannel-io/flannel)并不简单，它上连etcd，利用etcd来管理可分配的IP地 址段资源，同时监控etcd中每个Pod的实际地址，并在内存中建立了一 个Pod节点路由表；它下连docker0和物理网络，使用内存中的Pod节点路由表，将docker0发给它的数据包包装起来，利用物理网络的连接将 数据包投递到目标flanneld上，从而完成Pod到Pod之间的直接地址通信。
 
 #### 1 向 etcd 写入集群 Pod 网段信息
 
