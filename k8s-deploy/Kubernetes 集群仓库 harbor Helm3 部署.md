@@ -353,13 +353,22 @@ helm repo add myrepo --ca-file=ca.crt --cert-file=harbor.wzxmt.com.crt --key-fil
 - `chartrepo`：如果是chart仓库地址，中间必须加 chartrepo
 - `library`：仓库的项目名称
 
+注意，以上默认添加到公开library
+
+添加到私有仓库
+
+```bash
+helm repo add appsrepo --ca-file=ca.crt --cert-file=harbor.wzxmt.com.crt --key-file=harbor.wzxmt.com.key --username=admin --password=admin https://harbor.wzxmt.com/chartrepo/apps
+```
+
 查看仓库列表：
 
 ```bash
 helm repo list
 
 NAME            URL                                                                                  
-myrepo          https://harbor.wzxmt.com/chartrepo/library 
+myrepo          https://harbor.wzxmt.com/chartrepo/library
+appsrepo        https://harbor.wzxmt.com/chartrepo/apps
 ```
 
 删除仓库：
@@ -413,15 +422,27 @@ helm fetch aliyuncs/nginx
 ```bash
 # 推送 chart 进行测试
 helm push nginx-5.1.5.tgz myrepo
+helm push nginx-5.1.5.tgz appsrepo
 ```
 
 #### 2. 下载 chart测试
+
+公开
 
 ```bash
 #下载 chart 进行测试
 helm fetch myrepo/library/nginx
 #运行 chart
 helm install nginx --dry-run myrepo/library/nginx
+```
+
+私有
+
+```bash
+#下载 chart
+helm fetch --ca-file=ca.crt --cert-file=harbor.wzxmt.com.crt --key-file=harbor.wzxmt.com.key --username=admin --password=admin appsrepo/nginx
+#运行 chart
+helm install nginx --ca-file=ca.crt --cert-file=harbor.wzxmt.com.crt --key-file=harbor.wzxmt.com.key --username=admin --password=admin appsrepo/nginx
 ```
 
 ## 九、遇到的问题
