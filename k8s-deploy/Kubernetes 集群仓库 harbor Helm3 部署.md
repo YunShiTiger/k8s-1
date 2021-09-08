@@ -1,5 +1,3 @@
-# Kubernetes 集群仓库 harbor Helm3 部署
-
 ## 一、简介
 
 Harbor 是一个用于存储和分发 Docker 镜像的企业级 Registry 服务器，通过添加一些企业必需的功能特性，例如安全、标识和管理等，扩展了开源 Docker Distribution。作为一个企业级私有 Registry 服务器，Harbor 提供了更好的性能和安全。提升用户使用 Registry 构建和运行环境传输镜像的效率。
@@ -49,7 +47,13 @@ harbor-data-storage   fuseim.pri/ifs   Delete          Immediate           false
 
 Helm 现在具有一个安装程序脚本，该脚本将自动获取最新版本的 Helm 并将其本地安装。
 
-#### 3.2、Helm下载安装(略)
+#### 3.2、Helm下载安装
+
+```bash
+wget https://get.helm.sh/helm-v3.4.2-linux-amd64.tar.gz
+tar zxvf helm-v3.4.2-linux-amd64.tar.gz
+mv linux-amd64/helm /usr/bin/
+```
 
 ### 4、创建 Namespace
 
@@ -137,14 +141,7 @@ openssl x509 -req -sha512 -days 3650 \
 openssl x509 -inform PEM -in tls.crt -out tls.cert
 ```
 
-#### 9、将服务器证书，密钥和CA文件Docker证书文件夹中
-
-```bash
-mkdir -p /etc/docker/certs.d/harbor.wzxmt.com:443
-cp tls.cert ca.crt tls.key /etc/docker/certs.d/harbor.wzxmt.com:443
-```
-
-#### 10、生成 secret 对象
+#### 9、生成 secret 对象
 
 ```yaml
 cat << EOF >secret.yaml
@@ -186,7 +183,7 @@ helm fetch harbor/harbor --untar
 cd harbor
 ```
 
-#### 3、修改values.yaml
+### 3、修改values.yaml
 
 ```yaml
 ...
@@ -282,7 +279,17 @@ notary  60 IN A 10.0.0.50
 进入后可以看到 Harbor 的管理后台：
 ![管理后台](https://imgconvert.csdnimg.cn/aHR0cHM6Ly91cGxvYWRlci5zaGltby5pbS9mL1dwbWNtMVVDNTBnTGVPbkMucG5nIXRodW1ibmFpbA?x-oss-process=image/format,png)
 
-### 5、服务器配置镜像仓库
+## 七、服务器配置使用私有仓库
+
+### 1、获取ca、私钥与公钥
+
+```bash
+kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.ca\.crt}"|base64 --decode >ca.crt
+kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.crt}"|base64 --decode >harbor.wzxmt.com.crt
+kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.key}"|base64 --decode >harbor.wzxmt.com.key
+```
+
+### 2、服务器配置镜像私有仓库
 
 #### 1、配置docker信任仓库地址
 
@@ -298,23 +305,24 @@ notary  60 IN A 10.0.0.50
 systemctl restart docker.service
 ```
 
-#### 2、登录 Harbor 仓库
+#### 2、配置 Docker证书
 
 ```bash
-docker login -u admin -p admin harbor.wzxmt.com
+mkdir -p /etc/docker/certs.d/harbor.wzxmt.com
+cp harbor.wzxmt.com.cert ca.crt harbor.wzxmt.com.key /etc/docker/certs.d/harbor.wzxmt.com
 ```
 
-### 6、服务器配置 Helm Chart 仓库
+> 如果下面执行的目录不存在，请用 yum 安装 ca-certificates 包。
 
-#### 1、获取ca,私钥与公钥
+执行更新命令，使证书生效:
 
 ```bash
-kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.ca\.crt}"|base64 --decode >ca.crt
-kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.crt}"|base64 --decode >tls.crt
-kubectl get secrets -n harbor registry-harbor-ingress -o jsonpath="{.data.tls\.key}"|base64 --decode >tls.key
+update-ca-trust extract
 ```
 
-#### 2、配置 Helm 证书
+### 3、服务器配置Helm Chart仓库
+
+#### 1、配置 Helm 证书
 
 跟配置 Docker 仓库一样，配置 Helm 仓库也得提前配置证书，上传 ca 签名到目录 `/etc/pki/ca-trust/source/anchors/`：
 
@@ -331,12 +339,12 @@ cp ca.crt /etc/pki/ca-trust/source/anchors
 update-ca-trust extract 
 ```
 
-#### 3、添加 Helm 仓库
+#### 2、添加 Helm 仓库
 
 添加 Helm 仓库:
 
 ```bash
-helm repo add myrepo --ca-file=ca.crt --cert-file=tls.crt --key-file=tls.key --username=admin --password=admin https://harbor.wzxmt.com/chartrepo
+helm repo add myrepo --ca-file=ca.crt --cert-file=harbor.wzxmt.com.crt --key-file=harbor.wzxmt.com.key --username=admin --password=admin https://harbor.wzxmt.com/chartrepo
 ```
 
 - `-username`：harbor仓库用户名
@@ -348,61 +356,75 @@ helm repo add myrepo --ca-file=ca.crt --cert-file=tls.crt --key-file=tls.key --u
 查看仓库列表：
 
 ```bash
-$ helm repo list
+helm repo list
 
 NAME            URL                                                                                  
 myrepo          https://harbor.wzxmt.com/chartrepo/library 
 ```
 
-## 七、测试功能
+删除仓库：
+
+```bash
+helm repo remove myrepo
+```
+
+## 八、测试功能
 
 ### 1、推送与拉取 Docker 镜像
 
-这里为了测试推送镜像，先下载一个用于测试的 helloworld 小镜像，然后推送到 hub.mydlq.club 仓库：
+#### 1. 测试推送镜像
 
 ```bash
 # 拉取 Helloworld 镜像
 docker pull hello-world:latest
-
 # 将下载的镜像使用 tag 命令改变镜像名
 docker tag hello-world:latest harbor.wzxmt.com/library/hello-world:latest
-
 # 推送镜像到镜像仓库
 docker push harbor.wzxmt.com/library/hello-world:latest
 ```
 
-将之前的下载的镜像删除，然后测试从 `harbor.wzxmt.com` 下载镜像进行测试：
+####  2. 测试拉取镜像
 
 ```bash
-# 删除之前镜像
-docker rmi hello-world:latest
-docker rmi hello-world:latest harbor.wzxmt.com/library/hello-world:latest
-
-# 测试从 `harbor.wzxmt.com` 下载新镜像
+# 测试从 harbor.wzxmt.com下载新镜像
 docker pull harbor.wzxmt.com/library/hello-world:latest
 ```
 
 ### 2、推送与拉取 Chart
 
+#### 1. 推送chart测试
+
 Helm 要想推送 Chart 到 Helm 仓库，需要提前安装上传插件：
 
 ```bash
 helm plugin install https://github.com/chartmuseum/helm-push
-
-# 然后创建一个测试的 Chart 进行推送测试：
-helm create hello
-
-# 打包chart，将chart打包成tgz格式
-helm package hello
-
-# 推送 chart 进行测试
-helm push hello-0.1.0.tgz myrepo
-
-#下载 chart 进行测试
-helm fetch myrepo/library/hello --untar
 ```
 
-## 八、遇到的问题
+测试包
+
+```bash
+helm repo add aliyuncs https://apphub.aliyuncs.com
+helm repo update
+helm fetch aliyuncs/nginx
+```
+
+推送
+
+```bash
+# 推送 chart 进行测试
+helm push nginx-5.1.5.tgz myrepo
+```
+
+#### 2. 下载 chart测试
+
+```bash
+#下载 chart 进行测试
+helm fetch myrepo/library/nginx
+#运行 chart
+helm install nginx --dry-run myrepo/library/nginx
+```
+
+## 九、遇到的问题
 
 ### 1、Error response from daemon: Get https://harbor.wzxmt.com/v2/: x509: certificate signed by unknown authorit
 
