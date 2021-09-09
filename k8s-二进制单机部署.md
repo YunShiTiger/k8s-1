@@ -225,6 +225,7 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 | node网段    | 10.0.0.0/24   |
 | service网段 | 10.96.0.0/24  |
 | pod网段     | 172.16.0.0/16 |
+| vip         | 10.0.0.150    |
 
 #### 3 设置环境变量
 
@@ -240,7 +241,7 @@ DNS=10.96.0.10
 SERVICE_CIDR=10.96.0.0/16
 CLUSTER_CIDR=172.16.0.0/16
 NODE_PORT_RANGE=30000-32767
-KUBE_APISERVER="https://10.0.0.180:6443"
+KUBE_APISERVER="https://10.0.0.150:6443"
 CNI_DIR=/opt/cni
 K8S_DIR=/opt/kubernetes
 K8S_CONF=/etc/kubernetes
@@ -414,7 +415,7 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 cat >server-csr.json <<EOF 
 {"CN":"kubernetes","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"k8s"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local,10.0.0.180,172.16.0.1,10.96.0.1,127.0.0.1 -profile=kubernetes server-csr.json|cfssljson -bare server
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local,10.0.0.180,172.16.0.1,10.96.0.1,127.0.0.1,10.0.0.150 -profile=kubernetes server-csr.json|cfssljson -bare server
 ```
 
 #### 5 生成kube-controller-manager私钥和证书
@@ -450,7 +451,7 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 cat > etcd-csr.json <<EOF 
 {"CN":"etcd","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"etcd"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180,0.0.0.0 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180,0.0.0.0,10.0.0.150 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
 ```
 
 #### 9 创建 flanneld 证书和私钥
@@ -534,7 +535,7 @@ kubectl config use-context admin@kubernetes --kubeconfig=${K8S_CONF}/admin.conf
 kube
 
 ```bash
- cp ${K8S_CONF}/admin.conf /root/.kube/config
+cp ${K8S_CONF}/admin.conf /root/.kube/config
 ```
 
 ## 6 etcd部署

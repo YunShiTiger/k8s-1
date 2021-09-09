@@ -3,11 +3,11 @@
 | 系统类型   | IP地址     | 节点角色 | CPU  | Memory | Hostname |
 | :--------- | ---------- | -------- | ---- | ------ | -------- |
 | pod        | 10.0.0.150 | vip      |      |        |          |
-| centos7-64 | 10.0.0.31  | master01 | 1    | 2G     | master01 |
-| centos7-64 | 10.0.0.32  | master02 | 1    | 2G     | master02 |
-| centos7-64 | 10.0.0.33  | node01   | 1    | 2G     | node01   |
-| centos7-64 | 10.0.0.34  | node01   | 1    | 2G     | node02   |
-| centos7-64 | 10.0.0.35  | node01   | 1    | 2G     | node03   |
+| centos7-64 | 10.0.0.31  | m1       | 1    | 2G     | m1       |
+| centos7-64 | 10.0.0.32  | m2       | 1    | 2G     | m2       |
+| centos7-64 | 10.0.0.41  | n1       | 1    | 2G     | n1       |
+| centos7-64 | 10.0.0.42  | n2       | 1    | 2G     | n2       |
+| centos7-64 | 10.0.0.43  | n3       | 1    | 2G     | n3       |
 
 ## 2. 系统设置(所有节点）
 
@@ -17,11 +17,11 @@
 
 ```bash
 cat<< EOF >>/etc/hosts
-10.0.0.31 master01
-10.0.0.32 master02
-10.0.0.33 node01
-10.0.0.34 node02
-10.0.0.35 node03
+10.0.0.31 m1
+10.0.0.32 m2
+10.0.0.41 n1
+10.0.0.42 n2
+10.0.0.43 n3
 EOF
 ```
 
@@ -235,7 +235,7 @@ yum list docker-ce.x86_64  --showduplicates |sort -r
 
 ```bash
 yum makecache fast
-yum install -y docker-ce-18.09.15-3.el7 
+yum install -y docker-ce-19.03.15-3.el7
 ```
 
 ### 2 二进制安装
@@ -380,6 +380,12 @@ kube-vip可以被配置为广播一个无偿的 arp（可选），通常会立�
 
 #### 2 部署kube-vip
 
+添加hosts解析
+
+```
+echo "10.0.0.31 m1" >>/etc/hosts
+```
+
 各master节点部署静态pod
 
 ```bash
@@ -456,7 +462,7 @@ status: {}
 
 ## 6.  初始化master
 
-#### 1 始化master01
+#### 1 始化m1
 
 初始化之前检查haproxy是否正在运行，keepalived是否正常运作 ：
 
@@ -484,7 +490,7 @@ kubeadm config images pull
 
 ```bash
 kubeadm init --kubernetes-version=1.18.0 \
---apiserver-advertise-address=10.0.0.31 \
+--apiserver-advertise-address=0.0.0.0 \
 --image-repository registry.aliyuncs.com/google_containers \
 --control-plane-endpoint 10.0.0.150:6443 \
 --service-cidr=10.96.0.0/16 \
@@ -509,9 +515,9 @@ Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
 
 You can now join any number of the control-plane node running the following command on each as root:
 
-  kubeadm join 10.0.0.150:6443 --token df8ziu.lcueve8hmhs7twkj \
-    --discovery-token-ca-cert-hash sha256:230983e914e982f20b1a144edae0bf103a1f34d79f57d3e9812daf079e266686 \
-    --control-plane --certificate-key 58205aeb6fe70c2da03d3deed4ec65d3304148b09bc4939a5b606b006e1f1fb1
+  kubeadm join 10.0.0.150:6443 --token bnxc4v.liv08h0zwe2iunem \
+    --discovery-token-ca-cert-hash sha256:74058be8e7e896c0e48fca9c828a2b46bd41637f44595b1a5ad7aedaf9e4bc19 \
+    --control-plane --certificate-key 9c6b044ac38318174c647c3fa93e64809b193df42e392ebc6695b93718e307cf
 
 Please note that the certificate-key gives access to cluster sensitive data, keep it secret!
 As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you can use
@@ -519,8 +525,8 @@ As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you c
 
 Then you can join any number of worker nodes by running the following on each as root:
 
-kubeadm join 10.0.0.150:6443 --token df8ziu.lcueve8hmhs7twkj \
-    --discovery-token-ca-cert-hash sha256:230983e914e982f20b1a144edae0bf103a1f34d79f57d3e9812daf079e266686
+kubeadm join 10.0.0.150:6443 --token bnxc4v.liv08h0zwe2iunem \
+    --discovery-token-ca-cert-hash sha256:74058be8e7e896c0e48fca9c828a2b46bd41637f44595b1a5ad7aedaf9e4bc19
 ```
 
 上面记录了完成的初始化输出的内容，根据输出的内容基本上可以看出手动初始化安装一个Kubernetes集群所需要的关键步骤。 其中有以下关键内容：
@@ -559,46 +565,23 @@ rm -rf /var/lib/cni /etc/kubernetes /root/.kube /etc/cni/net.d
 获取所有pod状态
 
 ```bash
-[root@master01 ~]# kubectl get pods -n kube-system
+[root@m1 ~]# kubectl get pods -n kube-system
 NAMESPACE     NAME                          READY   STATUS    RESTARTS   AGE
-kube-system   coredns-7ff77c879f-g56zx           0/1     Pending   0          29s
-kube-system   coredns-7ff77c879f-vbx8c           0/1     Pending   0          29s
-kube-system   etcd-master01                      1/1     Running   0          39s
-kube-system   kube-apiserver-master01            1/1     Running   0          39s
-kube-system   kube-controller-manager-master01   1/1     Running   0          39s
-kube-system   kube-proxy-qgd42                   1/1     Running   0          30s
-kube-system   kube-scheduler-master01            1/1     Running   0          39s
-kube-system   kube-vip-master01                  1/1     Running   0          39s
+kube-system   coredns-7ff77c879f-g56zx     0/1     Pending   0          29s
+kube-system   coredns-7ff77c879f-vbx8c     0/1     Pending   0          29s
+kube-system   etcd-m1                      1/1     Running   0          39s
+kube-system   kube-apiserver-m1            1/1     Running   0          39s
+kube-system   kube-controller-manager-m1   1/1     Running   0          39s
+kube-system   kube-proxy-qgd42             1/1     Running   0          30s
+kube-system   kube-scheduler-m1            1/1     Running   0          39s
+kube-system   kube-vip-m1                  1/1     Running   0          39s
 ```
 
 coredns处于Pending状态，journalctl -f -u kubelet.service日志
 
 ```bash
-Nov 13 20:32:20 master01 kubelet[7791]: W1113 20:32:20.055543    7791 cni.go:237] Unable to update cni config: no networks found in /etc/cni/net.d
-Nov 13 20:32:23 master01 kubelet[7791]: E1113 20:32:23.440739    7791 kubelet.go:2187] Container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:docker: network plugin is not ready: cni config uninitialized
-```
-
-这是因为没安装网络，首先把kube-flannel镜像拉下来(所有节点)
-
-```bash
-cat << 'EOF' >flannel.sh
-#!/bin/bash
-set -e
-FLANNEL_VERSION=v0.11.0
- 
-# 在这里修改源
-QUAY_URL=quay.io/coreos
-QINIU_URL=registry.cn-hangzhou.aliyuncs.com/mirror-suke
- 
-images=(flannel:${FLANNEL_VERSION}-amd64)
- 
-for imageName in ${images[@]} ; do
-  docker pull $QINIU_URL/$imageName
-  docker tag  $QINIU_URL/$imageName $QUAY_URL/$imageName
-  docker rmi $QINIU_URL/$imageName
-done
-EOF
-sh flannel.sh
+Nov 13 20:32:20 m1 kubelet[7791]: W1113 20:32:20.055543    7791 cni.go:237] Unable to update cni config: no networks found in /etc/cni/net.d
+Nov 13 20:32:23 m1 kubelet[7791]: E1113 20:32:23.440739    7791 kubelet.go:2187] Container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:docker: network plugin is not ready: cni config uninitialized
 ```
 
 创建kube-flannel pod
@@ -613,50 +596,41 @@ kubectl apply -f kube-flannel-rbac.yml
 **kube-flannel**
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 ```
 
-**kube-flannel-rbac**
+修改net-conf.json
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml
+ "Network": "172.16.0.0/16"
 ```
 
-如果Node有多个网卡的话，参考[flannel issues 39701](https://github.com/kubernetes/kubernetes/issues/39701)，目前需要在kube-flannel.yml中使用–iface参数指定集群主机内网网卡的名称，否则可能会出现dns无法解析。需要将kube-flannel.yml下载到本地，flanneld启动参数加上–iface=<iface-name>
+部署
 
-```bash
-containers:
-      - name: kube-flannel
-        image: quay.io/coreos/flannel:v0.11.0-amd64
-        command:
-        - /opt/bin/flanneld
-        args:
-        - --ip-masq
-        - --kube-subnet-mgr
-        - --iface=eth1
-......
+```
+kubectl apply -f kube-flannel.yml
 ```
 
 确保所有的Pod都处于Running状态
 
 ```bash
-[root@master01 ~]# kubectl get pods -n kube-system
-NAME                               READY   STATUS    RESTARTS   AGE
-coredns-58cc8c89f4-dsdlc           1/1     Running   0          45m
-coredns-58cc8c89f4-w9plv           1/1     Running   0          45m
-etcd-master01                      1/1     Running   0          44m
-kube-apiserver-master01            1/1     Running   0          44m
-kube-controller-manager-master01   1/1     Running   0          44m
-kube-flannel-ds-amd64-mf66l        1/1     Running   0          5m14s
-kube-proxy-76ldd                   1/1     Running   0          45m
-kube-scheduler-master01            1/1     Running   0          44m
-kube-system   kube-vip-master01    1/1     Running   0          45mm
+[root@m1 ~]# kubectl get pods -n kube-system
+NAME                         READY   STATUS    RESTARTS   AGE
+coredns-58cc8c89f4-dsdlc     1/1     Running   0          45m
+coredns-58cc8c89f4-w9plv     1/1     Running   0          45m
+etcd-m1                      1/1     Running   0          44m
+kube-apiserver-m1            1/1     Running   0          44m
+kube-controller-manager-m1   1/1     Running   0          44m
+kube-flannel-ds-amd64-mf66l  1/1     Running   0          5m14s
+kube-proxy-76ldd             1/1     Running   0          45m
+kube-scheduler-m1            1/1     Running   0          44m
+kube-system   kube-vip-m1    1/1     Running   0          45mm
 ```
 
 查看一下集群状态，确认个组件都处于healthy状态：
 
 ```bash
-[root@master01 ~]# kubectl get cs
+[root@m1 ~]# kubectl get cs
 NAME                 STATUS    MESSAGE             ERROR
 controller-manager   Healthy   ok
 scheduler            Healthy   ok
@@ -678,8 +652,9 @@ kubectl taint nodes --all node-role.kubernetes.io/master-
 进入后执行nslookup kubernetes.default确认解析正常:
 
 ```bash
-nslookup kubernetes.default
-
+[root@k8s ~]# kubectl run curl --rm --image=radial/busyboxplus:curl -it
+If you don't see a command prompt, try pressing enter.
+[ root@curl:/ ]$ nslookup kubernetes.default
 Server:    10.96.0.10
 Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
 
@@ -687,17 +662,14 @@ Name:      kubernetes.default
 Address 1: 10.96.0.1 kubernetes.default.svc.cluster.local
 ```
 
-退出容器，保持运行：ctrl Q +P
-进入容器：
+确定外部连接
 
 ```bash
-kubectl attach curl-6bf6db5c4f-n4txt -c curl -i -t
-```
-
-测试OK后，删除掉curl这个Pod
-
-```bash
-kubectl delete deploy curl
+[ root@curl:/ ]$ ping www.baidu.com
+PING www.baidu.com (14.215.177.38): 56 data bytes
+64 bytes from 14.215.177.38: seq=0 ttl=127 time=8.585 ms
+64 bytes from 14.215.177.38: seq=1 ttl=127 time=9.764 ms
+64 bytes from 14.215.177.38: seq=2 ttl=127 time=9.144 ms
 ```
 
 #### 4 Kubernetes集群中添加Node节点
@@ -707,10 +679,10 @@ kubectl delete deploy curl
  master重新生成新的token
 
 ```bash
-[root@master01 ~]# kubeadm token create
+[root@m1 ~]# kubeadm token create
 tkxyys.8ilumwddiexjd8g2
 
-[root@master01 ~]# kubeadm token list
+[root@m1 ~]# kubeadm token list
 TOKEN                     TTL       EXPIRES                     USAGES                   DESCRIPTION   EXTRA GROUPS
 tkxyys.8ilumwddiexjd8g2   23h       2019-07-10T21:19:17+08:00   authentication,signing   <none>        system:bootstrappers:kubeadm:default-node-token
 ```
@@ -725,33 +697,33 @@ tkxyys.8ilumwddiexjd8g2   23h       2019-07-10T21:19:17+08:00   authentication,s
 添加node节点
 
 ```bash
-kubeadm join 10.0.0.150:8443 --token 4qcl2f.gtl3h8e5kjltuo0r \
+kubeadm join 10.0.0.150:6443 --token 4qcl2f.gtl3h8e5kjltuo0r \
 --discovery-token-ca-cert-hash sha256:7ed5404175cc0bf18dbfe53f19d4a35b1e3d40c19b10924275868ebf2a3bbe6e \
 --ignore-preflight-errors=all
 ```
 
-node01加入集群很是顺利，下面在master节点上执行命令查看集群中的节点：
+n1加入集群很是顺利，下面在master节点上执行命令查看集群中的节点：
 
 ```bash
-[root@master01 ~]# kubectl get node
+[root@m1 ~]# kubectl get node
 NAME     STATUS   ROLES    AGE   VERSION
 master   Ready    master   18m   v1.15.0
-node01 <none>   master   11m   v1.15.0
+n1 <none>   master   11m   v1.15.0
 ```
 
 节点没有ready 一般是由于flannel 插件没有装好，可以通过查看kube-system 的pod 验证
 
 #### 5 如何从集群中移除Node
 
-如果需要从集群中移除node01这个Node执行下面的命令：
+如果需要从集群中移除n1这个Node执行下面的命令：
 
 在master节点上执行：
 
 ```bash
-kubectl drain node01 --delete-local-data --force --ignore-daemonsets
+kubectl drain n1 --delete-local-data --force --ignore-daemonsets
 ```
 
-在node01上执行：
+在n1上执行：
 
 ```bash
 kubeadm reset -f
@@ -768,7 +740,7 @@ rm -rf /var/lib/cni /etc/kubernetes
 在master上执行：
 
 ```bash
-kubectl delete node node01
+kubectl delete node n1
 ```
 
 不在master节点上操作集群，而是在其他工作节点上操作集群:
@@ -776,7 +748,7 @@ kubectl delete node node01
 需要将master节点上面的kubernetes配置文件拷贝到当前节点上，然后执行kubectl命令:
 
 ```bash
-#将主配置拉取到本地scp root@node01:/etc/kubernetes/admin.conf /etc/kubernetes/
+#将主配置拉取到本地scp root@n1:/etc/kubernetes/admin.conf /etc/kubernetes/
 #常规用户如何使用kubectl访问集群配置mkdir -p $HOME/.kube
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 chown $(id -u):$(id -g) $HOME/.kube/config
@@ -790,10 +762,10 @@ yum remove -y kubeadm kubelet kubectl
 
 #### 6 添加master
 
-使用之前生成的提示信息，在master02执行，就能添加一个master
+使用之前生成的提示信息，在m2执行，就能添加一个master
 
 ```bash
-kubeadm join 10.0.0.150:8443 --token 66jnza.vwvw9xp6hwkwmrtz \
+kubeadm join 10.0.0.150:6443 --token 66jnza.vwvw9xp6hwkwmrtz \
     --discovery-token-ca-cert-hash sha256:46c600824f2a5c4c29ba3f0b5667c3728604ab64a40d880de8f89eaceb9b6531 \
     --experimental-control-plane --certificate-key 0a050aa3d2ce1b9366a66d5fe01946fa249340dd5088b07a05d37f465ed41150
 ```
