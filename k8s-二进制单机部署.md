@@ -156,7 +156,7 @@ EOF
 systemctl restart systemd-journald
 ```
 
-#### 7 升级系统内核为 4.44
+#### 7 升级系统内核
 
 CentOS 7.x 系统自带的 3.10.x 内核存在一些 Bugs，导致运行的 Docker、Kubernetes 不稳定 
 
@@ -187,7 +187,6 @@ grub2-set-default 0
 
 ```bash
 uname -r
-4.4.218-1.el7.elrepo.x86_64
 ```
 
 #### 8 关闭 NUMA
@@ -225,7 +224,6 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 | node网段    | 10.0.0.0/24   |
 | service网段 | 10.96.0.0/24  |
 | pod网段     | 172.16.0.0/16 |
-| vip         | 10.0.0.150    |
 
 #### 3 设置环境变量
 
@@ -241,7 +239,7 @@ DNS=10.96.0.10
 SERVICE_CIDR=10.96.0.0/16
 CLUSTER_CIDR=172.16.0.0/16
 NODE_PORT_RANGE=30000-32767
-KUBE_APISERVER="https://10.0.0.150:6443"
+KUBE_APISERVER="https://10.0.0.180:6443"
 CNI_DIR=/opt/cni
 K8S_DIR=/opt/kubernetes
 K8S_CONF=/etc/kubernetes
@@ -415,7 +413,7 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 cat >server-csr.json <<EOF 
 {"CN":"kubernetes","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"k8s"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local,10.0.0.180,172.16.0.1,10.96.0.1,127.0.0.1,10.0.0.150 -profile=kubernetes server-csr.json|cfssljson -bare server
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.default.svc.cluster.local,10.0.0.180,172.16.0.1,10.96.0.1,127.0.0.1 -profile=kubernetes server-csr.json|cfssljson -bare server
 ```
 
 #### 5 生成kube-controller-manager私钥和证书
@@ -451,7 +449,7 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 cat > etcd-csr.json <<EOF 
 {"CN":"etcd","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"etcd"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180,0.0.0.0,10.0.0.150 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180,0.0.0.0 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
 ```
 
 #### 9 创建 flanneld 证书和私钥
