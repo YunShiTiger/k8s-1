@@ -522,19 +522,19 @@ kubectl config use-context default --kubeconfig=${K8S_CONF}/kube-proxy.kubeconfi
 #### 5 admin-kubeconfig
 
 ```bash
-kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_CONF}/admin.kubeconfig
+kubectl config set-cluster kubernetes --certificate-authority=ca.pem --embed-certs=true --server=${KUBE_APISERVER} --kubeconfig=${K8S_CONF}/admin.conf
 
-kubectl config set-credentials admin --client-certificate=admin.pem --client-key=admin-key.pem --embed-certs=true --kubeconfig=${K8S_CONF}/admin.kubeconfig
+kubectl config set-credentials admin --client-certificate=admin.pem --client-key=admin-key.pem --embed-certs=true --kubeconfig=${K8S_CONF}/admin.conf
 
-kubectl config set-context admin@kubernetes --cluster=kubernetes --user=admin --kubeconfig=${K8S_CONF}/admin.kubeconfig
+kubectl config set-context admin@kubernetes --cluster=kubernetes --user=admin --kubeconfig=${K8S_CONF}/admin.conf
 
-kubectl config use-context admin@kubernetes --kubeconfig=${K8S_CONF}/admin.kubeconfig
+kubectl config use-context admin@kubernetes --kubeconfig=${K8S_CONF}/admin.conf
 ```
 
 kube
 
 ```bash
- cp ${K8S_CONF}/admin.kubeconfig /root/.kube/config
+ cp ${K8S_CONF}/admin.conf /root/.kube/config
 ```
 
 ## 6 etcd部署

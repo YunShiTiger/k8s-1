@@ -2,7 +2,7 @@
 
 | 系统类型   | IP地址     | 节点角色 | CPU  | Memory | Hostname |
 | :--------- | ---------- | -------- | ---- | ------ | -------- |
-| centos7-64 | 10.0.0.150 | k8s-vip  | 1    | 2G     |          |
+| pod        | 10.0.0.150 | vip      |      |        |          |
 | centos7-64 | 10.0.0.31  | master01 | 1    | 2G     | master01 |
 | centos7-64 | 10.0.0.32  | master02 | 1    | 2G     | master02 |
 | centos7-64 | 10.0.0.33  | node01   | 1    | 2G     | node01   |
@@ -11,7 +11,7 @@
 
 ## 2. 系统设置(所有节点）
 
-#### 2.1 配置hosts文件
+#### 1 配置hosts文件
 
 配置host，使每个Node都可以通过名字解析到ip地址
 
@@ -25,7 +25,7 @@ cat<< EOF >>/etc/hosts
 EOF
 ```
 
-#### 2.2 关闭、禁用防火墙,关闭selinux与swap(让所有机器之间都可以通过任意端口建立连接)
+#### 2 关闭、禁用防火墙、selinux与swap
 
 **关闭防火墙**
 
@@ -46,7 +46,6 @@ sed -i "s/^SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
 
 ```bash
 swapoff -a
-echo "vm.swappiness = 0" >>/etc/sysctl.d/99-sysctl.conf
 sed -i 's/.*swap.*/#&/' /etc/fstab
 ```
 
@@ -58,7 +57,7 @@ KUBELET_EXTRA_ARGS=--fail-swap-on=false
 EOF
 ```
 
-#### 2.3 更新 yum 源
+#### 3 更新 yum 源
 
 ```bash
 cd /etc/yum.repos.d
@@ -69,20 +68,7 @@ curl https://mirrors.aliyun.com/repo/epel-7.repo -o epel.repo
 cd -
 ```
 
-#### 2.4 设置系统参数 - 允许路由转发，不对bridge的数据进行处理
-
-```bash
-#写入配置文件
-cat <<EOF > /etc/sysctl.d/99-sysctl.conf
-net.ipv4.ip_forward = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-EOF
-#生效配置文件
-modprobe br_netfilter
-```
-
-#### 2.5 最终内核参数优化
+#### 4 内核参数优化
 
 ```bash
 cat << EOF >/etc/sysctl.d/99-sysctl.conf
@@ -108,7 +94,7 @@ EOF
 sysctl -p
 ```
 
-#### 2.6 kube-proxy开启ipvs的前置条件
+#### 5 开启ipvs的前置条件
 
 由于ipvs已经加入到了内核的主干，所以为kube-proxy开启ipvs的前提需要加载以下的内核模块：
 
@@ -136,7 +122,7 @@ yum install -y ipset ipvsadm
 
 如果以上前提条件如果不满足，则即使kube-proxy的配置开启了ipvs模式，也会退回到iptables模式。
 
-#### 2.7 调整系统时区
+#### 6 调整系统时区
 
 ```bash
 # 设置系统时区为中国/上海
@@ -146,7 +132,7 @@ timedatectl set-timezone Asia/Shanghai
 systemctl restart crond
 ```
 
-#### 2.8 设置 rsyslogd 和 systemd journald
+#### 7 设置journald
 
 ```bash
 mkdir /var/log/journal # 持久化保存日志的目录
@@ -172,7 +158,7 @@ EOF
 systemctl restart systemd-journald
 ```
 
-#### 2.9 升级系统内核为 4.44
+#### 8 升级系统内核
 
 CentOS 7.x 系统自带的 3.10.x 内核存在一些 Bugs，导致运行的 Docker、Kubernetes 不稳定 
 
@@ -199,7 +185,7 @@ uname -r
 4.4.218-1.el7.elrepo.x86_64
 ```
 
-#### 2.30 关闭 NUMA
+#### 9 关闭 NUMA
 
 备份grub
 
@@ -221,15 +207,15 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 
 ## 3. 安装docker(node节点）
 
-### 3.1 yum安装
+### 1 yum安装
 
-#### 3.1.1 安装依赖
+#### 1 安装依赖
 
 ```bash
 yum install -y yum-utils device-mapper-persistent-data lvm2
 ```
 
-#### 3.1.2 配置docker源
+#### 2 配置docker源
 
 ```bash
 yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
@@ -237,7 +223,7 @@ yum makecache fast
 rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
 ```
 
-#### 3.1.3 查看docker版号
+#### 3 查看docker版号
 
 ```bash
 yum list docker-ce.x86_64  --showduplicates |sort -r
@@ -245,22 +231,22 @@ yum list docker-ce.x86_64  --showduplicates |sort -r
 
  Kubernetes 1.16当前支持的docker版本列表是 Docker版本1.13.1、17.03、17.06、17.09、18.06、18.09 
 
-#### 3.1.4 安装 docker
+#### 4 安装 docker
 
 ```bash
 yum makecache fast
-yum install -y docker-ce-18.09.9-3.el7 
+yum install -y docker-ce-18.09.15-3.el7 
 ```
 
-### 3.2 二进制安装
+### 2 二进制安装
 
-#### 3.2.1 下载地址
+#### 1 下载地址
 
 ```bash
 https://download.docker.com/linux/static/stable/x86_64/
 ```
 
-#### 3.2.2 解压安装
+#### 2 解压安装
 
 ```bash
 tar zxvf docker-18.09.6.tgz
@@ -271,7 +257,7 @@ mv daemon.json /etc/docker
 mv docker.service /usr/lib/systemd/system
 ```
 
-#### 3.2.3 systemctl管理docker
+#### 3 systemctl管理docker
 
 ```bash
 cat > /usr/lib/systemd/system/docker.service << EOF
@@ -304,14 +290,14 @@ WantedBy=multi-user.target
 EOF
 ```
 
-### 3.3 配置所有ip的数据包转发
+### 3 配置所有ip的数据包转发
 
 ```bash
 #找到ExecStart=xxx，在这行下面加入一行，内容如下：(k8s的网络需要)
 sed -i.bak '/ExecStart/a\ExecStartPost=/sbin/iptables -I FORWARD -s 0.0.0.0/0 -j ACCEPT' /lib/systemd/system/docker.service
 ```
 
-### 3.4 docker基础优化
+### 4 docker基础优化
 
 ```bash
 mkdir -p /etc/docker/
@@ -330,169 +316,16 @@ cat << EOF >/etc/docker/daemon.json
 EOF
 ```
 
-### 3.5 启动服务
+### 5 启动服务
 
 ```bash
 #设置 docker 开机服务启动
 systemctl enable --now docker.service 
 ```
 
-## 4. apiserver高可用部署
+## 4. 安装kubeadm组件
 
-#### 4.1 master节点全部ssh免密登录
-
-master01上操作
-
-```bash
-#生成密钥
-ssh-keygen -t dsa -f "/root/.ssh/id_dsa" -N "" -q
-#将公钥作为认证信息
-cat /root/.ssh/id_dsa.pub >.ssh/authorized_keys
-scp -r .ssh master02:/root/
-```
-
-#### 4.2 两台master节点安装keepalived,haproxy
-
-```bash
-yum install -y keepalived haproxy
-systemctl enable keepalived.service haproxy.service
-```
-
-#### 4.3 keepalived配置及启动
-
-keepalived配置文件，其余节点修改state为BACKUP，priority小于主节点即可；
-
-```bash
-cat<< EOF >/etc/keepalived/keepalived.conf
-! Configuration File for keepalived
-vrrp_script chk_apiserver {
-        script "/etc/keepalived/check_apiserver.sh"
-        interval 4
-        weight 60  
-}
-vrrp_instance VI_1 {
-    state MASTER  
-    interface eth0
-    virtual_router_id 51
-    priority 150
-    advert_int 1
-    authentication {
-        auth_type PASS
-        auth_pass 1111
-    }
-    track_script {
-        chk_apiserver
-    }
-    virtual_ipaddress {
-        10.0.0.150
-    }
-}
-EOF
-```
-
-check_apiserver.sh
-
-```bash
-cat<< 'EOF' >/etc/keepalived/check_apiserver.sh
-#!/bin/bash
-flag=$(ps -ef|grep -v grep|grep -w 'kube-apiserver' &>/dev/null;echo $?)
-if [[ $flag != 0 ]];then
-        echo "kube-apiserver is down,close the keepalived"
-        #systemctl stop keepalived
-fi
-EOF
-chmod +x /etc/keepalived/check_apiserver.sh
-```
-
- 启动keepalived
-
-```bash
-systemctl restart keepalived.service
-journalctl -f -u keepalived.service
-```
-
- **测试一下keepalived虚拟ip是否启动成功** 
-
-分别在master01和master02执行如下命令，可以发现只有master01有结果
-
-```bash
-ip a | grep 10.0.0.150
-inet 10.0.0.150/32 scope global eth0
-```
-
-说明目前10.0.0.150虚拟ip是漂移到master01机器上，因为master01的keepalived设置为MASTER
-
-**测试keepalived的ip漂移功能**
-
-尝试重启master01机器，重启期间，虚拟ip会漂移到master02机器，等master01重启完毕，虚拟ip会重新漂移到master01上,证明keepalived运行正常
-
-#### 4.4 haproxy配置及启动
-
- 在master01和master02节点上，分别配置haproxy ：
-
-```bash
-cat > /etc/haproxy/haproxy.cfg << EOF 
-global
-    log         127.0.0.1 local2
-    chroot      /var/lib/haproxy
-    pidfile     /var/run/haproxy.pid
-    maxconn     4000
-    user        haproxy
-    group       haproxy
-    daemon
-    stats socket /var/lib/haproxy/stats
-#---------------------------------------------------------------------
-defaults
-    mode                    http
-    log                     global
-    option                  httplog
-    option                  dontlognull
-    option http-server-close
-    option forwardfor       except 127.0.0.0/8
-    option                  redispatch
-    retries                 3
-    timeout http-request    10s
-    timeout queue           1m
-    timeout connect         10s
-    timeout client          1m
-    timeout server          1m
-    timeout http-keep-alive 10s
-    timeout check           10s
-    maxconn                 3000
-#---------------------------------------------------------------------
-listen stats
-    mode   http
-    bind :10086
-    stats   enable
-    stats realm Haproxy\ Statistics
-    stats   uri     /admin?stats
-    stats   auth    admin:admin
-    stats   admin   if TRUE
-#---------------------------------------------------------------------
-frontend   kube-apiserver 
-   bind *:8443
-   mode tcp
-   default_backend             apiserver
-#---------------------------------------------------------------------
-backend apiserver
-    balance     roundrobin
-    mode tcp
-    server  master01 10.0.0.31:6443 check weight 1 maxconn 2000 check inter 2000 rise 2 fall 3
-    server  master02 10.0.0.32:6443 check weight 1 maxconn 2000 check inter 2000 rise 2 fall 3
-    server  master02 10.0.0.33:6443 check weight 1 maxconn 2000 check inter 2000 rise 2 fall 3
-EOF
-```
-
-####  4.5 启动haproxy
-
-```bash
-systemctl restart haproxy.service
-journalctl -f -u haproxy.service
-```
-
-## 5. 安装kubeadm、kubelet和kubectl
-
-#### 5.1 配置kubernetes源为阿里的yum源
+#### 1 配置kubernetes阿里源
 
 ```bash
 cat > /etc/yum.repos.d/kubernetes.repo << EOF
@@ -506,47 +339,139 @@ gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors
 EOF
 ```
 
-#### 5.2  查看kubeadm、kubelet和kubectl版号
+#### 2  查看kubeadm、kubelet和kubectl版号
 
 ```bash
 yum makecache fast
 yum list kubeadm kubelet kubectl  --showduplicates
 ```
 
-#### 5.2  各节点安装kubernetes
+#### 3  各节点安装kubernetes
 
 ```bash
 #master
-yum install -y kubelet kubeadm kubectl
+yum install -y kubelet-1.18.0-0 kubeadm-1.18.0-0 kubectl-1.18.0-0
 systemctl enable kubelet 
 #node
 yum install -y kubelet kubeadm
 systemctl enable kubelet
 ```
 
-Kubelet负责与其他节点集群通信，并进行本节点Pod和容器生命周期的管理。
-Kubeadm是Kubernetes的自动化部署工具，降低了部署难度，提高效率。
-Kubectl是Kubernetes集群管理工具。
 注：因为kubeadm默认生成的证书有效期只有一年，所以kubeadm等安装成功后，可以用编译好的kubeadm替换掉默认的kubeadm。后面初始化k8s生成的证书都是100年。
+
+## 5. kube-vip HA集群
+
+#### 1 [kube-vip](https://kube-vip.io/install_static/) 架构简介
+
+kube-vip 有许多功能设计选择提供高可用性或网络功能，作为VIP/负载平衡解决方案的一部分。
+
+**Cluster**
+kube-vip 建立了一个多节点或多模块的集群来提供高可用性。在 ARP 模式下，会选出一个领导者，这个节点将继承虚拟 IP 并成为集群内负载均衡的领导者，而在 BGP 模式下，所有节点都会通知 VIP 地址。
+
+当使用 ARP 或 layer2 时，它将使用领导者选举，当然也可以使用 raft 集群技术，但这种方法在很大程度上已经被领导者选举所取代，特别是在集群中运行时。
+
+**虚拟IP**
+集群中的领导者将分配 vip，并将其绑定到配置中声明的选定接口上。当领导者改变时，它将首先撤销 vip，或者在失败的情况下，vip 将直接由下一个当选的领导者分配。
+
+当 vip 从一个主机移动到另一个主机时，任何使用 vip 的主机将保留以前的 vip <-> MAC 地址映射，直到 ARP 过期（通常是30秒）并检索到一个新的 vip <-> MAC 映射，这可以通过使用无偿的 ARP 广播来优化。
+
+**ARP**
+kube-vip可以被配置为广播一个无偿的 arp（可选），通常会立即通知所有本地主机 vip <-> MAC 地址映射已经改变。
+
+#### 2 部署kube-vip
+
+各master节点部署静态pod
+
+```bash
+mkdir -p /etc/kubernetes/manifests
+docker run --network host -v /etc/hosts:/etc/hosts --rm ghcr.io/kube-vip/kube-vip:v0.3.8 manifest pod \
+    --interface eth0 \
+    --vip 10.0.0.150 \
+    --controlplane \
+    --services \
+    --arp \
+    --leaderElection --startAsLeader|tee /etc/kubernetes/manifests/kube-vip.yaml
+```
+
+会生成以下配置
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  name: kube-vip
+  namespace: kube-system
+spec:
+  containers:
+  - args:
+    - manager
+    env:
+    - name: vip_arp
+      value: "true"
+    - name: vip_interface
+      value: eth0
+    - name: port
+      value: "6443"
+    - name: vip_cidr
+      value: "32"
+    - name: cp_enable
+      value: "true"
+    - name: cp_namespace
+      value: kube-system
+    - name: vip_ddns
+      value: "false"
+    - name: svc_enable
+      value: "true"
+    - name: vip_leaderelection
+      value: "true"
+    - name: vip_leaseduration
+      value: "5"
+    - name: vip_renewdeadline
+      value: "3"
+    - name: vip_retryperiod
+      value: "1"
+    - name: vip_address
+      value: 10.0.0.150
+    image: ghcr.io/kube-vip/kube-vip:v0.3.8
+    imagePullPolicy: Always
+    name: kube-vip
+    resources: {}
+    securityContext:
+      capabilities:
+        add:
+        - NET_ADMIN
+        - NET_RAW
+        - SYS_TIME
+    volumeMounts:
+    - mountPath: /etc/kubernetes/admin.conf
+      name: kubeconfig
+  hostNetwork: true
+  volumes:
+  - hostPath:
+      path: /etc/kubernetes/admin.conf
+    name: kubeconfig
+status: {}
+```
 
 ## 6.  初始化master
 
-#### 6.1 始化master01
+#### 1 始化master01
 
 初始化之前检查haproxy是否正在运行，keepalived是否正常运作 ：
 
  查看所需的镜像 
 
 ```bash
-kubeadm config images list
+kubeadm --kubernetes-version=1.18.0 config images list
 #所需镜像
-k8s.gcr.io/kube-apiserver:v1.16.3
-k8s.gcr.io/kube-controller-manager:v1.16.3
-k8s.gcr.io/kube-scheduler:v1.16.3
-k8s.gcr.io/kube-proxy:v1.16.3
-k8s.gcr.io/pause:3.1
-k8s.gcr.io/etcd:3.3.15-0
-k8s.gcr.io/coredns:1.6.2
+k8s.gcr.io/kube-apiserver:v1.18.0
+k8s.gcr.io/kube-controller-manager:v1.18.0
+k8s.gcr.io/kube-scheduler:v1.18.0
+k8s.gcr.io/kube-proxy:v1.18.0
+k8s.gcr.io/pause:3.2
+k8s.gcr.io/etcd:3.4.3-0
+k8s.gcr.io/coredns:1.6.7
 ```
 
  因为k8s.gcr.io地址在国内是不能访问的，能上外网可以通过以下命令提前把镜像pull下来 
@@ -555,99 +480,19 @@ k8s.gcr.io/coredns:1.6.2
 kubeadm config images pull
 ```
 
-因为不能翻墙，这有三种种解决办法：
-
-##### 6.11 根据需要的版本，直接拉取国内镜像，并修改tag
+因为不能翻墙,使用国内镜像，直接在命令行指定相应配置
 
 ```bash
-cat << 'EOF' >kubeadm_get_images.sh
-#!/bin/bash
-## 使用如下脚本下载国内镜像，并修改tag为google的tag
-set -e
-KUBE_VERSION=v1.16.3
-KUBE_PAUSE_VERSION=3.1
-ETCD_VERSION=3.3.15-0
-CORE_DNS_VERSION=1.6.2
-
-GCR_URL=k8s.gcr.io
-ALIYUN_URL=registry.cn-hangzhou.aliyuncs.com/google_containers
-
-images=(kube-proxy:${KUBE_VERSION}
-kube-scheduler:${KUBE_VERSION}
-kube-controller-manager:${KUBE_VERSION}
-kube-apiserver:${KUBE_VERSION}
-pause:${KUBE_PAUSE_VERSION}
-etcd:${ETCD_VERSION}
-coredns:${CORE_DNS_VERSION})
-
-for imageName in ${images[@]} ; do
-  docker pull $ALIYUN_URL/$imageName
-  docker tag  $ALIYUN_URL/$imageName $GCR_URL/$imageName
-  docker rmi $ALIYUN_URL/$imageName
-done
-EOF
-sh kubeadm_get_images.sh
-```
-
-生成初始化配置文件
-
-```bash
-cat << EOF >kubeadm-config.yaml
-apiVersion: kubeadm.k8s.io/v1beta1
-kind: ClusterConfiguration
-kubernetesVersion: v1.16.3 # 指定版本
-imageRepository: registry.cn-hangzhou.aliyuncs.com/google_containers
-controlPlaneEndpoint: "10.0.0.150:8443" # haproxy地址及端口
-networking:
-  dnsDomain: cluster.local
-  serviceSubnet:  10.1.0.0/16 #用于指定SVC的网络范围；
-  podSubnet: 10.244.0.0/16 # 计划使用flannel网络插件，指定pod网段及掩码
-EOF
-```
-
-然后进行初始化
-
-```
-kubeadm init --config=kubeadm-config.yaml --upload-certs
-```
-
-##### 6.12.在初始化时指定使用国内镜像库：registry.aliyuncs.com/google_containers (推荐使用）
-
-生成初始化配置文件
-
-```bash
-cat << EOF > kubeadm-config.yaml
-apiVersion: kubeadm.k8s.io/v1beta1
-kind: ClusterConfiguration
-kubernetesVersion: v1.16.3 # 指定版本
-imageRepository: registry.cn-hangzhou.aliyuncs.com/google_containers
-controlPlaneEndpoint: "10.0.0.150:8443" # haproxy地址及端口
-networking:
-  dnsDomain: cluster.local
-  serviceSubnet:  10.1.0.0/16 #用于指定SVC的网络范围；
-  podSubnet: 10.244.0.0/16 # 计划使用flannel网络插件，指定pod网段及掩码
-EOF
-```
-
-开始初始化
-
-```bash
-kubeadm init --config=kubeadm-config.yaml --upload-certs
-```
-
-##### 6.13直接在命令行指定相应配置(只支持1.16.0以上）
-
-```bash
-kubeadm init --kubernetes-version=1.18.2 \
+kubeadm init --kubernetes-version=1.18.0 \
 --apiserver-advertise-address=10.0.0.31 \
 --image-repository registry.aliyuncs.com/google_containers \
---control-plane-endpoint 10.0.0.150:8443 \
---service-cidr=10.1.0.0/16 \
---pod-network-cidr=10.244.0.0/16 \
+--control-plane-endpoint 10.0.0.150:6443 \
+--service-cidr=10.96.0.0/16 \
+--pod-network-cidr=172.16.0.0/16 \
 --upload-certs
 ```
 
-##### 6.14初始化成功后，会看到大概如下提示，下面信息先保留。后续添加master节点，添加node节点需要用到
+初始化成功后，会看到大概如下提示，下面信息先保留。后续添加master节点，添加node节点需要用到
 
 ```bash
 Your Kubernetes control-plane has initialized successfully!
@@ -664,9 +509,9 @@ Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
 
 You can now join any number of the control-plane node running the following command on each as root:
 
-  kubeadm join 10.0.0.150:8443 --token twg8nt.a8ofqr4cddvwtzml \
-    --discovery-token-ca-cert-hash sha256:0822b67f493fea80e72e967d74885fb098e5c7c506a975ebd905c302e8515cf4 \
-    --control-plane --certificate-key d976c6198bd13ef7dc57de062bb844946cec21f336c4ee0abe0f90cadc570eb6
+  kubeadm join 10.0.0.150:6443 --token df8ziu.lcueve8hmhs7twkj \
+    --discovery-token-ca-cert-hash sha256:230983e914e982f20b1a144edae0bf103a1f34d79f57d3e9812daf079e266686 \
+    --control-plane --certificate-key 58205aeb6fe70c2da03d3deed4ec65d3304148b09bc4939a5b606b006e1f1fb1
 
 Please note that the certificate-key gives access to cluster sensitive data, keep it secret!
 As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you can use
@@ -674,8 +519,8 @@ As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you c
 
 Then you can join any number of worker nodes by running the following on each as root:
 
-kubeadm join 10.0.0.150:8443 --token twg8nt.a8ofqr4cddvwtzml \
-    --discovery-token-ca-cert-hash sha256:0822b67f493fea80e72e967d74885fb098e5c7c506a975ebd905c302e8515cf4
+kubeadm join 10.0.0.150:6443 --token df8ziu.lcueve8hmhs7twkj \
+    --discovery-token-ca-cert-hash sha256:230983e914e982f20b1a144edae0bf103a1f34d79f57d3e9812daf079e266686
 ```
 
 上面记录了完成的初始化输出的内容，根据输出的内容基本上可以看出手动初始化安装一个Kubernetes集群所需要的关键步骤。 其中有以下关键内容：
@@ -706,23 +551,24 @@ ip link delete kube-ipvs0
 ipvsadm --clear
 ifconfig flannel.1 down
 ip link delete flannel.1
-rm -rf /var/lib/cni /etc/kubernetes
+rm -rf /var/lib/cni /etc/kubernetes /root/.kube /etc/cni/net.d
 ```
 
-####  6.2 安装Pod Network
+####  2 安装Pod Network
 
 获取所有pod状态
 
 ```bash
 [root@master01 ~]# kubectl get pods -n kube-system
-NAME                               READY   STATUS    RESTARTS   AGE
-coredns-58cc8c89f4-c5t99           0/1     Pending   0          22m
-coredns-58cc8c89f4-jv9p4           0/1     Pending   0          22m
-etcd-master01                      1/1     Running   1          21m
-kube-apiserver-master01            1/1     Running   1          21m
-kube-controller-manager-master01   1/1     Running   1          21m
-kube-proxy-gbnft                   1/1     Running   1          22m
-kube-scheduler-master01            1/1     Running   1          21m
+NAMESPACE     NAME                          READY   STATUS    RESTARTS   AGE
+kube-system   coredns-7ff77c879f-g56zx           0/1     Pending   0          29s
+kube-system   coredns-7ff77c879f-vbx8c           0/1     Pending   0          29s
+kube-system   etcd-master01                      1/1     Running   0          39s
+kube-system   kube-apiserver-master01            1/1     Running   0          39s
+kube-system   kube-controller-manager-master01   1/1     Running   0          39s
+kube-system   kube-proxy-qgd42                   1/1     Running   0          30s
+kube-system   kube-scheduler-master01            1/1     Running   0          39s
+kube-system   kube-vip-master01                  1/1     Running   0          39s
 ```
 
 coredns处于Pending状态，journalctl -f -u kubelet.service日志
@@ -804,6 +650,7 @@ kube-controller-manager-master01   1/1     Running   0          44m
 kube-flannel-ds-amd64-mf66l        1/1     Running   0          5m14s
 kube-proxy-76ldd                   1/1     Running   0          45m
 kube-scheduler-master01            1/1     Running   0          44m
+kube-system   kube-vip-master01    1/1     Running   0          45mm
 ```
 
 查看一下集群状态，确认个组件都处于healthy状态：
@@ -816,7 +663,7 @@ scheduler            Healthy   ok
 etcd-0               Healthy   {"health":"true"}
 ```
 
-#### 6.3 测试集群DNS是否可用
+#### 3 测试集群DNS是否可用
 
 ```bash
 kubectl run curl --rm --image=radial/busyboxplus:curl -it
@@ -833,11 +680,11 @@ kubectl taint nodes --all node-role.kubernetes.io/master-
 ```bash
 nslookup kubernetes.default
 
-Server:    10.1.0.10
-Address 1: 10.1.0.10 kube-dns.kube-system.svc.cluster.local
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
 
 Name:      kubernetes.default
-Address 1: 10.1.0.1 kubernetes.default.svc.cluster.local
+Address 1: 10.96.0.1 kubernetes.default.svc.cluster.local
 ```
 
 退出容器，保持运行：ctrl Q +P
@@ -853,7 +700,7 @@ kubectl attach curl-6bf6db5c4f-n4txt -c curl -i -t
 kubectl delete deploy curl
 ```
 
-#### 6.4 Kubernetes集群中添加Node节点
+#### 4 Kubernetes集群中添加Node节点
 
 默认token的有效期为24小时，当过期之后，该token就不可用了，以后加入节点需要新token
 
@@ -894,7 +741,7 @@ node01 <none>   master   11m   v1.15.0
 
 节点没有ready 一般是由于flannel 插件没有装好，可以通过查看kube-system 的pod 验证
 
-#### 6.5 如何从集群中移除Node
+#### 5 如何从集群中移除Node
 
 如果需要从集群中移除node01这个Node执行下面的命令：
 
@@ -941,7 +788,7 @@ chown $(id -u):$(id -g) $HOME/.kube/config
 yum remove -y kubeadm kubelet kubectl
 ```
 
-#### 6.6 添加master
+#### 6 添加master
 
 使用之前生成的提示信息，在master02执行，就能添加一个master
 
@@ -962,7 +809,7 @@ As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you c
 "kubeadm init phase upload-certs --upload-certs" to reload certs afterward.
 ```
 
-#### 6.7 kube-proxy开启ipvs
+#### 7 kube-proxy开启ipvs
 
 修改ConfigMap的kube-system/kube-proxy中的config.conf，mode: “ipvs”
 
