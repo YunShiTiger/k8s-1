@@ -2389,6 +2389,15 @@ groups:
     annotations:
       summary: "慢请求 (instance {{ $labels.instance }})"
       description: "太多的请求，已超过2s (current value: {{ $value }})"
+      
+  - alert: "ssl证书过期警告"
+    expr: (probe_ssl_earliest_cert_expiry - time())/86400 <10
+    for: 1h
+    labels:
+      status: 严重告警
+    annotations:
+      description: '域名{{$labels.instance}}的证书还有{{ printf "%.1f" $value }}天就过期了,请尽快更新证书'
+      summary: "ssl证书过期警告"
 EOF
 ```
 
