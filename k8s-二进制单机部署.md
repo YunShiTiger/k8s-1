@@ -229,16 +229,16 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 
 ```bash
 cat << EOF >>/root/.bash_profile
-TOKEN_ID=$(openssl rand -hex 3)
-TOKEN_SECRET=$(openssl rand -hex 8)
-ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
+TOKEN_ID="$(openssl rand -hex 3)"
+TOKEN_SECRET="$(openssl rand -hex 8)"
+ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64)"
 AUTH_EXTRA_GROUPS="system:bootstrappers:default-node-token"
 ETCD_SERVER="https://10.0.0.180:2379"
-ETCD_ENDPOINTS="etcd-k8s=https://10.0.0.180:2380"
+ETCD_ENDPOINTS="etcd-$(hostname)=https://10.0.0.180:2380"
 DNS=10.96.0.10
 SERVICE_CIDR=10.96.0.0/16
 CLUSTER_CIDR=172.16.0.0/16
-NODE_PORT_RANGE=30000-32767
+NODE_PORT_RANGE=10000-32767
 KUBE_APISERVER="https://10.0.0.180:6443"
 CNI_DIR=/opt/cni
 K8S_DIR=/opt/kubernetes
@@ -871,7 +871,7 @@ ExecStart=${K8S_DIR}/bin/kube-apiserver \\
 --secure-port=6443 \\
 --service-account-key-file=${K8S_SSL}/ca.pem \\
 --service-cluster-ip-range=${SERVICE_CIDR} \\
---service-node-port-range=30000-65535 \\
+--service-node-port-range=${NODE_PORT_RANGE} \\
 --tls-cert-file=${K8S_SSL}/server.pem \\
 --tls-cipher-suites=${CIPHER_TLS} \\
 --tls-private-key-file=${K8S_SSL}/server-key.pem \\
@@ -1143,7 +1143,6 @@ ExecStart=${K8S_DIR}/bin/kubelet \\
 --cni-bin-dir=${CNI_DIR}/bin \\
 --cni-conf-dir=/etc/cni/net.d \\
 --config=${K8S_CONF}/kubelet.yaml \\
---containerd=unix:///run/containerd/containerd.sock \\
 --container-runtime=docker \\
 --container-runtime-endpoint=unix:///var/run/dockershim.sock \\
 --image-pull-progress-deadline=30s \\
