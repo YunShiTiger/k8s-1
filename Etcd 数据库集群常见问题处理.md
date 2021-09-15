@@ -671,7 +671,7 @@ etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
 endpoint status |grep -o '"revision":[0-9]*'
 ```
 
-### 3）compact
+### 3）compact(压缩旧版本)
 
 ```bash
 etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
@@ -681,7 +681,7 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 compact $revision
 ```
 
-### 4）defrag
+### 4）defrag(清理磁盘碎片)
 
 ```bash
 etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
@@ -691,7 +691,7 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 defrag
 ```
 
-### 5）删除报警(必需删除，否则集群仍然无法使用)
+### 5）删除清除(必需删除，否则集群仍然无法使用)
 
 ```bash
 etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
