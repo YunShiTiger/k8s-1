@@ -17,7 +17,7 @@
   "gnetId": 8321,
   "graphTooltip": 1,
   "id": 16,
-  "iteration": 1630663190555,
+  "iteration": 1632359518170,
   "links": [],
   "panels": [
     {
@@ -90,7 +90,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "count(container_last_seen{node=~\"$node\",container_label_com_docker_compose_project != \"\"})",
+          "expr": "count(container_last_seen{node=~\"$node\",container_label_com_docker_compose_project != \"\",name=~\"$name\"})",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -184,7 +184,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(container_memory_usage_bytes{node=~\"$node\",container_label_com_docker_compose_project != \"\"})/1024/1024",
+          "expr": "sum(container_memory_usage_bytes{node=~\"$node\",container_label_com_docker_compose_project != \"\",name=~\"$name\"})/1024/1024",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -278,7 +278,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(rate(container_cpu_user_seconds_total{node=~\"$node\",container_label_com_docker_compose_project != \"\"}[5m]) * 100)",
+          "expr": "sum(rate(container_cpu_user_seconds_total{node=~\"$node\",container_label_com_docker_compose_project != \"\",name=~\"$name\"}[5m]) * 100)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -1099,38 +1099,268 @@
         "hide": 0,
         "includeAll": true,
         "label": null,
-        "multi": false,
+        "multi": true,
         "name": "name",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "All",
             "value": "$__all"
           },
           {
             "selected": false,
-            "text": "kaide-redis-server",
-            "value": "kaide-redis-server"
+            "text": "anshi-portfolio-client",
+            "value": "anshi-portfolio-client"
+          },
+          {
+            "selected": true,
+            "text": "kaide-imvbizpark-server",
+            "value": "kaide-imvbizpark-server"
           },
           {
             "selected": false,
-            "text": "k8s-alpha-backup-server",
-            "value": "k8s-alpha-backup-server"
+            "text": "fosun-sysconsole-client",
+            "value": "fosun-sysconsole-client"
           },
           {
             "selected": false,
-            "text": "kaide-mongo-server",
-            "value": "kaide-mongo-server"
+            "text": "fosun-portfolio-server",
+            "value": "fosun-portfolio-server"
           },
           {
             "selected": false,
-            "text": "k8s-alpha-redis-server",
-            "value": "k8s-alpha-redis-server"
+            "text": "fosun-actualdatas-server",
+            "value": "fosun-actualdatas-server"
           },
           {
             "selected": false,
-            "text": "monitor-nodeexporter",
-            "value": "monitor-nodeexporter"
+            "text": "anshi-sysconsole-client",
+            "value": "anshi-sysconsole-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-transports-server",
+            "value": "alpha-transports-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvoffice-server",
+            "value": "anshi-imvoffice-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-bmroffice-server",
+            "value": "anshi-bmroffice-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-freetrials-server",
+            "value": "alpha-freetrials-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-fosundatas-client",
+            "value": "fosun-fosundatas-client"
+          },
+          {
+            "selected": false,
+            "text": "fosun-screenshots-server",
+            "value": "fosun-screenshots-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-mixeduse-server",
+            "value": "anshi-mixeduse-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-bmrlogistics-server",
+            "value": "alpha-bmrlogistics-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-mongo-server",
+            "value": "anshi-mongo-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-bmrhealthcare-server",
+            "value": "anshi-bmrhealthcare-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-administrates-server",
+            "value": "alpha-administrates-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-lmrsales-server",
+            "value": "alpha-lmrsales-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-storages-server",
+            "value": "anshi-storages-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-screenshots-server",
+            "value": "anshi-screenshots-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-portfolio-server",
+            "value": "alpha-portfolio-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvlogistics-server",
+            "value": "alpha-imvlogistics-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-lmrsales-server",
+            "value": "fosun-lmrsales-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-workbench-client",
+            "value": "anshi-workbench-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-screenshots-client",
+            "value": "alpha-screenshots-client"
+          },
+          {
+            "selected": false,
+            "text": "anshi-auditlogs-server",
+            "value": "anshi-auditlogs-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-databoard-server",
+            "value": "anshi-databoard-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-bmroffice-server",
+            "value": "alpha-bmroffice-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-announcements-server",
+            "value": "alpha-announcements-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-redis-server",
+            "value": "fosun-redis-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvhotel-server",
+            "value": "alpha-imvhotel-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-bmrlogistics-server",
+            "value": "anshi-bmrlogistics-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-automations-server",
+            "value": "anshi-automations-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-imvretail-server",
+            "value": "fosun-imvretail-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-databoard-server",
+            "value": "alpha-databoard-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-lmrsales-server",
+            "value": "anshi-lmrsales-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-storages-server",
+            "value": "alpha-storages-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-actualdatas-client",
+            "value": "fosun-actualdatas-client"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-retail-client",
+            "value": "fosun-3-retail-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-reformdatas-server",
+            "value": "alpha-reformdatas-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-reformdatas-server",
+            "value": "anshi-reformdatas-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-fosundatas-server",
+            "value": "fosun-fosundatas-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvoffice-server",
+            "value": "alpha-imvoffice-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-portfolio-client",
+            "value": "fosun-portfolio-client"
+          },
+          {
+            "selected": false,
+            "text": "anshi-accounts-server",
+            "value": "anshi-accounts-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-capitaldatas-server",
+            "value": "kaide-capitaldatas-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-announcements-server",
+            "value": "anshi-announcements-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-gateways-server",
+            "value": "anshi-gateways-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-bmrretail-server",
+            "value": "anshi-bmrretail-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-gateways-server",
+            "value": "fosun-gateways-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-bmrretail-server",
+            "value": "alpha-bmrretail-server"
           },
           {
             "selected": false,
@@ -1139,8 +1369,428 @@
           },
           {
             "selected": false,
-            "text": "k8s-alpha-mongo-server",
-            "value": "k8s-alpha-mongo-server"
+            "text": "fosun-3-hotel-client",
+            "value": "fosun-3-hotel-client"
+          },
+          {
+            "selected": false,
+            "text": "anshi-members-server",
+            "value": "anshi-members-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-automations-client",
+            "value": "anshi-automations-client"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvhotel-server",
+            "value": "anshi-imvhotel-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-openways-server",
+            "value": "anshi-openways-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-bmrhealthcare-server",
+            "value": "alpha-bmrhealthcare-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-gateways-server",
+            "value": "alpha-gateways-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvapartment-server",
+            "value": "alpha-imvapartment-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-actualdatas-server",
+            "value": "anshi-actualdatas-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-portfolio-server",
+            "value": "anshi-portfolio-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-loggeranalysis-server",
+            "value": "alpha-loggeranalysis-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-redis-server",
+            "value": "alpha-redis-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-redis-server",
+            "value": "anshi-redis-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvretail-server",
+            "value": "alpha-imvretail-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-valuations-server",
+            "value": "anshi-valuations-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-bmrhotel-server",
+            "value": "anshi-bmrhotel-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-healthcare-server",
+            "value": "fosun-3-healthcare-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-screenshots-client",
+            "value": "fosun-screenshots-client"
+          },
+          {
+            "selected": false,
+            "text": "fosun-administrates-server",
+            "value": "fosun-administrates-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-mongo-server",
+            "value": "fosun-mongo-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-frontend-client",
+            "value": "alpha-frontend-client"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvlogistics-server",
+            "value": "anshi-imvlogistics-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-notifications-server",
+            "value": "anshi-notifications-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-imvoffice-server",
+            "value": "kaide-imvoffice-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-loggeranalysis-server",
+            "value": "fosun-loggeranalysis-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-imvoffice-server",
+            "value": "fosun-imvoffice-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-office-server",
+            "value": "fosun-3-office-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-logistics-client",
+            "value": "fosun-3-logistics-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-accounts-server",
+            "value": "alpha-accounts-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-notifications-server",
+            "value": "alpha-notifications-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-loggeranalysis-server",
+            "value": "anshi-loggeranalysis-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-screenshots-client",
+            "value": "anshi-screenshots-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-valuations-server",
+            "value": "alpha-valuations-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-imvsales-server",
+            "value": "fosun-imvsales-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-dealstruct-server",
+            "value": "anshi-dealstruct-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-imvlogistics-server",
+            "value": "fosun-imvlogistics-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-mongo-server",
+            "value": "kaide-mongo-server"
+          },
+          {
+            "selected": false,
+            "text": "monitor-nodeexporter",
+            "value": "monitor-nodeexporter"
+          },
+          {
+            "selected": false,
+            "text": "fosun-frontend-client",
+            "value": "fosun-frontend-client"
+          },
+          {
+            "selected": false,
+            "text": "fosun-mixeduse-server",
+            "value": "fosun-mixeduse-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-actualdatas-server",
+            "value": "alpha-actualdatas-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvsales-server",
+            "value": "anshi-imvsales-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-frontend-client",
+            "value": "kaide-frontend-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-bmrhotel-server",
+            "value": "alpha-bmrhotel-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvhealthcare-server",
+            "value": "alpha-imvhealthcare-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-hotel-server",
+            "value": "fosun-3-hotel-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvapartment-server",
+            "value": "anshi-imvapartment-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-openways-server",
+            "value": "alpha-openways-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-imvhotel-server",
+            "value": "fosun-imvhotel-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-administrates-server",
+            "value": "kaide-administrates-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-transports-server",
+            "value": "anshi-transports-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-freetrials-server",
+            "value": "anshi-freetrials-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-screenshots-server",
+            "value": "alpha-screenshots-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-mongo-server",
+            "value": "alpha-mongo-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-retail-server",
+            "value": "fosun-3-retail-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-openways-server",
+            "value": "fosun-openways-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-mixeduse-server",
+            "value": "alpha-mixeduse-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-gateways-server",
+            "value": "kaide-gateways-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-dealstruct-server",
+            "value": "alpha-dealstruct-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-accounts-server",
+            "value": "fosun-accounts-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-auditlogs-server",
+            "value": "alpha-auditlogs-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-auditlogs-server",
+            "value": "kaide-auditlogs-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-logistics-server",
+            "value": "fosun-3-logistics-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-auditlogs-server",
+            "value": "fosun-auditlogs-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-members-client",
+            "value": "anshi-members-client"
+          },
+          {
+            "selected": false,
+            "text": "anshi-frontend-client",
+            "value": "anshi-frontend-client"
+          },
+          {
+            "selected": false,
+            "text": "kaide-accounts-server",
+            "value": "kaide-accounts-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvleisure-server",
+            "value": "alpha-imvleisure-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-workbench-client",
+            "value": "fosun-workbench-client"
+          },
+          {
+            "selected": false,
+            "text": "kaide-mixbudget-server",
+            "value": "kaide-mixbudget-server"
+          },
+          {
+            "selected": false,
+            "text": "alpha-imvsales-server",
+            "value": "alpha-imvsales-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvretail-server",
+            "value": "anshi-imvretail-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-notifications-server",
+            "value": "fosun-notifications-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-administrates-server",
+            "value": "anshi-administrates-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvleisure-server",
+            "value": "anshi-imvleisure-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-office-client",
+            "value": "fosun-3-office-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-workbench-client",
+            "value": "alpha-workbench-client"
+          },
+          {
+            "selected": false,
+            "text": "alpha-members-server",
+            "value": "alpha-members-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-imvhealthcare-server",
+            "value": "fosun-imvhealthcare-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-addons-server",
+            "value": "anshi-addons-server"
+          },
+          {
+            "selected": false,
+            "text": "kaide-redis-server",
+            "value": "kaide-redis-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-3-healthcare-client",
+            "value": "fosun-3-healthcare-client"
+          },
+          {
+            "selected": false,
+            "text": "kaide-imvretail-server",
+            "value": "kaide-imvretail-server"
+          },
+          {
+            "selected": false,
+            "text": "fosun-restheart-server",
+            "value": "fosun-restheart-server"
+          },
+          {
+            "selected": false,
+            "text": "anshi-imvhealthcare-server",
+            "value": "anshi-imvhealthcare-server"
           }
         ],
         "query": {
@@ -1191,5 +1841,5 @@
   "timezone": "browser",
   "title": "docker-compose容器监控展示看板",
   "uid": "9vvjdagZz",
-  "version": 8
+  "version": 10
 }

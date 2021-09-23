@@ -18,7 +18,7 @@
   "gnetId": 13105,
   "graphTooltip": 0,
   "id": 20,
-  "iteration": 1630663168167,
+  "iteration": 1632359585058,
   "links": [
     {
       "icon": "bolt",
@@ -428,7 +428,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "count(kube_pod_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\"}) by (namespace)",
+          "expr": "count(kube_pod_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\",namespace=~\"$NameSpace\"}) by (namespace)",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -437,7 +437,7 @@
         },
         {
           "exemplar": true,
-          "expr": "count(kube_service_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\"}) by(namespace)",
+          "expr": "count(kube_service_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\",namespace=~\"$NameSpace\"}) by(namespace)",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -447,7 +447,7 @@
         },
         {
           "exemplar": true,
-          "expr": "count(count(kube_pod_container_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\"}) by(container,namespace))by(namespace)",
+          "expr": "count(count(kube_pod_container_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\",namespace=~\"$NameSpace\"}) by(container,namespace))by(namespace)",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -457,7 +457,7 @@
         },
         {
           "exemplar": true,
-          "expr": "count(kube_configmap_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\"}) by(namespace)",
+          "expr": "count(kube_configmap_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\",namespace=~\"$NameSpace\"}) by(namespace)",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -467,7 +467,7 @@
         },
         {
           "exemplar": true,
-          "expr": "count(kube_secret_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\"}) by(namespace)",
+          "expr": "count(kube_secret_info{origin_prometheus=~\"$origin_prometheus\",node=~\"^$Node\",namespace=~\"$NameSpace\"}) by(namespace)",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -3868,5 +3868,5 @@
   "timezone": "browser",
   "title": "Kubernetes for Prometheus Dashboard CN",
   "uid": "11SpSQKcpMz",
-  "version": 15
+  "version": 16
 }
