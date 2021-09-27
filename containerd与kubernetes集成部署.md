@@ -52,7 +52,7 @@ wget https://github.com/containernetworking/plugins/releases/download/v0.9.1/cni
 # containerd 解压
 tar -xvf containerd-1.5.5-linux-amd64.tar.gz -C /usr/local
 # crict 解压
-tar zxvf crictl-1.22.0-linux-amd64.tar.gz -C /usr/local/bin
+tar zxvf crictl-v1.22.0-linux-amd64.tar.gz -C /usr/local/bin
 # nerdctl 解压
 tar -xvf nerdctl-0.11.2-linux-amd64.tar.gz -C /usr/local/bin
 # cni 解压
@@ -62,13 +62,13 @@ tar -xvf cni-plugins-linux-amd64-v0.9.1.tgz -C /opt/cni/bin
 # 准备配置文件
 
 ```bash
-mkdir -p /opt/containerd/etc
+ mkdir /etc/containerd
 ```
 
 containerd 配置文件准备
 
 ```bash
-containerd config default >/opt/containerd/etc/config.toml
+containerd config default > /etc/containerd/config.toml
 ```
 
 修改默认的 pause 镜像为国内的地址，替换 `[plugins."io.containerd.grpc.v1.cri"]` 下面的 `sandbox_image`：
@@ -95,28 +95,23 @@ containerd config default >/opt/containerd/etc/config.toml
 ```bash
 cat << EOF >/usr/lib/systemd/system/containerd.service
 [Unit]
-Description=Lightweight Kubernetes
+Description=containerd container runtime
 Documentation=https://containerd.io
-After=network-online.target
+After=network.target local-fs.target
+
 [Service]
-ExecStartPre=-/sbin/modprobe br_netfilter
 ExecStartPre=-/sbin/modprobe overlay
-ExecStartPre=-/bin/mkdir -p /run/containerd
-ExecStart=/usr/local/bin/containerd \\
-         -c /opt/containerd/etc/config.toml \\
-         -a /run/containerd/containerd.sock \\
-         --state /opt/containerd/run/containerd \\
-         --root /opt/containerd/root
-KillMode=process
+ExecStart=/usr/local/bin/containerd
+Type=notify
 Delegate=yes
-OOMScoreAdjust=-999
-LimitNOFILE=1024000
-LimitNPROC=1024000
-LimitCORE=infinity
-TasksMax=infinity
-TimeoutStartSec=0
+KillMode=process
 Restart=always
-RestartSec=5s
+RestartSec=5
+LimitNPROC=infinity
+LimitCORE=infinity
+LimitNOFILE=1048576
+TasksMax=infinity
+OOMScoreAdjust=-999
 
 [Install]
 WantedBy=multi-user.target
@@ -133,6 +128,18 @@ systemctl enable --now containerd.service
 
 ```
 systemctl status containerd.service
+```
+
+修改crictl配置
+
+```
+cat << EOF >/etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+debug: false
+pull-image-on-create: false
+disable-pull-on-run: false
+EOF
 ```
 
 # 验证containerd 部署是否正常
@@ -162,17 +169,6 @@ Documentation=https://github.com/kubernetes/kubernetes
 After=containerd.service
 Requires=containerd.service
 [Service]
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/hugetlb/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/blkio/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/cpuset/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/devices/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/net_cls,net_prio/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/perf_event/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/cpu,cpuacct/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/freezer/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/memory/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/pids/systemd/system.slice/kubelet.service
-ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/systemd/systemd/system.slice/kubelet.service
 ExecStart=/opt/kubernetes/bin/kubelet \
 --alsologtostderr=true \
 --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.kubeconfig \
@@ -181,8 +177,8 @@ ExecStart=/opt/kubernetes/bin/kubelet \
 --cni-conf-dir=/etc/cni/net.d \
 --config=/etc/kubernetes/kubelet.yaml \
 --container-runtime=remote \
+--runtime-request-timeout=15m \
 --container-runtime-endpoint=unix:///run/containerd/containerd.sock \
---containerd=unix:///run/containerd/containerd.sock \
 --image-pull-progress-deadline=30s \
 --kubeconfig=/etc/kubernetes/kubelet.kubeconfig \
 --log-dir=/data/kubernetes/logs \
@@ -214,12 +210,9 @@ systemctl status kubelet
 # 验证kubelet 是否使用containerd
 
 ```bash
-[root@k8s ~]# crictl ps
-CONTAINER           IMAGE         CREATED        STATE      NAME                   ATTEMPT    POD ID
-58f5c70340b3a       9a07b5b4bfac0 2 minutes ago Running   kubernetes-dashboard        0     d04d56936f965
-2035953e03985       8d147537fb7d1 2 minutes ago Running   coredns                     0     b69f5c6efb7ff
-856c49d881a8c       48d79e554db69 2 minutes ago Running   dashboard-metrics-scraper   0     77ef8c6d65589
-c34e3f9016528       9dd718864ce61 3 minutes ago Running   metrics-server              0     56e9704fe1770
+[root@k8s ~]# kubectl get node -o wide
+NAME STATUS  ROLES  AGE   VERSION  INTERNAL-IP EXTERNAL-IP   OS-IMAGE               KERNEL-VERSION       CONTAINER-RUNTIME
+k8s  Ready   <none>  53d  v1.18.14 10.0.0.180    <none>  CentOS Linux 7 (Core)  3.10.0-1160.el7.x86_64   containerd://1.5.5
 ```
 
 # nerdctl使用
