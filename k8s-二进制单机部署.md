@@ -312,43 +312,52 @@ tar -zxf cni-plugins-linux-amd64-v0.8.5.tgz -C /opt/cni/bin
 tar xf flannel-v0.14.0-linux-amd64.tar.gz -C ${K8S_DIR}/bin
 ```
 
-## 3. 安装docker(node节点）
+## 3. 安装docker
 
-#### 1 安装依赖
-
-```bash
-yum install -y yum-utils device-mapper-persistent-data lvm2 nfs-utils
-```
-
-#### 2 配置docker源
+#### 1 下载docker
 
 ```bash
-yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-yum makecache fast
-rpm --import https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
+wget https://download.docker.com/linux/static/stable/x86_64/docker-19.03.15.tgz
 ```
 
-#### 3 查看docker版号
+#### 2 解压安装
 
 ```bash
-yum list docker-ce.x86_64  --showduplicates |sort -r
+tar zxvf docker-19.03.15.tgz
+mv docker/* /usr/bin
 ```
 
-#### 4 安装 docker
+#### 3 systemctl管理docker
 
 ```bash
-yum makecache fast
-yum install -y docker-ce-19.03.15-3.el7
+cat << 'EOF' >/usr/lib/systemd/system/docker.service
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target firewalld.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/dockerd
+#配置所有ip的数据包转发
+ExecStartPost=/sbin/iptables -I FORWARD -s 0.0.0.0/0 -j ACCEPT
+ExecReload=/bin/kill -s HUP $MAINPID
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+TimeoutStartSec=0
+Delegate=yes
+KillMode=process
+Restart=on-failure
+StartLimitBurst=3
+StartLimitInterval=60s
+
+[Install]
+WantedBy=multi-user.target
+EOF
 ```
 
-#### 5 配置所有ip的数据包转发
-
-```bash
-#找到ExecStart=xxx，在这行下面加入一行，内容如下：(k8s的网络需要)
-sed -i.bak '/ExecStart/a\ExecStartPost=/sbin/iptables -I FORWARD -s 0.0.0.0/0 -j ACCEPT' /lib/systemd/system/docker.service
-```
-
-#### 6 docker基础优化
+#### 4 docker基础优化
 
 ```bash
 mkdir -p /etc/docker/
@@ -356,22 +365,40 @@ cat << EOF >/etc/docker/daemon.json
 {
     "log-driver": "json-file",
     "data-root":"/var/lib/docker",
+    "bridge": "none",
     "log-opts": { "max-size": "100m"},
     "exec-opts": ["native.cgroupdriver=cgroupfs"],
-    "registry-mirrors": ["https://s3w3uu4l.mirror.aliyuncs.com"],
+    "registry-mirrors": [
+       "https://s3w3uu4l.mirror.aliyuncs.com/",
+       "https://docker.mirrors.ustc.edu.cn/",
+       "https://hub-mirror.c.163.com/"
+    ],
     "insecure-registries":["https://harbor.wzxmt.com"],
     "max-concurrent-downloads": 10,
     "max-concurrent-uploads": 10,
     "storage-driver": "overlay2", 
-    "storage-opts": ["overlay2.override_kernel_check=true"]
+    "storage-opts": ["overlay2.override_kernel_check=true"],
+    "default-ulimits": {
+       "nofile": {"Name": "nofile","Hard": 65535,"Soft": 65535},
+       "nproc":  {"Name": "nproc","Hard": 65535,"Soft": 65535},
+       "core":   {"Name": "core","Hard": -1,"Soft": -1}
+    }
 }
 EOF
 ```
 
-#### 7 启动服务
+"bridge": "none" #关闭docker0网卡，k8s集群建议关闭docker0
+
+#### 5 启动服务
 
 ```bash
 systemctl daemon-reload && systemctl enable --now docker
+```
+
+#### 6 查看服务信息
+
+```bash
+docker info
 ```
 
 ## 4. 集群证书生成
