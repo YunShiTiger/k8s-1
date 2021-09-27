@@ -1,6 +1,4 @@
-# 前言
 
-nerdctl 是一个与 docker cli 风格兼容的 containerd 客户端工具，而且直接兼容 docker compose 的语法的，这就大大提高了直接将 containerd 作为本地开发、测试或者单机容器部署使用的效率。
 
 # 部署环境
 
@@ -21,6 +19,12 @@ nerdctl 是一个与 docker cli 风格兼容的 containerd 客户端工具，而
 下载crictl
 
 ```bash
+wget https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.22.0/crictl-v1.22.0-linux-amd64.tar.gz
+```
+
+下载nerdctl
+
+```bash
 wget https://github.com/containerd/nerdctl/releases/download/v0.11.2/nerdctl-0.11.2-linux-amd64.tar.gz
 ```
 
@@ -33,7 +37,7 @@ wget https://github.com/containerd/containerd/releases/download/v1.5.5/container
 下载runc
 
 ```bash
-wget https://github.com/opencontainers/runc/releases/download/v1.0.2/runc.amd64 -O /usr/bin/runc && chmod +x /usr/bin/runc 
+wget https://github.com/opencontainers/runc/releases/download/v1.0.2/runc.amd64 -O /usr/local/bin/runc && chmod +x /usr/local/bin/runc 
 ```
 
 下载cni
@@ -47,10 +51,12 @@ wget https://github.com/containernetworking/plugins/releases/download/v0.9.1/cni
 ```bash
 # containerd 解压
 tar -xvf containerd-1.5.5-linux-amd64.tar.gz -C /usr/local
+# crict 解压
+tar zxvf crictl-1.22.0-linux-amd64.tar.gz -C /usr/local/bin
 # nerdctl 解压
-tar -xvf nerdctl-0.11.2-linux-amd64.tar.gz -C /usr/local/bin/
+tar -xvf nerdctl-0.11.2-linux-amd64.tar.gz -C /usr/local/bin
 # cni 解压
-tar -xvf cni-plugins-linux-amd64-v0.9.1.tgz -C /opt/cni/bin/
+tar -xvf cni-plugins-linux-amd64-v0.9.1.tgz -C /opt/cni/bin
 ```
 
 # 准备配置文件
@@ -69,7 +75,7 @@ containerd config default >/opt/containerd/etc/config.toml
 
 ```bash
 [plugins."io.containerd.grpc.v1.cri"]
-  sandbox_image = "registry.aliyuncs.com/k8sxio/pause:3.2"
+  sandbox_image = "registry.aliyuncs.com/google_containers/pause:3.2"
 ```
 
 同样再配置下镜像仓库的加速器地址：
@@ -123,26 +129,27 @@ EOF
 systemctl enable --now containerd.service
 ```
 
+查看状态
+
+```
+systemctl status containerd.service
+```
+
 # 验证containerd 部署是否正常
 
 拉取镜像测试
 
 ```bash
-[root@k8s ~]# nerdctl pull busybox:1.28
-docker.io/library/busybox:1.28:                                                   resolved       |++++++++++++++++++++++++++++++++++++++| 
-index-sha256:141c253bc4c3fd0a201d32dc1f493bcf3fff003b6df416dea4f41046e0f37d47:    done           |++++++++++++++++++++++++++++++++++++++| 
-manifest-sha256:74f634b1bc1bd74535d5209589734efbd44a25f4e2dc96d78784576a3eb5b335: done           |++++++++++++++++++++++++++++++++++++++| 
-config-sha256:8c811b4aec35f259572d0f79207bc0678df4c736eeec50bc9fec37ed936a472a:   done           |++++++++++++++++++++++++++++++++++++++| 
-layer-sha256:07a152489297fc2bca20be96fab3527ceac5668328a30fd543a160cd689ee548:    done           |++++++++++++++++++++++++++++++++++++++| 
-elapsed: 5.5 s 
+[root@k8s ~]# crictl pull busybox:1.28
+Image is up to date for sha256:8c811b4aec35f259572d0f79207bc0678df4c736eeec50bc9fec37ed936a472a
 ```
 
 查看镜像
 
 ```bash
-[root@k8s ~]# nerdctl images
-REPOSITORY    TAG     IMAGE ID        CREATED           SIZE
-busybox       1.28    141c253bc4c3    44 seconds ago    1.1 MiB
+[root@k8s ~]# crictl images
+IMAGE                                                          TAG                 IMAGE ID            SIZE
+docker.io/library/busybox                                      1.28                8c811b4aec35f       728kB
 ```
 
 # kubelet 配置文件以支持containerd
@@ -152,8 +159,8 @@ cat<< 'EOF' >/usr/lib/systemd/system/kubelet.service
 [Unit]
 Description=Kubernetes Kubelet
 Documentation=https://github.com/kubernetes/kubernetes
-After=docker.service
-Requires=docker.service
+After=containerd.service
+Requires=containerd.service
 [Service]
 ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/hugetlb/systemd/system.slice/kubelet.service
 ExecStartPre=-/bin/mkdir -p /sys/fs/cgroup/blkio/systemd/system.slice/kubelet.service
@@ -207,7 +214,7 @@ systemctl status kubelet
 # 验证kubelet 是否使用containerd
 
 ```bash
-[root@k8s ~]# nerdctl ps
+[root@k8s ~]# crictl ps
 CONTAINER           IMAGE         CREATED        STATE      NAME                   ATTEMPT    POD ID
 58f5c70340b3a       9a07b5b4bfac0 2 minutes ago Running   kubernetes-dashboard        0     d04d56936f965
 2035953e03985       8d147537fb7d1 2 minutes ago Running   coredns                     0     b69f5c6efb7ff
@@ -216,6 +223,8 @@ c34e3f9016528       9dd718864ce61 3 minutes ago Running   metrics-server        
 ```
 
 # nerdctl使用
+
+nerdctl 是一个与 docker cli 风格兼容的 containerd 客户端工具，而且直接兼容 docker compose 的语法的，这就大大提高了直接将 containerd 作为本地开发、测试或者单机容器部署使用的效率（暂时不兼容k8s）。
 
 ### Run&Exec
 
