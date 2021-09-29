@@ -106,7 +106,7 @@ mkdir -p /usr/local/openresty/nginx/conf/vhost
 
 ### 8.测试Lua配置
 
- ```
+ ```nginx
  cat << 'EOF' >/usr/local/openresty/nginx/conf/vhost/test.conf
  server {
      listen       80;
@@ -176,8 +176,8 @@ http://test.wzxmt.com/hello
 ### 1、下载waf模块
 
  ```bash
- git clone https://github.com/wzxmt/waf.git
- mv waf /usr/local/openresty/nginx/conf
+ git clone https://github.com/unixhot/waf.git
+ cp -a ./waf/waf /usr/local/openresty/nginx/conf
  chown -R nginx. /usr/local/openresty
  ```
 
