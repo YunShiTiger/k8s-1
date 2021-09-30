@@ -476,7 +476,7 @@ cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kube
 cat > etcd-csr.json <<EOF 
 {"CN":"etcd","key":{"algo":"rsa","size":2048},"names":[{"C":"CN","ST":"BeiJing","L":"BeiJing","O":"kubernetes","OU":"etcd"}]}
 EOF
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180,0.0.0.0 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=127.0.0.1,10.0.0.180 -profile=kubernetes etcd-csr.json|cfssljson -bare etcd
 ```
 
 #### 9 创建 flanneld 证书和私钥
@@ -577,7 +577,7 @@ Wants=network-online.target
 [Service]
 Type=notify
 ExecStart=${K8S_DIR}/bin/etcd \\
---advertise-client-urls=https://0.0.0.0:2379 \\
+--advertise-client-urls=https://$(hostname -i|awk '{print $1}'):2379 \\
 --auto-compaction-mode=periodic \\
 --auto-compaction-retention=1 \\
 --cert-file=${K8S_SSL}/etcd.pem \\
@@ -591,8 +591,8 @@ ExecStart=${K8S_DIR}/bin/etcd \\
 --initial-cluster-state=new \\
 --initial-cluster-token=etcd-cluster \\
 --key-file=${K8S_SSL}/etcd-key.pem \\
---listen-client-urls=https://0.0.0.0:2379 \\
---listen-peer-urls=https://0.0.0.0:2380 \\
+--listen-client-urls=https://$(hostname -i|awk '{print $1}'):2379 \\
+--listen-peer-urls=https://$(hostname -i|awk '{print $1}'):2380 \\
 --logger=zap \\
 --max-request-bytes=33554432 \\
 --name=etcd-$(hostname) \\
@@ -860,7 +860,7 @@ ExecStart=${K8S_DIR}/bin/kube-apiserver \\
 --audit-log-truncate-enabled \\
 --audit-policy-file=${K8S_CONF}/audit-policy.yaml \\
 --authorization-mode=Node,RBAC \\
---bind-address=0.0.0.0 \\
+--bind-address=$(hostname -i|awk '{print $1}') \\
 --client-ca-file=${K8S_SSL}/ca.pem \\
 --cors-allowed-origins=.* \\
 --default-not-ready-toleration-seconds=30 \\
@@ -1199,7 +1199,7 @@ staticPodPath: "${K8S_CONF}/manifests"
 syncFrequency: 30s
 fileCheckFrequency: 20s
 httpCheckFrequency: 20s
-address: 0.0.0.0
+address: $(hostname -i|awk '{print $1}')
 port: 10250
 readOnlyPort: 10255
 tlsCipherSuites: [${CIPHER_TLS}]
@@ -1223,7 +1223,7 @@ eventRecordQPS: 15
 eventBurst: 30
 enableDebuggingHandlers: true
 healthzPort: 10248
-healthzBindAddress: 0.0.0.0
+healthzBindAddress: $(hostname -i|awk '{print $1}')
 oomScoreAdj: -999
 clusterDomain: cluster.local
 clusterDNS:
@@ -1301,10 +1301,10 @@ After=network.target
 [Service]
 ExecStart=${K8S_DIR}/bin/kube-proxy \\
 --alsologtostderr=true \\
---bind-address=${ETCD_IP} \\
 --cluster-cidr=${CLUSTER_CIDR} \\
 --feature-gates=${FEATURE_GATES} \\
---metrics-bind-address=0.0.0.0:10249 \\
+--healthz-bind-address=$(hostname -i|awk '{print $1}') \\
+--metrics-bind-address=$(hostname -i|awk '{print $1}'):10249 \\
 --ipvs-min-sync-period=5s \\
 --ipvs-scheduler=rr \\
 --ipvs-sync-period=5s \\
