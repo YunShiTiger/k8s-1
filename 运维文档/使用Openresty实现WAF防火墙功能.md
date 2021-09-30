@@ -83,12 +83,14 @@ source $HOME/.bashrc
 cat << 'EOF' >/usr/local/openresty/nginx/conf/nginx.conf
 user  nginx;
 worker_processes  auto;
+worker_rlimit_nofile 65535;
 
 error_log  logs/error.log;
 pid        logs/nginx.pid;
 
 events {
-    worker_connections  1024;
+    use epoll;
+    worker_connections  65535;
 }
 
 http {
@@ -97,12 +99,26 @@ http {
     log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
                       '$status $body_bytes_sent "$http_referer" '
                       '"$http_user_agent" "$http_x_forwarded_for"';
-
     access_log  logs/access.log  main;
-    sendfile       on;
-    tcp_nopush     on;
-    keepalive_timeout  65;
-    gzip  on;
+    charset utf-8;
+    server_names_hash_bucket_size 128;
+    client_header_buffer_size 2k;
+    large_client_header_buffers 4 4k;
+    client_max_body_size 8m;
+    sendfile on;
+    tcp_nopush on;
+    keepalive_timeout 60;
+    tcp_nodelay on;
+    open_file_cache max=204800 inactive=20s;
+    open_file_cache_min_uses 1;
+    open_file_cache_valid 30s;
+    gzip on;
+    gzip_min_length 1k;
+    gzip_buffers 4 16k;
+    gzip_http_version 1.0;
+    gzip_comp_level 2;
+    gzip_types text/plain application/x-javascript text/css application/xml;
+    gzip_vary on;
     include /usr/local/openresty/nginx/conf/vhost/*.conf;
 }
 EOF
