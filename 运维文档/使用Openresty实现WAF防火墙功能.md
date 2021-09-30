@@ -67,6 +67,16 @@ gmake && gmake install
  source /etc/profile
  ```
 
+增加别名
+
+```bash
+cat << 'EOF' >>$HOME/.bashrc
+alias ngc='cd /usr/local/openresty/nginx/conf'
+alias ngl='cd /usr/local/openresty/nginx/logs'
+EOF
+source $HOME/.bashrc
+```
+
 ### 7、修改nginx配置
 
 ```nginx
@@ -125,7 +135,8 @@ mkdir -p /usr/local/openresty/nginx/conf/vhost
      location /myip {
          default_type 'text/plain';
          content_by_lua '
-         clientIP = ngx.req.get_headers()["x_forwarded_for"]
+         headers = ngx.req.get_headers()
+         clientIP = headers["X-REAL-IP"] or headers["X_FORWARDED_FOR"] or ngx.var.remote_addr or "0.0.0.0"
          ngx.say("IP:",clientIP)';  
      }
  }
@@ -134,7 +145,7 @@ mkdir -p /usr/local/openresty/nginx/conf/vhost
 
 ### 9、授权并启动
 
-```
+```bash
 chown -R nginx. /usr/local/openresty
 nginx 
 ```
@@ -176,8 +187,9 @@ http://test.wzxmt.com/hello
 ### 1、下载waf模块
 
  ```bash
- git clone https://github.com/unixhot/waf.git
- cp -a ./waf/waf /usr/local/openresty/nginx/conf
+ wget https://github.com/wzxmt/waf/archive/refs/heads/main.zip
+ unzip main.zip
+ cp -a waf-main/waf /usr/local/openresty/nginx/conf
  chown -R nginx. /usr/local/openresty
  ```
 
@@ -240,8 +252,9 @@ http://test.wzxmt.com/hello
  上面告警是缺少 `lua-resty-core` 模块，从而找不到这些信息，所以我们要下载lua-resty-core模块然后引入到Openresty
 
  ```bash
- git clone https://github.com/openresty/lua-resty-core.git
- mv lua-resty-core /usr/local/openresty
+ wget https://github.com/openresty/lua-resty-core/archive/refs/heads/master.zip
+ unzip master.zip
+ mv lua-resty-core-master /usr/local/openresty/lua-resty-core
  ```
 
  然后修改nginx配置文件来引入此模块,如下格式添加到第二行的后面
@@ -265,7 +278,7 @@ http://test.wzxmt.com/hello
 
  来学习一下waf/config.lua配置文件中的内容
 
- ```json
+ ```html
  cat /usr/local/openresty/nginx/conf/waf/config.lua
  --lua文件中，--为行注释，
  --[[ 
@@ -288,49 +301,71 @@ http://test.wzxmt.com/hello
  config_waf_redirect_url = "https://www.unixhot.com"     --指定违反请求后跳转的指定html页面
  --指定违反规则后跳转的自定义html页面
  config_output_html=[[
- <html>
- <head>
- <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
- <meta http-equiv="Content-Language" content="zh-cn" />
+ <html xmlns="http://www.w3.org/1999/xhtml"><head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
  <title>网站防火墙</title>
+ <style>
+      p {
+         line-height:20px;
+      }
+      ul{ list-style-type:none;}
+      li{ list-style-type:none;}
+ </style>
  </head>
- <body>
- <h1 align="center"> 欢迎白帽子进行授权安全测试，安全漏洞请联系QQ：88888888
+ <body style=" padding:0; margin:0; font:14px/1.5 Microsoft Yahei, 宋体,sans-serif; color:#555;">
+  <div style="margin: 0 auto; width:500px; padding-top:70px; overflow:hidden;">
+    <div style="width:600px; float:left;">
+      <div style=" height:40px; line-height:40px; color:#fff; font-size:16px; overflow:hidden; background:#6bb3f6; padding-left:20px;">网站防火墙 </div>
+        <div style="border:1px dashed #cdcece; border-top:none; font-size:14px; background:#fff; color:#555; line-height:24px; height:220px; padding:20px 20px 0 20px; overflow-y:auto;background:#f3f7f9;">
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-weight:600; color:#fc4f03;">您的请求带有不合法参数，已被网站管理员设置拦截！</span></p>
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">可能原因：您提交的内容包含危险的攻击请求</p>
+          <p style=" margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:1; text-indent:0px;">如何解决：</p>
+          <ul style="margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;">
+          <li style=" margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">1）检查提交内容；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">2）如网站托管，请联系空间提供商；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">3）普通网站访客，请联系网站管理员；</li></ul>
+       </div>
+     </div>
+   </div>
  </body>
  </html>
  ]]
  ```
 
+### 执行命令测试
+
+```bash
+http://test.wzxmt.com/hello?id=../etc/passwd
+```
+
+![image-20210930150552630](../acess/image-20210930150552630.jpg)
+
+### xss测试
+
+```bash
+http://test.wzxmt.com/hello?id=<script>alert("test")<script>
+```
+
+![image-20210930150738202](../acess/image-20210930150738202.jpg)
+
  ### IP黑名单配置
 
  需要在config.lua中开启`config_black_ip_check = "on"`参数
- IP黑名单配置非常简单，这个与Nginx的`ngx_http_access_module`模块原理是一致的，只需要把拒绝的地址加入到 waf/rule-config/blackip.rule文件中即可
-
- 然后访问Openresty地址，如下已返回403被禁止
+ IP黑名单配置非常简单，这个与Nginx的`ngx_http_access_module`模块原理是一致的，只需要把拒绝的地址加入到blackip.rule文件中即可,然后访问Openresty地址，如下已返回403被禁止
 
 ![image-20210929162320435](../acess/image-20210929162320435.jpg)
 
  ### IP白名单配置
 
  需要在config.lua中开启`config_white_ip_check = "on"`参数
- IP白名单与黑名单相反，**添加到IP白名单中的IP不受WAF限制**,具体请自行测试
-
- ```bash
- cat /usr/local/openresty/nginx/conf/waf/rule-config/whiteip.rule
- ```
+ IP白名单与黑名单相反，添加到IP白名单中的IP到whiteip.rule不受WAF限制
 
  ### CC攻击过滤
 
  需要在config.lua中开启`config_cc_check = "on"`参数，然后指定`config_cc_rate = "10/60"`速率和时间
  CC攻击只需要在config.lua配置文件中指定上面的两个参数即可
 
- 如下指定在60秒内对于单个IP地址访问单个页面的次数最大10次，超过10次则自动拉入黑名单，60秒后自动解除
-
- ```bash
- cat /usr/local/openresty/nginx/conf/waf/config.luaconfig
- ```
-
- 然后进行测试,如下刷新10次以后就变为来403
+如下指定在60秒内对于单个IP地址访问单个页面的次数最大10次，超过10次则自动拉入黑名单，60秒后自动解除，然后进行测试,如下刷新10次以后就变为来403。
 
 ![image-20210929162320435](../acess/image-20210929162320435.jpg)
 
@@ -345,7 +380,7 @@ http://test.wzxmt.com/hello
  ### 异常URL策略配置
 
  需要在config.lua中开启`config_url_check = "on"`参数
- 然后定义`rule-config/url.rule`文件，url.rule文件默认为如下，如果匹配到规则的将跳转到由config.lua中`config_waf_output = "html"`参数指定的页面
+ 然后定义`url.rule`文件，url.rule文件默认为如下，如果匹配到规则的将跳转到由config.lua中`config_waf_output = "html"`参数指定的页面
 
  1. 禁止URL访问 `.htaccess|.bash_history` 的文件
  2. 禁止URL访问包含带有`phpmyadmin|jmx-console|admin-console|jmxinvokerservlet`地址
@@ -375,7 +410,7 @@ http://test.wzxmt.com/hello
 
  然后进行重启后访问,如下就跳转到了我们在config.lua中指定的页面，此页面可根据需求进行修改。如果上面默认的url规则匹配到了你的地址，那么你就可以把相应配置去掉
 
-![image-20210929171147985](../acess/image-20210929171147985.jpg)
+![image-20210930151000670](../acess/image-20210930151000670.jpg)
 
  ### 异常UserAgent策略配置
 
@@ -396,6 +431,8 @@ http://test.wzxmt.com/hello
  …
  等等
 
+**useragent.rule**默认配置
+
  ```nginx
  (HTTrack|harvest|audit|dirbuster|pangolin|nmap|sqln|-scan|hydra|Parser|libwww|BBBike|sqlmap|w3af|owasp|Nikto|fimap|havij|PycURL|zmeu|BabyKrokodil|netsparker|httperf|bench)
  ```
@@ -404,27 +441,65 @@ http://test.wzxmt.com/hello
 
  ```html
  #模拟网站下载
- curl http://test.wzxmt.com/ --user-agent 'HTTrack'
- <html>
- <head>
- <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
- <meta http-equiv="Content-Language" content="zh-cn" />
- <title>OpsAny｜Web应用防火墙</title>
+ [root@k8s ~]# curl http://test.wzxmt.com/ --user-agent 'HTTrack'
+ <html xmlns="http://www.w3.org/1999/xhtml"><head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+ <title>网站防火墙</title>
+ <style>
+      p {
+         line-height:20px;
+      }
+      ul{ list-style-type:none;}
+      li{ list-style-type:none;}
+ </style>
  </head>
- <body>
- <h1 align="center"> 欢迎白帽子进行授权安全测试，安全漏洞请联系QQ：88888888
+ <body style=" padding:0; margin:0; font:14px/1.5 Microsoft Yahei, 宋体,sans-serif; color:#555;">
+  <div style="margin: 0 auto; width:500px; padding-top:30px; overflow:hidden;">
+    <div style="width:600px; float:left;">
+      <div style=" height:40px; line-height:40px; color:#fff; font-size:16px; overflow:hidden; background:#6bb3f6; padding-left:20px;">网站防火墙 </div>
+        <div style="border:1px dashed #cdcece; border-top:none; font-size:14px; background:#fff; color:#555; line-height:24px; height:220px; padding:20px 20px 0 20px; overflow-y:auto;background:#f3f7f9;">
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-weight:600; color:#fc4f03;">您的请求带有不合法参数，已被网站管理员设置拦截！</span></p>
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">可能原因：您提交的内容包含危险的攻击请求</p>
+          <p style=" margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:1; text-indent:0px;">如何解决：</p>
+          <ul style="margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;">
+          <li style=" margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">1）检查提交内容；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">2）如网站托管，请联系空间提供商；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">3）普通网站访客，请联系网站管理员；</li></ul>
+       </div>
+     </div>
+   </div>
  </body>
  </html>
+ 
  #模拟nmap网络扫描
- curl http://test.wzxmt.com/ --user-agent 'nmap'
- <html>
- <head>
- <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
- <meta http-equiv="Content-Language" content="zh-cn" />
- <title>OpsAny｜Web应用防火墙</title>
+ [root@k8s ~]# curl http://test.wzxmt.com/ --user-agent 'nmap'
+ 
+ <html xmlns="http://www.w3.org/1999/xhtml"><head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+ <title>网站防火墙</title>
+ <style>
+      p {
+         line-height:20px;
+      }
+      ul{ list-style-type:none;}
+      li{ list-style-type:none;}
+ </style>
  </head>
- <body>
- <h1 align="center"> 欢迎白帽子进行授权安全测试，安全漏洞请联系QQ：88888888
+ <body style=" padding:0; margin:0; font:14px/1.5 Microsoft Yahei, 宋体,sans-serif; color:#555;">
+  <div style="margin: 0 auto; width:500px; padding-top:30px; overflow:hidden;">
+    <div style="width:600px; float:left;">
+      <div style=" height:40px; line-height:40px; color:#fff; font-size:16px; overflow:hidden; background:#6bb3f6; padding-left:20px;">网站防火墙 </div>
+        <div style="border:1px dashed #cdcece; border-top:none; font-size:14px; background:#fff; color:#555; line-height:24px; height:220px; padding:20px 20px 0 20px; overflow-y:auto;background:#f3f7f9;">
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-weight:600; color:#fc4f03;">您的请求带有不合法参数，已被网站管理员设置拦截！</span></p>
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">可能原因：您提交的内容包含危险的攻击请求</p>
+          <p style=" margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:1; text-indent:0px;">如何解决：</p>
+          <ul style="margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;">
+          <li style=" margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">1）检查提交内容；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">2）如网站托管，请联系空间提供商；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">3）普通网站访客，请联系网站管理员；</li></ul>
+       </div>
+     </div>
+   </div>
  </body>
  </html>
  ```
@@ -437,9 +512,7 @@ http://test.wzxmt.com/hello
 
  然后重启Openrestry，通过Chrome浏览器进行访问
 
-![image-20210929170748884](../acess/image-20210929170748884.jpg)
-
- 
+![image-20210930151133010](../acess/image-20210930151133010.jpg)
 
  如上所示全部命中了WAF的规则
 
@@ -447,7 +520,7 @@ http://test.wzxmt.com/hello
 
  需要在config.lua配置中开启`config_url_args_check = "on"`参数
 
- 默认封锁了如下：
+**args.rule**默认封锁了如下：
 
  ```nginx
  \.\./
@@ -477,20 +550,39 @@ http://test.wzxmt.com/hello
  我们进行访问 `http://test.wzxmt.com/hello?aa=select id from mysql`,得到如下，进行匹配
 
  ```html
- curl 'http://test.wzxmt.com/hello?aa=select id from mysql'
- <html>
- <head>
- <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
- <meta http-equiv="Content-Language" content="zh-cn" />
+ [root@k8s ~]# curl 'http://test.wzxmt.com/hello?aa=select id from mysql'
+ <html xmlns="http://www.w3.org/1999/xhtml"><head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
  <title>网站防火墙</title>
+ <style>
+      p {
+         line-height:20px;
+      }
+      ul{ list-style-type:none;}
+      li{ list-style-type:none;}
+ </style>
  </head>
- <body>
- <h1 align="center"> 欢迎白帽子进行授权安全测试，安全漏洞请联系QQ：88888888
+ <body style=" padding:0; margin:0; font:14px/1.5 Microsoft Yahei, 宋体,sans-serif; color:#555;">
+  <div style="margin: 0 auto; width:500px; padding-top:30px; overflow:hidden;">
+    <div style="width:600px; float:left;">
+      <div style=" height:40px; line-height:40px; color:#fff; font-size:16px; overflow:hidden; background:#6bb3f6; padding-left:20px;">网站防火墙 </div>
+        <div style="border:1px dashed #cdcece; border-top:none; font-size:14px; background:#fff; color:#555; line-height:24px; height:220px; padding:20px 20px 0 20px; overflow-y:auto;background:#f3f7f9;">
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-weight:600; color:#fc4f03;">您的请求带有不合法参数，已被网站管理员设置拦截！</span></p>
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">可能原因：您提交的内容包含危险的攻击请求</p>
+          <p style=" margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:1; text-indent:0px;">如何解决：</p>
+          <ul style="margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;">
+          <li style=" margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">1）检查提交内容；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">2）如网站托管，请联系空间提供商；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">3）普通网站访客，请联系网站管理员；</li></ul>
+       </div>
+     </div>
+   </div>
  </body>
  </html>
+ 
  ```
 
- 我们也可以根据自己需求去配置，如下最后添加abcops
+ 我们也可以根据自己需求去配置，最后添加abcops
 
  ```nginx
  \.\./
@@ -515,18 +607,20 @@ http://test.wzxmt.com/hello
  \$_(GET|post|cookie|files|session|env|phplib|GLOBALS|SERVER)\[
  \<(iframe|script|body|img|layer|div|meta|style|base|object|input)
  (onmouseover|onerror|onload)\=
- abcops      
+ abcops
  ```
 
  然后我们进行访问`http://test.wzxmt.com/hello?aa=abcops`也会匹配到规则
 
-![image-20210929170705753](../acess/image-20210929170705753.jpg)
+![image-20210930152405127](../acess/image-20210930152405127.jpg)
 
  ### 异常POST参数策略配置
 
  需要在config.lua中开启`config_post_check = "on"`选项
 
  默认POST请求封禁如下，POST封禁内容与GET相似
+
+**post.rule** 默认配置
 
  ```nginx
  \.\./
@@ -555,14 +649,32 @@ http://test.wzxmt.com/hello
 
  ```html
  [root@k8s ~]# curl -X POST 'http://test.wzxmt.com/hello?aa=select id from mysql'
- <html>
- <head>
- <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
- <meta http-equiv="Content-Language" content="zh-cn" />
- <title>OpsAny｜Web应用防火墙</title>
+ <html xmlns="http://www.w3.org/1999/xhtml"><head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+ <title>网站防火墙</title>
+ <style>
+      p {
+         line-height:20px;
+      }
+      ul{ list-style-type:none;}
+      li{ list-style-type:none;}
+ </style>
  </head>
- <body>
- <h1 align="center"> 欢迎白帽子进行授权安全测试，安全漏洞请联系QQ：88888888
+ <body style=" padding:0; margin:0; font:14px/1.5 Microsoft Yahei, 宋体,sans-serif; color:#555;">
+  <div style="margin: 0 auto; width:500px; padding-top:30px; overflow:hidden;">
+    <div style="width:600px; float:left;">
+      <div style=" height:40px; line-height:40px; color:#fff; font-size:16px; overflow:hidden; background:#6bb3f6; padding-left:20px;">网站防火墙 </div>
+        <div style="border:1px dashed #cdcece; border-top:none; font-size:14px; background:#fff; color:#555; line-height:24px; height:220px; padding:20px 20px 0 20px; overflow-y:auto;background:#f3f7f9;">
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-weight:600; color:#fc4f03;">您的请求带有不合法参数，已被网站管理员设置拦截！</span></p>
+          <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">可能原因：您提交的内容包含危险的攻击请求</p>
+          <p style=" margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:1; text-indent:0px;">如何解决：</p>
+          <ul style="margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;">
+          <li style=" margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">1）检查提交内容；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">2）如网站托管，请联系空间提供商；</li>
+          <li style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">3）普通网站访客，请联系网站管理员；</li></ul>
+       </div>
+     </div>
+   </div>
  </body>
  </html>
  ```
@@ -571,6 +683,6 @@ http://test.wzxmt.com/hello
 
  ```nginx
  [root@k8s ~]# tail -1 /usr/local/openresty/nginx/logs/access.log
- 127.0.0.1 - - [29/Sep/2021:16:54:26 +0800] "POST /hello?aa=select id from mysql HTTP/1.1" 403 323 "-" "curl/7.29.0" "-"
+ 10.0.0.180 - - [30/Sep/2021:15:22:04 +0800] "POST /hello?aa=select id from mysql HTTP/1.1" 403 2178 "-" "curl/7.29.0" "-"
  ```
 
