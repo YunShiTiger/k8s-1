@@ -128,6 +128,12 @@ yum --enablerepo=elrepo-kernel  install  kernel-lt* --skip-broken -y
 reboot
 ```
 
+卸载内核
+
+```bash
+for n in `rpm -qa|grep ^kernel|grep 3.10.0`;do yum remove -y $n;done
+```
+
 查看系统当前内核版本,验证最新的内核已作为默认内核
 
 ```bash
