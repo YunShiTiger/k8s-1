@@ -139,7 +139,6 @@ services:
       - REGISTRY_STORAGE_OSS_ACCESSKEYSECRET=9aQ0ss8PhT7oecT9N3wnVz0gfUOYQP
       - REGISTRY_STORAGE_OSS_REGION=oss-cn-shanghai
       - REGISTRY_STORAGE_OSS_BUCKET=amss-registry
-      - REGISTRY_STORAGE_OSS_INTERNAL=true
     networks:
       - registry-networks
     restart: always
@@ -157,22 +156,19 @@ REGISTRY_STORAGE_OSS_ACCESSKEYID= #添写id
 REGISTRY_STORAGE_OSS_ACCESSKEYSECRET= #secret
 REGISTRY_STORAGE_OSS_REGION=cn-oss-xxxxx #说明区域，北京就是cn-oss-beijing
 REGISTRY_STORAGE_OSS_BUCKET=buket_name #刚刚新建的buket
-REGISTRY_STORAGE_OSS_INTERNAL=true  #如果registry部署在阿里云内网则使用这句
 
+打标签及上传镜像
 
+```
+docker login https://registry.amssasia.com.cn
 
-#打标签及上传镜像
-	docker login xxx.xxx.xxx.xxx
+docker tag busybox:latest registry.amssasia.com.cn/busybox:latest    
 
-    docker tag rancher/healthcheck:v0.3.8 xxx.xxx.xxx.xxx/export/healthcheck:hari-test2.0    
-    docker push xxx.xxx.xxx.xxx/export/healthcheck:hari-test2.0
-    
-    #查询镜像
-    curl -u admin:111111-X GET http://xxx.xxx.xxx.xxx/v2/_catalog
-    
-    #删除镜像
-    curl -u admin:111111-I -X DELETE http://xxx.xxx.xxx.xxx/v2/export/healthcheck/manifests/sha256:push之后的id
+docker push registry.amssasia.com.cn/busybox:latest  
+```
 
+查询镜像
 
-
-registry.amssasia.com.cn
+```
+curl -u bridge5:BridgeAmss2021 -X GET https://registry.amssasia.com.cn/v2/_catalog
+```
