@@ -37,10 +37,19 @@ tar xf openresty-1.19.3.2.tar.gz
 cd openresty-1.19.3.2
 ```
 
+隐藏openresty版本号信息，修改bundle/nginx-1.19.3/src/core/nginx.h
+
+```
+#define nginx_version      1019003
+#define NGINX_VERSION      ""
+#define NGINX_VER          "web-X" NGINX_VERSION ""
+```
+
 ### 4、编译Openresty配置过程
 
  ```bash
- ./configure --prefix=/usr/local/openresty \
+ ./configure \
+ --prefix=/usr/local/openresty \
  --user=nginx \
  --group=nginx \
  --with-pcre \
@@ -136,7 +145,7 @@ mkdir -p /usr/local/openresty/nginx/conf/vhost
  cat << 'EOF' >/usr/local/openresty/nginx/conf/vhost/test.conf
  server {
      listen       80;
-     server_name  test.wzxmt.com;
+     server_name  www.test.com;
  
      location / {
          root   html;
@@ -163,7 +172,7 @@ mkdir -p /usr/local/openresty/nginx/conf/vhost
 
 ```bash
 chown -R nginx. /usr/local/openresty
-nginx 
+openresty
 ```
 
 ### 10、测试访问
@@ -222,9 +231,9 @@ http://test.wzxmt.com/hello
  blackip.rule            #IP黑名单策略文件
  ```
 
- ## Openresty引入WAF模块
+### 3、http配置下引入WAF模块
 
-### 1、http配置下引入WAF模块
+vim /usr/local/openresty/nginx/conf/nginx.conf
 
  ```nginx
      lua_shared_dict limit 10m;
@@ -233,20 +242,19 @@ http://test.wzxmt.com/hello
      access_by_lua_file "/usr/local/openresty/nginx/conf/waf/access.lua";
  ```
 
-###  2、重启Openrestyd
+###  4、重启openresty
 
  ```bash
  openresty -t
  openresty -s reload
  ```
 
-###  3、查看nginx error.log
+###  5、查看error.log
 
  警告如下：`failed to load the 'resty.core' module` 加载 resty.core 核心模块失败，然后下面还有十几行找不到文件的日志
 
  ```json
- cat /usr/local/openresty/nginx/logs/error.log
- 2021/09/29 15:57:43 [alert] 53318#53318: failed to load the 'resty.core' module (https://github.com/openresty/lua-resty-core); ensure you are using an OpenResty release from https://openresty.org/en/download.html (reason: module 'resty.core' not found:
+ 2021/11/03 16:26:24 [alert] 24260#24260: failed to load the 'resty.core' module (https://github.com/openresty/lua-resty-core); ensure you are using an OpenResty release from https://openresty.org/en/download.html (reason: module 'resty.core' not found:
  	no field package.preload['resty.core']
  	no file '/usr/local/openresty/nginx/conf/waf/resty/core.lua'
  	no file '/usr/local/openresty/site/lualib/resty/core.so'
@@ -260,29 +268,17 @@ http://test.wzxmt.com/hello
  	no file './resty.so'
  	no file '/usr/local/lib/lua/5.1/resty.so'
  	no file '/usr/local/openresty/luajit/lib/lua/5.1/resty.so'
- 	no file '/usr/local/lib/lua/5.1/loadall.so') in /usr/local/openresty/nginx/conf/nginx.conf:30
+ 	no file '/usr/local/lib/lua/5.1/loadall.so') in /usr/local/openresty/nginx/conf/nginx.conf:46
  ```
 
-###  4、解决办法如下
+解决上述报错
 
- 上面告警是缺少 `lua-resty-core` 模块，从而找不到这些信息，所以我们要下载lua-resty-core模块然后引入到Openresty
+```bash
+ln -s /usr/local/openresty/lualib /usr/local/lib/lua
+ln -s /usr/local/openresty/lualib/resty /usr/local/openresty/nginx/conf/waf/resty
+```
 
- ```bash
- wget https://github.com/openresty/lua-resty-core/archive/refs/heads/master.zip
- unzip master.zip
- mv lua-resty-core-master /usr/local/openresty/lua-resty-core
- ```
-
- 然后修改nginx配置文件来引入此模块,如下格式添加到第二行的后面
-
- ```nginx
-     lua_shared_dict limit 10m;
-     lua_package_path "/usr/local/openresty/nginx/conf/waf/?.lua;/usr/local/openresty/lua-resty-core/lib/?.lua;;";
-     init_by_lua_file "/usr/local/openresty/nginx/conf/waf/init.lua";
-     access_by_lua_file "/usr/local/openresty/nginx/conf/waf/access.lua";
- ```
-
-###  5、然后保存退出重启看日志
+###  5、重启看日志
 
  ```bash
  openresty -t && openresty -s reload
