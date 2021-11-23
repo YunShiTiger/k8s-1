@@ -1,0 +1,11 @@
+- targets: ['https://*.com']
+  labels:
+    service: "anshi"
+    env_http: "dev"
+    protocol: "http"
+
+- targets: ['https://*.com']
+  labels:
+    service: "fosun"
+    env_http: "dev"
+    protocol: "http"

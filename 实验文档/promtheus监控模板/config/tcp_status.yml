@@ -1,0 +1,12 @@
+- targets: ['47.*:4010']
+  labels:
+    service: "members-server"
+    port: "4010"
+    env: "data"
+    protocol: "tcp"
+- targets: ['47.*:4013']
+  labels:
+    service: "amss-transports-server"
+    port: "4013"
+    env: "data"
+    protocol: "tcp"

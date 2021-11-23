@@ -1,0 +1,3017 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Docker monitoring with Prometheus and cAdvisor with node selection",
+  "editable": true,
+  "gnetId": 8321,
+  "graphTooltip": 1,
+  "id": 21,
+  "iteration": 1637635748617,
+  "links": [],
+  "panels": [
+    {
+      "cacheTimeout": null,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
+              },
+              {
+                "color": "rgba(237, 129, 40, 0.89)",
+                "value": 0.8
+              },
+              {
+                "color": "rgba(245, 54, 54, 0.9)",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 25,
+      "links": [],
+      "options": {
+        "displayMode": "basic",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (container_memory_working_set_bytes{id=\"/\",node=~\"$host\"}) / sum (machine_memory_bytes{node=~\"$host\"})",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "内存使用率",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_memory_bytes{node=~\"$host\"}) / sum(kube_node_status_capacity_memory_bytes{node=~\"$host\"})",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "内存请求率",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_memory_bytes{node=~\"$host\"}) / sum(kube_node_status_capacity_memory_bytes{node=~\"$host\"})",
+          "hide": false,
+          "instant": true,
+          "interval": "10s",
+          "intervalFactor": 1,
+          "legendFormat": "内存限制率",
+          "refId": "B",
+          "step": 10
+        }
+      ],
+      "title": "$host：节点内存比例",
+      "type": "bargauge"
+    },
+    {
+      "cacheTimeout": null,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
+              },
+              {
+                "color": "rgba(237, 129, 40, 0.89)",
+                "value": 0.8
+              },
+              {
+                "color": "rgba(245, 54, 54, 0.9)",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 4,
+        "y": 0
+      },
+      "id": 27,
+      "links": [],
+      "options": {
+        "displayMode": "basic",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_cpu_usage_seconds_total{id=\"/\",node=~\"$host\"}[2m])) / sum (machine_cpu_cores{node=~\"$host\"})",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "CPU使用率",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_cpu_cores{node=~\"$host\"}) / sum(kube_node_status_allocatable_cpu_cores{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "CPU请求率",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_cpu_cores{node=~\"$host\"}) / sum(kube_node_status_allocatable_cpu_cores{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "CPU限制率",
+          "refId": "B"
+        }
+      ],
+      "title": "$host：节点CPU比例",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "集群节点数，节点POD数，节点POD上限",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 1000,
+          "min": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 7,
+        "y": 0
+      },
+      "id": 29,
+      "options": {
+        "displayMode": "basic",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "count(kube_node_info{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "节点数",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "count(kube_pod_info{created_by_kind!~\"<none>|Job\",node=~\"$host\"})",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Pod数",
+          "refId": "B"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_node_status_capacity_pods{node=~\"$host\"})",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "上限Pod",
+          "refId": "C"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "$host：节点与Pod",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center",
+            "filterable": false
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "空间"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 182
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pod"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 34
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SVC"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 28
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "微服务"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 59
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "配置"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 32
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "密码"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 23
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 10,
+        "y": 0
+      },
+      "id": 37,
+      "options": {
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "count(kube_pod_info{node=~\"$host\",namespace=~\"$namespace\"}) by (namespace)",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "count(kube_service_info{node=~\"$host\",namespace=~\"$namespace\"}) by(namespace)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "count(count(kube_pod_container_info{node=~\"$host\",namespace=~\"$namespace\"}) by(container,namespace))by(namespace)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "D"
+        },
+        {
+          "exemplar": true,
+          "expr": "count(kube_configmap_info{node=~\"$host\",namespace=~\"$namespace\"}) by(namespace)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "configmap",
+          "refId": "B"
+        },
+        {
+          "exemplar": true,
+          "expr": "count(kube_secret_info{node=~\"$host\",namespace=~\"$namespace\"}) by(namespace)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "secret",
+          "refId": "E"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "命名空间明细",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "namespace"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true
+            },
+            "indexByName": {
+              "Time 1": 2,
+              "Time 2": 4,
+              "Time 3": 6,
+              "Value #A": 3,
+              "Value #C": 5,
+              "Value #D": 1,
+              "namespace": 0
+            },
+            "renameByName": {
+              "Time 1": "",
+              "Time 2": "",
+              "Value #A": "Pod",
+              "Value #B": "配置",
+              "Value #C": "SVC",
+              "Value #D": "微服务",
+              "Value #E": "密码",
+              "namespace": "空间"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "decimals": 2,
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 0
+      },
+      "height": "200px",
+      "hiddenSeries": false,
+      "id": 39,
+      "isNew": true,
+      "legend": {
+        "alignAsTable": false,
+        "avg": true,
+        "current": true,
+        "max": false,
+        "min": false,
+        "rightSide": false,
+        "show": false,
+        "sideWidth": 200,
+        "sort": "current",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.5",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_network_receive_bytes_total{node=~\"$host\",container_label_io_kubernetes_pod_namespace=~\"$namespace\"}[2m]))*8",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "接收",
+          "metric": "network",
+          "refId": "A",
+          "step": 10
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_network_transmit_bytes_total{node=~\"$host\",container_label_io_kubernetes_pod_namespace=~\"$namespace\"}[2m]))*8",
+          "instant": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "发送",
+          "metric": "network",
+          "refId": "B",
+          "step": 10
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "$namespace：网络总览",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:750",
+          "format": "binbps",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:751",
+          "format": "Bps",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "mappings": [],
+          "max": 1000000000000,
+          "min": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 800000000000
+              },
+              {
+                "color": "red",
+                "value": 1000000000000
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "id": 31,
+      "options": {
+        "displayMode": "basic",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (machine_memory_bytes{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "总内存",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_memory_working_set_bytes{id=\"/\",node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "使用量",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_memory_bytes{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "请求量",
+          "refId": "D"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_memory_bytes{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "限制量",
+          "refId": "B"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "$host：节点内存信息",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "mappings": [],
+          "max": 500,
+          "min": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 500
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
+            ]
+          },
+          "unit": "locale"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 4,
+        "y": 4
+      },
+      "id": 33,
+      "options": {
+        "displayMode": "basic",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (machine_cpu_cores{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "总核数",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_cpu_usage_seconds_total{node=~\"$host\"}[2m]))",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "使用量",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_cpu_cores{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "请求量",
+          "refId": "D"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_cpu_cores{node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "限制量",
+          "refId": "B"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "$host：节点CPU核数",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "mappings": [],
+          "max": 8000000000000,
+          "min": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 5000000000000
+              },
+              {
+                "color": "red",
+                "value": 10000000000000
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "使用率"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 80
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 7,
+        "y": 4
+      },
+      "id": 35,
+      "options": {
+        "displayMode": "basic",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"}) / sum (container_fs_limit_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "使用率",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "使用量",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_fs_limit_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"})",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "总量",
+          "refId": "B"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "$host：节点存储信息",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pod"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "状态"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 93
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU使用(核)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 98
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU总"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU限制"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 74
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存使用"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存总"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存限制"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 97
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "磁盘使用"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 131
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "磁盘总"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 84
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存请求%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 122
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存限制%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU使用%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 86
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU请求%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU限制%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "磁盘使用%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 85
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*%"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 80
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "(内存使用|内存总|内存请求|内存限制|磁盘使用|磁盘总)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "节点"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 151
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存使用%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 107
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "内存请求"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 145
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU请求"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 76
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "(CPU总|内存总|磁盘总|Pod上限)"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": null
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pod上限"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 40
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 23,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "内存请求%"
+          }
+        ]
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "count(kube_pod_info{created_by_kind!~\"<none>|Job\",node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "pod数",
+          "refId": "A"
+        },
+        {
+          "exemplar": true,
+          "expr": "kube_node_status_condition{status=\"true\",node=~\"$host\"}  == 1",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "状态",
+          "refId": "B"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_cpu_usage_seconds_total{id=\"/\",node=~\"$host\"}[3m])) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "I"
+        },
+        {
+          "exemplar": true,
+          "expr": "kube_node_status_capacity_cpu_cores{node=~\"$host\"} - 0",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "C"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_cpu_cores{node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "E"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_cpu_cores{node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "F"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_memory_working_set_bytes{id=\"/\",node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "J"
+        },
+        {
+          "exemplar": true,
+          "expr": "kube_node_status_capacity_memory_bytes{node=~\"$host\"} - 0",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "D"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_memory_bytes{node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "G"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_memory_bytes{node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "H"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "K"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_fs_limit_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"}) by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "L"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_memory_working_set_bytes{id=\"/\",node=~\"$host\"})by (node) / sum (machine_memory_bytes{})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "内存使用%",
+          "refId": "M"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_memory_bytes{node=~\"$host\"})by (node) / sum(kube_node_status_capacity_memory_bytes{node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "内存请求%",
+          "refId": "N"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_memory_bytes{node=~\"$host\"})by (node) / sum(kube_node_status_capacity_memory_bytes{node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "内存限制%",
+          "refId": "O"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_cpu_usage_seconds_total{id=\"/\",node=~\"$host\"}[2m]))by (node) / sum (machine_cpu_cores{node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "CPU使用%",
+          "refId": "P"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_requests_cpu_cores{node=~\"$host\"})by (node) / sum(kube_node_status_allocatable_cpu_cores{node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "CPU请求%",
+          "refId": "Q"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_pod_container_resource_limits_cpu_cores{node=~\"$host\"})by (node) / sum(kube_node_status_allocatable_cpu_cores{node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "内存限制%",
+          "refId": "R"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum (container_fs_usage_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"})by (node) / sum (container_fs_limit_bytes{device=~\"^/dev/.*$\",id=\"/\",node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "磁盘使用%",
+          "refId": "S"
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(kube_node_status_capacity_pods{node=~\"$host\"})by (node)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "interval": "",
+          "legendFormat": "Pod上限",
+          "refId": "T"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "$host：集群节点信息明细",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "node"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "(node|condition|Value.*)"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 10": true,
+              "Time 11": true,
+              "Time 12": true,
+              "Time 13": true,
+              "Time 14": true,
+              "Time 15": true,
+              "Time 16": true,
+              "Time 17": true,
+              "Time 18": true,
+              "Time 19": true,
+              "Time 2": true,
+              "Time 20": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Time 7": true,
+              "Time 8": true,
+              "Time 9": true,
+              "Value #B": true,
+              "Value #E": false,
+              "Value #F": false,
+              "__name__": true,
+              "app_kubernetes_io_name 1": true,
+              "app_kubernetes_io_name 2": true,
+              "app_kubernetes_io_name 3": true,
+              "app_kubernetes_io_version 1": true,
+              "app_kubernetes_io_version 2": true,
+              "app_kubernetes_io_version 3": true,
+              "condition": false,
+              "instance 1": true,
+              "instance 2": true,
+              "instance 3": true,
+              "job 1": true,
+              "job 2": true,
+              "job 3": true,
+              "k8s_namespace 1": true,
+              "k8s_namespace 2": true,
+              "k8s_namespace 3": true,
+              "k8s_sname 1": true,
+              "k8s_sname 2": true,
+              "k8s_sname 3": true,
+              "origin_prometheus 1": true,
+              "origin_prometheus 2": true,
+              "origin_prometheus 3": true,
+              "status": true
+            },
+            "indexByName": {
+              "Time 1": 4,
+              "Time 10": 54,
+              "Time 11": 55,
+              "Time 12": 56,
+              "Time 13": 57,
+              "Time 14": 58,
+              "Time 15": 59,
+              "Time 16": 60,
+              "Time 17": 61,
+              "Time 18": 62,
+              "Time 19": 63,
+              "Time 2": 5,
+              "Time 20": 64,
+              "Time 3": 16,
+              "Time 4": 17,
+              "Time 5": 42,
+              "Time 6": 43,
+              "Time 7": 44,
+              "Time 8": 45,
+              "Time 9": 53,
+              "Value #A": 1,
+              "Value #B": 15,
+              "Value #C": 25,
+              "Value #D": 32,
+              "Value #E": 28,
+              "Value #F": 30,
+              "Value #G": 35,
+              "Value #H": 37,
+              "Value #I": 26,
+              "Value #J": 33,
+              "Value #K": 40,
+              "Value #L": 39,
+              "Value #M": 34,
+              "Value #N": 36,
+              "Value #O": 38,
+              "Value #P": 27,
+              "Value #Q": 29,
+              "Value #R": 31,
+              "Value #S": 41,
+              "Value #T": 2,
+              "__name__": 6,
+              "app_kubernetes_io_name 1": 7,
+              "app_kubernetes_io_name 2": 18,
+              "app_kubernetes_io_name 3": 46,
+              "app_kubernetes_io_version 1": 8,
+              "app_kubernetes_io_version 2": 19,
+              "app_kubernetes_io_version 3": 47,
+              "condition": 3,
+              "instance 1": 9,
+              "instance 2": 20,
+              "instance 3": 48,
+              "job 1": 10,
+              "job 2": 21,
+              "job 3": 49,
+              "k8s_namespace 1": 11,
+              "k8s_namespace 2": 22,
+              "k8s_namespace 3": 50,
+              "k8s_sname 1": 12,
+              "k8s_sname 2": 23,
+              "k8s_sname 3": 51,
+              "node": 0,
+              "origin_prometheus 1": 13,
+              "origin_prometheus 2": 24,
+              "origin_prometheus 3": 52,
+              "status": 14
+            },
+            "renameByName": {
+              "Value #A": "Pod",
+              "Value #C": "CPU总",
+              "Value #D": "内存总",
+              "Value #E": "CPU请求",
+              "Value #F": "CPU限制",
+              "Value #G": "内存请求",
+              "Value #H": "内存限制",
+              "Value #I": "CPU使用(核)",
+              "Value #J": "内存使用",
+              "Value #K": "磁盘使用",
+              "Value #L": "磁盘总",
+              "Value #M": "内存使用%",
+              "Value #N": "内存请求%",
+              "Value #O": "内存限制%",
+              "Value #P": "CPU使用%",
+              "Value #Q": "CPU请求%",
+              "Value #R": "CPU限制%",
+              "Value #S": "磁盘使用%",
+              "Value #T": "Pod上限",
+              "condition": "状态",
+              "node": "节点"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "rgba(245, 54, 54, 0.9)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(50, 172, 45, 0.97)"
+      ],
+      "datasource": "Prometheus",
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "height": "20",
+      "id": 7,
+      "interval": null,
+      "isNew": true,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": false
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "count(kube_pod_info{created_by_kind!~\"<none>|Job\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",node=~\"$host\"})",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "metric": "container_last_seen",
+          "refId": "A",
+          "step": 240
+        }
+      ],
+      "thresholds": "",
+      "title": "启动的容器数量",
+      "transparent": true,
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "avg"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "rgba(245, 54, 54, 0.9)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(50, 172, 45, 0.97)"
+      ],
+      "datasource": "Prometheus",
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "format": "mbytes",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "height": "20",
+      "id": 5,
+      "interval": null,
+      "isNew": true,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": false
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(container_memory_usage_bytes{cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",node=~\"$host\"})/1024/1024",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "metric": "container_memory_usage_bytes",
+          "refId": "A",
+          "step": 240
+        }
+      ],
+      "thresholds": "",
+      "title": "使用的总内存大小",
+      "transparent": true,
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "rgba(245, 54, 54, 0.9)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(50, 172, 45, 0.97)"
+      ],
+      "datasource": "Prometheus",
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "format": "percent",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "height": "20",
+      "id": 6,
+      "interval": null,
+      "isNew": true,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": false
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(rate(container_cpu_user_seconds_total{cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",node=~\"$host\"}[5m]) * 100)",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "",
+          "metric": "container_memory_usage_bytes",
+          "refId": "A",
+          "step": 240
+        }
+      ],
+      "thresholds": "",
+      "title": "CPU总使用量",
+      "transparent": true,
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "decimals": 2,
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "hiddenSeries": false,
+      "id": 2,
+      "isNew": true,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "hideEmpty": false,
+        "max": true,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": 300,
+        "sort": "max",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.5",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(rate(container_cpu_user_seconds_total{cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",node=~\"$host\",container_label_io_kubernetes_container_name=~\"$container\"}[$interval]) * 100)by(container_label_io_kubernetes_pod_name)",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "{{container_label_io_kubernetes_container_name}}",
+          "metric": "cpu",
+          "refId": "A",
+          "step": 10
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "CPU使用率",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "percent",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "decimals": 2,
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "hiddenSeries": false,
+      "id": 1,
+      "isNew": true,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": 300,
+        "sort": "avg",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.5",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(container_memory_usage_bytes{cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",node=~\"$host\",container_label_io_kubernetes_container_name=~\"$container\"})by(container_label_io_kubernetes_pod_name)",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "{{container_label_io_kubernetes_pod_name}}",
+          "metric": "container_memory_usage_bytes",
+          "refId": "A",
+          "step": 10
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "内存使用量",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "bytes",
+          "label": "",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "decimals": 2,
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "hiddenSeries": false,
+      "id": 17,
+      "isNew": true,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": 300,
+        "sort": "avg",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.5",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(irate(container_fs_reads_bytes_total{cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",node=~\"$host\",container_label_io_kubernetes_container_name=~\"$container\"}[$interval]))by(container_label_io_kubernetes_pod_name)",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "读取：{{container_label_io_kubernetes_pod_name}}",
+          "metric": "container_memory_usage_bytes",
+          "refId": "A",
+          "step": 10
+        },
+        {
+          "exemplar": true,
+          "expr": "sum(irate(container_fs_writes_bytes_total{cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",node=~\"$host\",container_label_io_kubernetes_container_name=~\"$container\"}[$interval]))by(container_label_io_kubernetes_pod_name)",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "写入：{{container_label_io_kubernetes_pod_name}}",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "硬盘使用信息",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "bytes",
+          "label": "",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {
+        "流入:wholion-lbs": "purple",
+        "流出:wholion-lbs": "green"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "decimals": 2,
+      "editable": true,
+      "error": false,
+      "fieldConfig": {
+        "defaults": {
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "grid": {},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "hiddenSeries": false,
+      "id": 41,
+      "isNew": true,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sideWidth": null,
+        "sort": "max",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 2,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.5",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (rate (container_network_receive_bytes_total{container_label_io_kubernetes_pod_name=~\"$pod\",name=~\"^k8s_.*\",node=~\"$host\",container_label_io_kubernetes_pod_namespace=~\"$namespace\"}[2m])) by (container_label_io_kubernetes_pod_name)",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "流入:{{ container_label_io_kubernetes_pod_name }}",
+          "metric": "network",
+          "refId": "A",
+          "step": 10
+        },
+        {
+          "exemplar": true,
+          "expr": " sum (rate (container_network_transmit_bytes_total{container_label_io_kubernetes_pod_name=~\"$pod\",name=~\"^k8s_.*\",node=~\"$host\",container_label_io_kubernetes_pod_namespace=~\"$namespace\"}[2m])) by (container_label_io_kubernetes_pod_name)",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "流出:{{ container_label_io_kubernetes_pod_name }}",
+          "metric": "network",
+          "refId": "B",
+          "step": 10
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "微服务(容器名)每秒网络带宽 ",
+      "tooltip": {
+        "msResolution": false,
+        "shared": true,
+        "sort": 2,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:8106",
+          "format": "binbps",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:8107",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "auto": true,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "1m",
+          "value": "1m"
+        },
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "label": "interval",
+        "name": "interval",
+        "options": [
+          {
+            "selected": false,
+            "text": "auto",
+            "value": "$__auto_interval_interval"
+          },
+          {
+            "selected": true,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "tags": [],
+          "text": [
+            "amsssaas-beta"
+          ],
+          "value": [
+            "amsssaas-beta"
+          ]
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\"}, cluster)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "Cluster",
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\"}, cluster)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "definition": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\"},container_label_io_kubernetes_pod_namespace)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "NameSpace",
+        "multi": true,
+        "name": "namespace",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "delta",
+            "value": "delta"
+          },
+          {
+            "selected": false,
+            "text": "beta",
+            "value": "beta"
+          },
+          {
+            "selected": false,
+            "text": "kube-system",
+            "value": "kube-system"
+          }
+        ],
+        "query": {
+          "query": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\"},container_label_io_kubernetes_pod_namespace)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "definition": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_container_name!=\"POD\"}, container_label_io_kubernetes_container_name)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "container",
+        "multi": true,
+        "name": "container",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-amss-frontend",
+            "value": "delta-demo-amss-frontend"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-imvbizpark",
+            "value": "delta-demo-service-imvbizpark"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvhealthcare",
+            "value": "beta-demo-service-imvhealthcare"
+          },
+          {
+            "selected": false,
+            "text": "kube-state-metrics",
+            "value": "kube-state-metrics"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-gateways",
+            "value": "delta-demo-service-gateways"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-amss-screenshots",
+            "value": "beta-demo-amss-screenshots"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-mixeduse",
+            "value": "beta-demo-service-mixeduse"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvoffice",
+            "value": "beta-demo-service-imvoffice"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-administrates",
+            "value": "delta-demo-service-administrates"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-auditlogs",
+            "value": "delta-demo-service-auditlogs"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-amss-workbench",
+            "value": "beta-demo-amss-workbench"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-gateways",
+            "value": "beta-demo-service-gateways"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvlogistics",
+            "value": "beta-demo-service-imvlogistics"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-services-mixbudget",
+            "value": "delta-demo-services-mixbudget"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-auditlogs",
+            "value": "beta-demo-service-auditlogs"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-imvoffice",
+            "value": "delta-demo-service-imvoffice"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-accounts",
+            "value": "beta-demo-service-accounts"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-screenshots",
+            "value": "beta-demo-service-screenshots"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-imvretail",
+            "value": "delta-demo-service-imvretail"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-capitaldatas",
+            "value": "delta-demo-service-capitaldatas"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvretail",
+            "value": "beta-demo-service-imvretail"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-lmrsales",
+            "value": "beta-demo-service-lmrsales"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-accounts",
+            "value": "delta-demo-service-accounts"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvsales",
+            "value": "beta-demo-service-imvsales"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvhotel",
+            "value": "beta-demo-service-imvhotel"
+          },
+          {
+            "selected": false,
+            "text": "coredns",
+            "value": "coredns"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-administrates",
+            "value": "beta-demo-service-administrates"
+          }
+        ],
+        "query": {
+          "query": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_container_name!=\"POD\"}, container_label_io_kubernetes_container_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "definition": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_container_name=~\"$container\"}, container_label_io_kubernetes_pod_name)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": true,
+        "name": "pod",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-amss-frontend-6b567698d5-7pqz5",
+            "value": "delta-demo-amss-frontend-6b567698d5-7pqz5"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-imvbizpark-5655fc7d5d-9tfvc",
+            "value": "delta-demo-service-imvbizpark-5655fc7d5d-9tfvc"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvhealthcare-8644ccb4b9-k94fk",
+            "value": "beta-demo-service-imvhealthcare-8644ccb4b9-k94fk"
+          },
+          {
+            "selected": false,
+            "text": "kube-state-metrics-74bd47b745-9k877",
+            "value": "kube-state-metrics-74bd47b745-9k877"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-gateways-846f54c998-khlqw",
+            "value": "delta-demo-service-gateways-846f54c998-khlqw"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-amss-screenshots-b8d76fd68-zx5h6",
+            "value": "beta-demo-amss-screenshots-b8d76fd68-zx5h6"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-mixeduse-7fc4978576-vvkr8",
+            "value": "beta-demo-service-mixeduse-7fc4978576-vvkr8"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvoffice-66586cdf87-rhw8s",
+            "value": "beta-demo-service-imvoffice-66586cdf87-rhw8s"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-administrates-65574cb567-fnmzj",
+            "value": "delta-demo-service-administrates-65574cb567-fnmzj"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-auditlogs-7d75766786-jh7sf",
+            "value": "delta-demo-service-auditlogs-7d75766786-jh7sf"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-amss-workbench-8dc77f6c4-bqdch",
+            "value": "beta-demo-amss-workbench-8dc77f6c4-bqdch"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-gateways-64b96c8945-w9shv",
+            "value": "beta-demo-service-gateways-64b96c8945-w9shv"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvlogistics-54b64b4c77-fgml4",
+            "value": "beta-demo-service-imvlogistics-54b64b4c77-fgml4"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-mixbudget-5b64d48764-2fcv2",
+            "value": "delta-demo-service-mixbudget-5b64d48764-2fcv2"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-auditlogs-84d588c6d-2pv9b",
+            "value": "beta-demo-service-auditlogs-84d588c6d-2pv9b"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-imvoffice-6f6bd58d6b-kcrrw",
+            "value": "delta-demo-service-imvoffice-6f6bd58d6b-kcrrw"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-accounts-54cf876884-525s2",
+            "value": "beta-demo-service-accounts-54cf876884-525s2"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-screenshots-54cfb55fd7-lvtz4",
+            "value": "beta-demo-service-screenshots-54cfb55fd7-lvtz4"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-imvretail-6545bfd54-xv2r5",
+            "value": "delta-demo-service-imvretail-6545bfd54-xv2r5"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-capitaldatas-b66f7c797-ncrdd",
+            "value": "delta-demo-service-capitaldatas-b66f7c797-ncrdd"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvretail-5cc78bd797-crd6t",
+            "value": "beta-demo-service-imvretail-5cc78bd797-crd6t"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-lmrsales-6c7c99c9c6-dnwpv",
+            "value": "beta-demo-service-lmrsales-6c7c99c9c6-dnwpv"
+          },
+          {
+            "selected": false,
+            "text": "delta-demo-service-accounts-5f548bf5bb-z8rzn",
+            "value": "delta-demo-service-accounts-5f548bf5bb-z8rzn"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvsales-6c47575869-spwdp",
+            "value": "beta-demo-service-imvsales-6c47575869-spwdp"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-imvhotel-75468c8bd5-qmqm5",
+            "value": "beta-demo-service-imvhotel-75468c8bd5-qmqm5"
+          },
+          {
+            "selected": false,
+            "text": "coredns-6d99d5879f-7xg5q",
+            "value": "coredns-6d99d5879f-7xg5q"
+          },
+          {
+            "selected": false,
+            "text": "beta-demo-service-administrates-6d6799cdf7-frf8l",
+            "value": "beta-demo-service-administrates-6d6799cdf7-frf8l"
+          }
+        ],
+        "query": {
+          "query": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_container_name=~\"$container\"}, container_label_io_kubernetes_pod_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "definition": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",container_label_io_kubernetes_container_name=~\"$container\"},node)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "node",
+        "multi": true,
+        "name": "host",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "amsssaas",
+            "value": "amsssaas"
+          }
+        ],
+        "query": {
+          "query": "label_values(container_cpu_user_seconds_total{container_label_io_kubernetes_pod_uid!=\"\",cluster=~\"$cluster\",container_label_io_kubernetes_pod_namespace=~\"$namespace\",container_label_io_kubernetes_pod_name=~\"$pod\",container_label_io_kubernetes_container_name=~\"$container\"},node)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "k8s容器监控展示看板",
+  "uid": "D93XALVnk",
+  "version": 62
+}

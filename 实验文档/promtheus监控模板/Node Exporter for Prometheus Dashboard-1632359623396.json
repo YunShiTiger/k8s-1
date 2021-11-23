@@ -18,7 +18,7 @@
   "gnetId": 8919,
   "graphTooltip": 0,
   "id": 3,
-  "iteration": 1632359598321,
+  "iteration": 1637637109866,
   "links": [
     {
       "$$hashKey": "object:2300",
@@ -3741,8 +3741,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "amsskeyin",
-          "value": "amsskeyin"
+          "text": "amssaas-prod01",
+          "value": "amssaas-prod01"
         },
         "datasource": "Prometheus",
         "definition": "label_values(node_uname_info{origin_prometheus=~\"$origin_prometheus\",job=~\"$job\",node=~\"$hostname\"},node)",
@@ -3894,8 +3894,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "amsskeyin",
-          "value": "amsskeyin"
+          "text": "amssaas-prod01",
+          "value": "amssaas-prod01"
         },
         "datasource": "Prometheus",
         "definition": "label_values(node_uname_info{origin_prometheus=~\"$origin_prometheus\",job=~\"$job\",node=~\"$node\"}, node)",

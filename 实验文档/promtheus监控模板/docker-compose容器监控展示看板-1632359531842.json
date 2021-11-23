@@ -17,7 +17,7 @@
   "gnetId": 8321,
   "graphTooltip": 1,
   "id": 16,
-  "iteration": 1632359518170,
+  "iteration": 1637636295492,
   "links": [],
   "panels": [
     {
@@ -587,17 +587,25 @@
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{node}}:{{name}}",
+          "legendFormat": "接收:：{{name}}",
           "metric": "container_memory_usage_bytes",
           "refId": "A",
           "step": 10
+        },
+        {
+          "exemplar": true,
+          "expr": "irate(container_network_transmit_bytes_total{node=~\"$node\",container_label_com_docker_compose_project != \"\",name=~\"$name\"}[$interval])",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "发送：{{name}}",
+          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "网络接收速率",
+      "title": "网络使用信息",
       "tooltip": {
         "msResolution": false,
         "shared": true,
@@ -658,117 +666,6 @@
         "y": 24
       },
       "hiddenSeries": false,
-      "id": 21,
-      "isNew": true,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": true,
-        "sideWidth": 300,
-        "sort": "avg",
-        "sortDesc": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 2,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "7.5.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "irate(container_network_transmit_bytes_total{node=~\"$node\",container_label_com_docker_compose_project != \"\",name=~\"$name\"}[$interval])",
-          "format": "time_series",
-          "hide": false,
-          "interval": "",
-          "intervalFactor": 2,
-          "legendFormat": "{{node}}:{{name}}",
-          "metric": "container_memory_usage_bytes",
-          "refId": "A",
-          "step": 10
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "网络发送速率",
-      "tooltip": {
-        "msResolution": false,
-        "shared": true,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "bytes",
-          "label": "",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "Prometheus",
-      "decimals": 2,
-      "editable": true,
-      "error": false,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "fill": 1,
-      "fillGradient": 0,
-      "grid": {},
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 31
-      },
-      "hiddenSeries": false,
       "id": 17,
       "isNew": true,
       "legend": {
@@ -809,128 +706,25 @@
           "hide": false,
           "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{node}}:{{name}}",
+          "legendFormat": "读取：{{name}}",
           "metric": "container_memory_usage_bytes",
           "refId": "A",
           "step": 10
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "硬盘读取速率",
-      "tooltip": {
-        "msResolution": false,
-        "shared": true,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "bytes",
-          "label": "",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
         },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "Prometheus",
-      "decimals": 2,
-      "editable": true,
-      "error": false,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "fill": 1,
-      "fillGradient": 0,
-      "grid": {},
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 38
-      },
-      "hiddenSeries": false,
-      "id": 19,
-      "isNew": true,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": true,
-        "sideWidth": 300,
-        "sort": "avg",
-        "sortDesc": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 2,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "7.5.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
         {
           "exemplar": true,
           "expr": "irate(container_fs_writes_bytes_total{node=~\"$node\",container_label_com_docker_compose_project != \"\",name=~\"$name\"}[$interval])",
-          "format": "time_series",
           "hide": false,
           "interval": "",
-          "intervalFactor": 2,
-          "legendFormat": "{{node}}:{{name}}",
-          "metric": "container_memory_usage_bytes",
-          "refId": "A",
-          "step": 10
+          "legendFormat": "写入：{{name}}",
+          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "硬盘写入速率",
+      "title": "硬盘使用信息",
       "tooltip": {
         "msResolution": false,
         "shared": true,
@@ -1058,8 +852,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "work1-03-centos",
-          "value": "work1-03-centos"
+          "text": "sg-developer",
+          "value": "sg-developer"
         },
         "datasource": "Prometheus",
         "definition": "label_values(container_cpu_user_seconds_total{container_label_com_docker_compose_project!=\"\"}, node)",
@@ -1089,8 +883,13 @@
         "allValue": null,
         "current": {
           "selected": true,
-          "text": "saas-transports-server",
-          "value": "saas-transports-server"
+          "tags": [],
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "label_values(container_cpu_user_seconds_total{container_label_com_docker_compose_project != \"\",node=\"$node\"}, name)",
@@ -1103,7 +902,7 @@
         "name": "name",
         "options": [
           {
-            "selected": false,
+            "selected": true,
             "text": "All",
             "value": "$__all"
           },
@@ -1113,7 +912,7 @@
             "value": "anshi-portfolio-client"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "kaide-imvbizpark-server",
             "value": "kaide-imvbizpark-server"
           },
@@ -1841,5 +1640,5 @@
   "timezone": "browser",
   "title": "docker-compose容器监控展示看板",
   "uid": "9vvjdagZz",
-  "version": 10
+  "version": 11
 }

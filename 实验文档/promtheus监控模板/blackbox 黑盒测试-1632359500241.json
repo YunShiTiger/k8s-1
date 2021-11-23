@@ -17,7 +17,7 @@
   "gnetId": 11543,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1632359488056,
+  "iteration": 1637637136136,
   "links": [],
   "panels": [
     {
@@ -771,8 +771,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "http",
-          "value": "http"
+          "text": "tcp",
+          "value": "tcp"
         },
         "datasource": null,
         "definition": "label_values(probe_success{project=~\"$project\"}, protocol)",
@@ -785,12 +785,12 @@
         "name": "protocol",
         "options": [
           {
-            "selected": false,
+            "selected": true,
             "text": "tcp",
             "value": "tcp"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "http",
             "value": "http"
           }
@@ -812,10 +812,9 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
           "selected": false,
-          "text": "None",
-          "value": ""
+          "text": "data",
+          "value": "data"
         },
         "datasource": null,
         "definition": "label_values(probe_success{project=~\"$project\",protocol=~\"$protocol\"}, env)",
@@ -828,10 +827,29 @@
         "name": "env",
         "options": [
           {
-            "isNone": true,
             "selected": true,
-            "text": "None",
-            "value": ""
+            "text": "data",
+            "value": "data"
+          },
+          {
+            "selected": false,
+            "text": "demo",
+            "value": "demo"
+          },
+          {
+            "selected": false,
+            "text": "dev",
+            "value": "dev"
+          },
+          {
+            "selected": false,
+            "text": "pro",
+            "value": "pro"
+          },
+          {
+            "selected": false,
+            "text": "test",
+            "value": "test"
           }
         ],
         "query": {
@@ -876,53 +894,63 @@
           },
           {
             "selected": false,
-            "text": "beta",
-            "value": "beta"
+            "text": "members-server",
+            "value": "members-server"
           },
           {
             "selected": false,
-            "text": "databoard",
-            "value": "databoard"
+            "text": "amss-transports-server",
+            "value": "amss-transports-server"
           },
           {
             "selected": false,
-            "text": "delta",
-            "value": "delta"
+            "text": "databoard-server",
+            "value": "databoard-server"
           },
           {
             "selected": false,
-            "text": "saas",
-            "value": "saas"
+            "text": "storages-server",
+            "value": "storages-server"
           },
           {
             "selected": false,
-            "text": "alpha",
-            "value": "alpha"
+            "text": "databoard-nightly",
+            "value": "databoard-nightly"
           },
           {
             "selected": false,
-            "text": "anshi",
-            "value": "anshi"
+            "text": "storages-nightly",
+            "value": "storages-nightly"
           },
           {
             "selected": false,
-            "text": "kaide",
-            "value": "kaide"
+            "text": "databoard-latest",
+            "value": "databoard-latest"
           },
           {
             "selected": false,
-            "text": "fosun",
-            "value": "fosun"
+            "text": "storages-latest",
+            "value": "storages-latest"
           },
           {
             "selected": false,
-            "text": "haowei",
-            "value": "haowei"
+            "text": "redis-server",
+            "value": "redis-server"
           },
           {
             "selected": false,
-            "text": "vanke",
-            "value": "vanke"
+            "text": "mongo-server",
+            "value": "mongo-server"
+          },
+          {
+            "selected": false,
+            "text": "databoard-client",
+            "value": "databoard-client"
+          },
+          {
+            "selected": false,
+            "text": "members-client",
+            "value": "members-client"
           }
         ],
         "query": {
