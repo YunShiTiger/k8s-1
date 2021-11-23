@@ -17,7 +17,7 @@
   "gnetId": 8321,
   "graphTooltip": 1,
   "id": 21,
-  "iteration": 1637635748617,
+  "iteration": 1637648354612,
   "links": [],
   "panels": [
     {
@@ -2495,10 +2495,10 @@
           "selected": true,
           "tags": [],
           "text": [
-            "amsssaas-beta"
+            "monitor"
           ],
           "value": [
-            "amsssaas-beta"
+            "monitor"
           ]
         },
         "datasource": "Prometheus",
@@ -2529,11 +2529,12 @@
         "allValue": null,
         "current": {
           "selected": true,
+          "tags": [],
           "text": [
-            "All"
+            "monitoring"
           ],
           "value": [
-            "$__all"
+            "monitoring"
           ]
         },
         "datasource": null,
@@ -2547,24 +2548,29 @@
         "name": "namespace",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "All",
             "value": "$__all"
           },
           {
             "selected": false,
-            "text": "delta",
-            "value": "delta"
-          },
-          {
-            "selected": false,
-            "text": "beta",
-            "value": "beta"
-          },
-          {
-            "selected": false,
             "text": "kube-system",
             "value": "kube-system"
+          },
+          {
+            "selected": true,
+            "text": "monitoring",
+            "value": "monitoring"
+          },
+          {
+            "selected": false,
+            "text": "kubernetes-dashboard",
+            "value": "kubernetes-dashboard"
+          },
+          {
+            "selected": false,
+            "text": "ingress-system",
+            "value": "ingress-system"
           }
         ],
         "query": {
@@ -2585,11 +2591,12 @@
         "allValue": null,
         "current": {
           "selected": true,
+          "tags": [],
           "text": [
-            "All"
+            "grafana"
           ],
           "value": [
-            "$__all"
+            "grafana"
           ]
         },
         "datasource": null,
@@ -2603,24 +2610,9 @@
         "name": "container",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "All",
             "value": "$__all"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-amss-frontend",
-            "value": "delta-demo-amss-frontend"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-imvbizpark",
-            "value": "delta-demo-service-imvbizpark"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvhealthcare",
-            "value": "beta-demo-service-imvhealthcare"
           },
           {
             "selected": false,
@@ -2628,119 +2620,24 @@
             "value": "kube-state-metrics"
           },
           {
-            "selected": false,
-            "text": "delta-demo-service-gateways",
-            "value": "delta-demo-service-gateways"
+            "selected": true,
+            "text": "grafana",
+            "value": "grafana"
           },
           {
             "selected": false,
-            "text": "beta-demo-amss-screenshots",
-            "value": "beta-demo-amss-screenshots"
+            "text": "blackbox-exporter",
+            "value": "blackbox-exporter"
           },
           {
             "selected": false,
-            "text": "beta-demo-service-mixeduse",
-            "value": "beta-demo-service-mixeduse"
+            "text": "prometheus",
+            "value": "prometheus"
           },
           {
             "selected": false,
-            "text": "beta-demo-service-imvoffice",
-            "value": "beta-demo-service-imvoffice"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-administrates",
-            "value": "delta-demo-service-administrates"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-auditlogs",
-            "value": "delta-demo-service-auditlogs"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-amss-workbench",
-            "value": "beta-demo-amss-workbench"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-gateways",
-            "value": "beta-demo-service-gateways"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvlogistics",
-            "value": "beta-demo-service-imvlogistics"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-services-mixbudget",
-            "value": "delta-demo-services-mixbudget"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-auditlogs",
-            "value": "beta-demo-service-auditlogs"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-imvoffice",
-            "value": "delta-demo-service-imvoffice"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-accounts",
-            "value": "beta-demo-service-accounts"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-screenshots",
-            "value": "beta-demo-service-screenshots"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-imvretail",
-            "value": "delta-demo-service-imvretail"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-capitaldatas",
-            "value": "delta-demo-service-capitaldatas"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvretail",
-            "value": "beta-demo-service-imvretail"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-lmrsales",
-            "value": "beta-demo-service-lmrsales"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-accounts",
-            "value": "delta-demo-service-accounts"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvsales",
-            "value": "beta-demo-service-imvsales"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvhotel",
-            "value": "beta-demo-service-imvhotel"
-          },
-          {
-            "selected": false,
-            "text": "coredns",
-            "value": "coredns"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-administrates",
-            "value": "beta-demo-service-administrates"
+            "text": "alertmanager",
+            "value": "alertmanager"
           }
         ],
         "query": {
@@ -2785,138 +2682,8 @@
           },
           {
             "selected": false,
-            "text": "delta-demo-amss-frontend-6b567698d5-7pqz5",
-            "value": "delta-demo-amss-frontend-6b567698d5-7pqz5"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-imvbizpark-5655fc7d5d-9tfvc",
-            "value": "delta-demo-service-imvbizpark-5655fc7d5d-9tfvc"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvhealthcare-8644ccb4b9-k94fk",
-            "value": "beta-demo-service-imvhealthcare-8644ccb4b9-k94fk"
-          },
-          {
-            "selected": false,
-            "text": "kube-state-metrics-74bd47b745-9k877",
-            "value": "kube-state-metrics-74bd47b745-9k877"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-gateways-846f54c998-khlqw",
-            "value": "delta-demo-service-gateways-846f54c998-khlqw"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-amss-screenshots-b8d76fd68-zx5h6",
-            "value": "beta-demo-amss-screenshots-b8d76fd68-zx5h6"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-mixeduse-7fc4978576-vvkr8",
-            "value": "beta-demo-service-mixeduse-7fc4978576-vvkr8"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvoffice-66586cdf87-rhw8s",
-            "value": "beta-demo-service-imvoffice-66586cdf87-rhw8s"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-administrates-65574cb567-fnmzj",
-            "value": "delta-demo-service-administrates-65574cb567-fnmzj"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-auditlogs-7d75766786-jh7sf",
-            "value": "delta-demo-service-auditlogs-7d75766786-jh7sf"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-amss-workbench-8dc77f6c4-bqdch",
-            "value": "beta-demo-amss-workbench-8dc77f6c4-bqdch"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-gateways-64b96c8945-w9shv",
-            "value": "beta-demo-service-gateways-64b96c8945-w9shv"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvlogistics-54b64b4c77-fgml4",
-            "value": "beta-demo-service-imvlogistics-54b64b4c77-fgml4"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-mixbudget-5b64d48764-2fcv2",
-            "value": "delta-demo-service-mixbudget-5b64d48764-2fcv2"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-auditlogs-84d588c6d-2pv9b",
-            "value": "beta-demo-service-auditlogs-84d588c6d-2pv9b"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-imvoffice-6f6bd58d6b-kcrrw",
-            "value": "delta-demo-service-imvoffice-6f6bd58d6b-kcrrw"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-accounts-54cf876884-525s2",
-            "value": "beta-demo-service-accounts-54cf876884-525s2"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-screenshots-54cfb55fd7-lvtz4",
-            "value": "beta-demo-service-screenshots-54cfb55fd7-lvtz4"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-imvretail-6545bfd54-xv2r5",
-            "value": "delta-demo-service-imvretail-6545bfd54-xv2r5"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-capitaldatas-b66f7c797-ncrdd",
-            "value": "delta-demo-service-capitaldatas-b66f7c797-ncrdd"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvretail-5cc78bd797-crd6t",
-            "value": "beta-demo-service-imvretail-5cc78bd797-crd6t"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-lmrsales-6c7c99c9c6-dnwpv",
-            "value": "beta-demo-service-lmrsales-6c7c99c9c6-dnwpv"
-          },
-          {
-            "selected": false,
-            "text": "delta-demo-service-accounts-5f548bf5bb-z8rzn",
-            "value": "delta-demo-service-accounts-5f548bf5bb-z8rzn"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvsales-6c47575869-spwdp",
-            "value": "beta-demo-service-imvsales-6c47575869-spwdp"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-imvhotel-75468c8bd5-qmqm5",
-            "value": "beta-demo-service-imvhotel-75468c8bd5-qmqm5"
-          },
-          {
-            "selected": false,
-            "text": "coredns-6d99d5879f-7xg5q",
-            "value": "coredns-6d99d5879f-7xg5q"
-          },
-          {
-            "selected": false,
-            "text": "beta-demo-service-administrates-6d6799cdf7-frf8l",
-            "value": "beta-demo-service-administrates-6d6799cdf7-frf8l"
+            "text": "grafana-5b854df46c-55pz7",
+            "value": "grafana-5b854df46c-55pz7"
           }
         ],
         "query": {
@@ -2961,8 +2728,8 @@
           },
           {
             "selected": false,
-            "text": "amsssaas",
-            "value": "amsssaas"
+            "text": "sg-monitor",
+            "value": "sg-monitor"
           }
         ],
         "query": {
@@ -2982,7 +2749,7 @@
     ]
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {
@@ -3013,5 +2780,5 @@
   "timezone": "browser",
   "title": "k8s容器监控展示看板",
   "uid": "D93XALVnk",
-  "version": 62
+  "version": 63
 }
