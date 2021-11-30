@@ -1,12 +1,21 @@
-# 1.sentry 简介
+# 1、sentry 简介
 
 sentry 是一个开源的实时错误监控的项目，它支持很多端的配置，包括 web 前端、服务器端、移动端及其游戏端。支持各种语言，例如 python、oc、java、node、javascript 等。也可以应用到各种不同的框架上面，如前端框架中的vue 、angular 、react 等最流行的前端框架。提供了github、slack、trello 的常见的开发工具的集成。可以自己安装并且搭建 sentry 应用。
 
 **支持的语言：**![](https://img2018.cnblogs.com/blog/1117885/201812/1117885-20181201214518931-2073144099.png)
 
-# 2.搭建sentry服务
+sentry架构图：![img](https://upload-images.jianshu.io/upload_images/25503794-199e0e0759c55629.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+1、Loadbalancer（负载均衡器）负责路由转发，错误上报转发到 /api/\d+/store ，其他项目、成员、错误管理功能由 Sentry Web 负责。这一层承担数据入口、展示的作用
+ 2、Relay 负责消息中继转发，并把数据先汇集到 Kafka；Snuba 负责接收 SentryWeb 的请求，进行数据的聚合、搜索；Sentry Worker 则是一个队列服务，主要负责数据的存储。
+ 3、Kafka 作为消息队列，ClickHouse 负责接近实时的数据分析，Redis（主要） 和 Memcached 负责项目配置、错误基础信息的存储和统计。Postgres 承担基础数据持久化（主要是项目、用户权限管理等）Symbolicator 主要用于错误信息格式化。
+ 4、Zookeeper是Kafka用于节点信息同步-，如果我们设置了多个 ClickHouse 节点，也可以用它来保存主从同步信息或者做分布式表。
+
+# 2、搭建sentry服务
 
 Sentry 本身是基于 Django 开发的，而且也依赖到其他的如 Postgresql、 Redis 等组件，所以一般有两种途径进行安装：通过 Docker 或用 Python 搭建。
+
+### docker部署
 
 使用[Docker](https://www.docker.com/)运行您自己的[Sentry 的](https://sentry.io/)官方引导程序。
  要求：
@@ -30,13 +39,11 @@ mv self-hosted docker-sentry && cd docker-sentry
 ./install.sh
 ```
 
-后续一步一步安装下来
+启动sentry服务
 
-![img](https:////upload-images.jianshu.io/upload_images/24955224-a68e1f8b7a99baee.png?imageMogr2/auto-orient/strip|imageView2/2/w/1188/format/webp)
-
-我们就可以按照下图所示创建admin账户用来登陆本地sentry服务。
-
-![img](https:////upload-images.jianshu.io/upload_images/24955224-9373f07fe7c03f76.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+```bash
+docker-compose up -d
+```
 
 如果要自定义配置文件，推荐根据需求修改一下文件配置
 
@@ -126,7 +133,39 @@ docker-compose run --rm web createuser
 
 点击最下方的发送测试邮件 到当前用户的邮箱上，即可测试邮件发送功能是否配置成功。
 
-# 3.官方Sentry服务
+### Helm 部署 Sentry
+
+GitHub项目：https://github.com/sentry-kubernetes/charts.git
+
+添加Chart仓库
+
+```bash
+helm repo add sentry https://sentry-kubernetes.github.io/charts
+helm repo update
+helm search repo sentry
+```
+
+创建名称空间
+
+```bash
+kubectl create namespace sentry
+```
+
+部署
+
+```bash
+helm install sentry stable/sentry \
+-n sentry \
+--set persistence.enabled=true,user.email=i@iamle.com,user.password=i@iamle.com \
+--set ingress.enabled=true,ingress.hostname=sentry.iamle.com,service.type=ClusterIP \
+--set email.host=smtp.yourhost.com,email.port=25 \
+--set email.user=user,email.password=password,email.use_tls=false \
+--wait
+```
+
+
+
+# 3、官方Sentry服务
 
 如果要使用官方的Sentry服务，我们只需去它的[官网](https://links.jianshu.com/go?to=https%3A%2F%2Fsentry.io%2Fwelcome%2F)注册就行，一般是配合企业用户使用的付费模式。
 
