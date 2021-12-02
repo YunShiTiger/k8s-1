@@ -2,142 +2,185 @@
 
 sentry 是一个开源的实时错误监控的项目，它支持很多端的配置，包括 web 前端、服务器端、移动端及其游戏端。支持各种语言，例如 python、oc、java、node、javascript 等。也可以应用到各种不同的框架上面，如前端框架中的vue 、angular 、react 等最流行的前端框架。提供了github、slack、trello 的常见的开发工具的集成。可以自己安装并且搭建 sentry 应用。
 
-**支持的语言：**![](https://img2018.cnblogs.com/blog/1117885/201812/1117885-20181201214518931-2073144099.png)
+**支持的语言：**![](../acess/1117885-20181201214518931-2073144099.png)
 
-sentry架构图：![img](https://upload-images.jianshu.io/upload_images/25503794-199e0e0759c55629.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+# 2、sentry架构
 
-1、Loadbalancer（负载均衡器）负责路由转发，错误上报转发到 /api/\d+/store ，其他项目、成员、错误管理功能由 Sentry Web 负责。这一层承担数据入口、展示的作用
+**边线表示 Sentry 服务依赖关系图**
+
+![img](../acess/webp.png)
+
+如何保存事件
+
+![](../acess/cb674d53021790935d41ca30ac144fef.png)
+
+通过 Relay 的事件路径
+
+![](../acess/7aadfff25007e6c250a8fd0855f63922.png)1、Loadbalancer（负载均衡器）负责路由转发，错误上报转发到 /api/\d+/store ，其他项目、成员、错误管理功能由 Sentry Web 负责。这一层承担数据入口、展示的作用
  2、Relay 负责消息中继转发，并把数据先汇集到 Kafka；Snuba 负责接收 SentryWeb 的请求，进行数据的聚合、搜索；Sentry Worker 则是一个队列服务，主要负责数据的存储。
  3、Kafka 作为消息队列，ClickHouse 负责接近实时的数据分析，Redis（主要） 和 Memcached 负责项目配置、错误基础信息的存储和统计。Postgres 承担基础数据持久化（主要是项目、用户权限管理等）Symbolicator 主要用于错误信息格式化。
  4、Zookeeper是Kafka用于节点信息同步-，如果我们设置了多个 ClickHouse 节点，也可以用它来保存主从同步信息或者做分布式表。
 
-# 2、搭建sentry服务
+# 3、搭建sentry服务
 
-Sentry 本身是基于 Django 开发的，而且也依赖到其他的如 Postgresql、 Redis 等组件，所以一般有两种途径进行安装：通过 Docker 或用 Python 搭建。
+部署local-path
 
-### docker部署
-
-使用[Docker](https://www.docker.com/)运行您自己的[Sentry 的](https://sentry.io/)官方引导程序。
- 要求：
-
-- Docker 19.03.6+
-- Compose 1.28.0+
-- 4 个 CPU 内核
-- 8 GB 内存
-- 20 GB 可用磁盘空间
-
-我们可以直接使用该项目进行部署，首先是克隆该项目：
-
-```php
-git clone https://github.com/getsentry/self-hosted.git
+```yaml
+cat << 'EOF' >local-path.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: local-path-storage
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: local-path-provisioner-service-account
+  namespace: local-path-storage
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: local-path-provisioner-role
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "nodes", "persistentvolumeclaims", "configmaps" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "endpoints", "persistentvolumes", "pods" ]
+    verbs: [ "*" ]
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "create", "patch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "storageclasses" ]
+    verbs: [ "get", "list", "watch" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: local-path-provisioner-bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: local-path-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: local-path-provisioner-service-account
+    namespace: local-path-storage
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: local-path-config
+  namespace: local-path-storage
+data:
+  config.json: |-
+    {
+            "nodePathMap":[
+            {
+                    "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                    "paths":["/data/local-path-data"]
+            }
+            ]
+    }
+  setup: |-
+    #!/bin/sh
+    while getopts "m:s:p:" opt
+    do
+        case $opt in
+            p)
+            absolutePath=$OPTARG
+            ;;
+            s)
+            sizeInBytes=$OPTARG
+            ;;
+            m)
+            volMode=$OPTARG
+            ;;
+        esac
+    done
+    mkdir -m 0777 -p ${absolutePath}
+  teardown: |-
+    #!/bin/sh
+    while getopts "m:s:p:" opt
+    do
+        case $opt in
+            p)
+            absolutePath=$OPTARG
+            ;;
+            s)
+            sizeInBytes=$OPTARG
+            ;;
+            m)
+            volMode=$OPTARG
+            ;;
+        esac
+    done
+    rm -rf ${absolutePath}
+  helperPod.yaml: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: helper-pod
+    spec:
+      containers:
+      - name: helper-pod
+        image: busybox
+        imagePullPolicy: IfNotPresent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-path-provisioner
+  namespace: local-path-storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-path-provisioner
+  template:
+    metadata:
+      labels:
+        app: local-path-provisioner
+    spec:
+      serviceAccountName: local-path-provisioner-service-account
+      containers:
+        - name: local-path-provisioner
+          image: rancher/local-path-provisioner:v0.0.19
+          imagePullPolicy: IfNotPresent
+          command:
+            - local-path-provisioner
+            - --debug
+            - start
+            - --config
+            - /etc/config/config.json
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config/
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      volumes:
+        - name: config-volume
+          configMap:
+            name: local-path-config
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sentry-local-path
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+EOF
 ```
 
-初始化
+部署sentry
 
-```bash
-mv self-hosted docker-sentry && cd docker-sentry
-./install.sh
-```
-
-启动sentry服务
-
-```bash
-docker-compose up -d
-```
-
-如果要自定义配置文件，推荐根据需求修改一下文件配置
-
-- config.yml
-- sentry.conf.py
-- env.custom    (environment variables)
-
-以下是简单的邮件配置
- Sentry 支持邮件发送的功能非常重要，当 Sentry 捕获事件之后，可以将此捕获的事件发送到你的个人邮箱（针对 Sentry 管理员账号）。要修改目前的邮件配置是不能在界面上操作的，需要进行以下步骤：
- 修改 sentry/config.yml文件配置
-
-```csharp
-###############
-# Mail Server #
-###############
-
-# mail.backend: 'smtp'  # Use dummy if you want to disable email entirely
-mail.host: 'smtp'
-mail.port: 25
-mail.username: ''
-mail.password: ''
-mail.use-tls: false
-The email address to send on behalf of
-mail.from: 'root@localhost'
-```
-
-在docker-compose.yml 文件中加入以下配置
-
-```ruby
-x-sentry-defaults: &sentry_defaults
-  << : *restart_policy
-  build:
-    context: ./sentry
-    args:
-      - SENTRY_IMAGE
-      - SENTRY_PYTHON3
-  image: sentry-onpremise-local
-  depends_on:
-    - redis
-    - postgres
-    - memcached
-    - smtp
-    - snuba-api
-    - snuba-consumer
-    - snuba-outcomes-consumer
-    - snuba-sessions-consumer
-    - snuba-transactions-consumer
-    - snuba-replacer
-    - symbolicator
-    - kafka
-  environment:
-    ...
-   #这里开始
-   SENTRY_EMAIL_HOST: #邮件host 例如smtp.qq.com
-   SENTRY_EMAIL_USER: #邮件地址 例如testuser@qq.com
-   SENTRY_EMAIL_PASSWORD: # 填写自己的密码
-   SENTRY_SERVER_EMAIL: #邮件地址
-   SENTRY_EMAIL_PORT: 587        # port
-   SENTRY_EMAIL_USE_TLS: 'true'  
-```
-
-修改完以上配置后
-
-```bash
-./install.sh
-```
-
- 启动sentry
-
-```bash
-docker-compose up -d
-```
-
-登陆界面。
-
-![img](https://upload-images.jianshu.io/upload_images/24955224-6a7aae05f7cc8ec9.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-使用已经建立的admin user登陆即可，如果`./install.sh`过程中我们没有创建用户，接下来我们可以创建用户。
-
-```bash
-docker-compose run --rm web createuser
-```
-
- 然后可以测试一下邮件发送。登陆超级用户下点击左上角头像选择 Admin 进入到管理员界面，选择 mail（邮箱）菜单，看到更新后的邮箱设置：
-
-![img](https://upload-images.jianshu.io/upload_images/24955224-8d85ef0402c01979.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-点击最下方的发送测试邮件 到当前用户的邮箱上，即可测试邮件发送功能是否配置成功。
-
-### Helm 部署 Sentry
-
-GitHub项目：https://github.com/sentry-kubernetes/charts.git
-
-添加Chart仓库
+添加repo
 
 ```bash
 helm repo add sentry https://sentry-kubernetes.github.io/charts
@@ -145,33 +188,53 @@ helm repo update
 helm search repo sentry
 ```
 
-创建名称空间
+nodeport
 
 ```bash
-kubectl create namespace sentry
-```
-
-部署
-
-```bash
-helm install sentry stable/sentry \
--n sentry \
---set persistence.enabled=true,user.email=i@iamle.com,user.password=i@iamle.com \
---set ingress.enabled=true,ingress.hostname=sentry.iamle.com,service.type=ClusterIP \
---set email.host=smtp.yourhost.com,email.port=25 \
---set email.user=user,email.password=password,email.use_tls=false \
+helm -n sentry install sentry sentry/sentry --version 12.0.0 \
+--set nginx.service.type=NodePort,nginx.service.nodePorts.http=8000 \
+--set user.email=develop@bridge5.asia,user.password=Bridge5Sentry \
+--set mail.host=smtp.exmail.qq.com,mail.port=465,mail.username=develop@bridge5.asia,mail.password=ltz \
+--set filestore.filesystem.persistence.storageClass=sentry-local-path \
+--set redis.master.persistence.storageClass=sentry-local-path \
+--set redis.replica.persistence.storageClass=sentry-local-path \
+--set postgresql.persistence.storageClass=sentry-local-path \
+--set kafka.persistence.storageClass=sentry-local-path \
+--set kafka.zookeeper.persistence.storageClass=sentry-local-path \
+--set rabbitmq.persistence.storageClass=sentry-local-path \
+--set clickhouse.clickhouse.persistentVolumeClaim.dataPersistentVolume.storageClassName=sentry-local-path \
+--set rabbitmq.ulimitNofiles=20480 \
 --wait
 ```
 
+ingress负载
 
+```bash
+helm -n sentry install sentry sentry/sentry --version 12.0.0 \
+--set ingress.enabled=true,ingress.hostname=alpha-sentry.bridge5.asia,service.type=ClusterIP \
+--set user.email=develop@bridge5.asia,user.password=Bridge5Sentry \
+--set mail.host=smtp.exmail.qq.com,mail.port=465,mail.username=develop@bridge5.asia,mail.password=ltz \
+--set filestore.filesystem.persistence.storageClass=sentry-local-path \
+--set redis.master.persistence.storageClass=sentry-local-path \
+--set redis.replica.persistence.storageClass=sentry-local-path \
+--set postgresql.persistence.storageClass=sentry-local-path \
+--set kafka.persistence.storageClass=sentry-local-path \
+--set kafka.zookeeper.persistence.storageClass=sentry-local-path \
+--set rabbitmq.persistence.storageClass=sentry-local-path \
+--set clickhouse.clickhouse.persistentVolumeClaim.dataPersistentVolume.storageClassName=sentry-local-path \
+--set rabbitmq.ulimitNofiles=20480 \
+--wait --dry-run|grep nodePort
+```
 
-# 3、官方Sentry服务
+等待初始化完成，即可开启监控之旅
+
+# 4、官方Sentry服务
 
 如果要使用官方的Sentry服务，我们只需去它的[官网](https://links.jianshu.com/go?to=https%3A%2F%2Fsentry.io%2Fwelcome%2F)注册就行，一般是配合企业用户使用的付费模式。
 
 ![img](https://upload-images.jianshu.io/upload_images/24955224-64b8ccec6893a8b8.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-# 3、创建项目
+# 5、创建项目
 
 登陆后我们会进入我们的监控项目的界面，如：　![img](https://img2018.cnblogs.com/blog/1117885/201812/1117885-20181201221820666-777264825.png)点击右上角的 add new project ，我们可以创建一个新的项目
 
@@ -187,7 +250,7 @@ helm install sentry stable/sentry \
 
 错误信息页面，可以自行到官网上面去了解更多信息。
 
-# 4、前端部署，注入监控代码 
+# 6、前端部署，注入监控代码 
 
 获取项目的链接：　![img](https://img2018.cnblogs.com/blog/1117885/201812/1117885-20181201222948994-569865814.png)
 
