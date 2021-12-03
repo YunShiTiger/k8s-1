@@ -194,7 +194,7 @@ nodeport
 helm -n sentry install sentry sentry/sentry --version 12.0.0 \
 --set nginx.service.type=NodePort,nginx.service.nodePorts.http=8000 \
 --set user.email=develop@bridge5.asia,user.password=Bridge5Sentry \
---set mail.host=smtp.exmail.qq.com,mail.port=465,mail.username=develop@bridge5.asia,mail.password=ltz \
+--set mail.host=smtp.exmail.qq.com,mail.port=465,mail.username=develop@bridge5.asia,mail.password=bridge5 \
 --set filestore.filesystem.persistence.storageClass=sentry-local-path \
 --set redis.master.persistence.storageClass=sentry-local-path \
 --set redis.replica.persistence.storageClass=sentry-local-path \
@@ -223,14 +223,14 @@ helm -n sentry install sentry sentry/sentry --version 12.0.0 \
 --set rabbitmq.persistence.storageClass=sentry-local-path \
 --set clickhouse.clickhouse.persistentVolumeClaim.dataPersistentVolume.storageClassName=sentry-local-path \
 --set rabbitmq.ulimitNofiles=20480 \
---wait --dry-run|grep nodePort
+--wait 
 ```
 
-等待初始化完成，即可开启监控之旅
+等待初始化完成，即可开启监控之旅，使用nodeport方式，需要nginx代理转发到80或者443上，要不然服务会调用异常。
 
 # 4、官方Sentry服务
 
-如果要使用官方的Sentry服务，我们只需去它的[官网](https://links.jianshu.com/go?to=https%3A%2F%2Fsentry.io%2Fwelcome%2F)注册就行，一般是配合企业用户使用的付费模式。
+如果要使用官方的Sentry服务，我们只需去它的[官网](https://sentry.io/welcome/)注册就行，一般是配合企业用户使用的付费模式。
 
 ![img](https://upload-images.jianshu.io/upload_images/24955224-64b8ccec6893a8b8.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
