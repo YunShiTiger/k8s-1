@@ -1,0 +1,67 @@
+yum install -y libaio
+wget https://cdn.mysql.com//Downloads/MySQL-5.7/mysql-5.7.29-linux-glibc2.12-x86_64.tar
+
+tar xf mysql-5.7.29-linux-glibc2.12-x86_64.tar.gz
+ln -s /usr/local/src/mysql-5.7.29-linux-glibc2.12-x86_64 /usr/local/mysql
+useradd mysql
+mkdir /data/mysql/{data,log,run} -p
+touch /data/mysql/log/mysql.log
+chown -R mysql.mysql /data/mysql/
+chown -R mysql.mysql /usr/local/mysql/
+echo 'export PATH=/usr/local/mysql/bin:$PATH' >>/etc/profile
+. /etc/profile
+
+编写默认配置文件
+cat<< EOF >/etc/my.cnf
+[mysqld]
+basedir=/usr/local/mysql
+datadir=/data/mysql/data
+socket=/tmp/mysql.sock
+log_error=/data/mysql/logs/mysql.log
+log_bin=/data/mysql/binlog/mysql-bin
+binlog_format=row
+user=mysql
+port=3306
+[client]
+socket=/tmp/mysql.sock
+EOF
+
+初始化数据:
+mysqld --initialize  --user=mysql --datadir=/data/mysql/data --basedir=/usr/local/mysql
+
+grep root /data/mysql/log/error.log
+Pu%(_gMbI0!M
+
+使用systemd管理mysql5.7
+
+(2)生成启动脚本
+cat<< EOF >/etc/systemd/system/mysqld.service
+[Unit]
+Description=MySQL Server
+Documentation=man:mysqld(8)
+Documentation=http://dev.mysql.com/doc/refman/en/using-systemd.html
+After=network.target
+After=syslog.target
+
+[Install]
+WantedBy=multi-user.target
+[Service]
+User=mysql
+Group=mysql
+ExecStart=/usr/local/mysql/bin/mysqld --defaults-file=/etc/my.cnf
+LimitNOFILE = 5000
+EOF
+
+(3)systemd管理
+
+systemctl  start/stop/restart/status   mysqld
+
+alter user 'root'@'localhost' identified by '9HiBvz6Wm4aCdPA34Spv';
+
+set global validate_password_policy=LOW;
+grant all on hash_walletdb.* to wallet@"127.0.0.1" identified by 'L2Gau8dZgZVHm77hAnfJ';
+
+grant all on *.* to root@"%" identified by '9HiBvz6Wm4aCdPA34Spv';
+
+
+grant all on *.* to root@"%" identified by '6vAQVEC5FKAwH7rVQZtb';

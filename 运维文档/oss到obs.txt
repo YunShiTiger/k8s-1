@@ -1,0 +1,22 @@
+wget http://gosspublic.alicdn.com/ossutil/1.6.10/ossutil64
+mv ossutil64 /usr/bin/ossutil
+chmod +x /usr/bin/ossutil
+ossutil config -e oss-ap-southeast-1-internal.aliyuncs.com -i LTAI4Ff4bQamWDamsArMCQFf -k XnOa5lmvh0BEbLOKXjog5JqlOCwZBW
+
+ossutil cp -r /data oss://hashj/match
+ossutil cp /data/chainup/trade.tar.gz oss://hashj
+
+
+
+华为云obs操作
+wget https://obs-community-intl.obs.ap-southeast-1.myhuaweicloud.com/obsutil/current/obsutil_linux_amd64.tar.gz
+tar xf obsutil_linux_amd64.tar.gz
+mv obsutil_linux_amd64_5.1.13/obsutil /usr/bin
+chmod +x /usr/bin/obsutil
+rm -fr obsutil_linux_*
+obsutil config -i=DUJTTPFD0PBYCSLMT09H -k=pDlqJZSvkaIKp1YPS2SvHv34mEXRpZtSvP3uLojK -e=obs.ap-southeast-1.myhuaweicloud.com
+
+#下载
+nohup obsutil cp -f -r obs://hash/match /data/ &
+#上传
+obsutil cp 1.txt obs://hash/

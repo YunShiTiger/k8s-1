@@ -1,0 +1,16 @@
+yum install lvm2 -y
+fdisk -l
+pvcreate /dev/vdb
+pvdisplay
+vgcreate vgdata /dev/vdb
+vgdisplay
+lvdisplay
+lvcreate -n /dev/vgdata/lvdata -L 1023.5G vgdata
+mkfs.ext4 /dev/mapper/vgdata-lvdata
+mkdir /data
+resize2fs /dev/vgdata/lvdata
+mount /dev/mapper/vgdata-lvdata  /data
+
+echo "/dev/mapper/vgdata-lvdata       /data   ext4    defaults 0 0" >>/etc/fstab
+
+lvextend -L +400G /dev/vgdata/lvdata
