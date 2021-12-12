@@ -2227,63 +2227,121 @@ http://alert.wzxmt.com
 配置文件
 
 ```yaml
-cat << 'EOF' >/data/prometheus/alertmanager/config.yml
-global:
-  resolve_timeout: 5m # 在没有报警的情况下声明为已解决的时间
-  # 配置邮件发送信息
-  smtp_smarthost: 'smtp.qq.com:25'
-  smtp_from: '2847182882@qq.com'
-  smtp_auth_username: '2847182882@qq.com'
-  smtp_auth_password: 'smsprvohacphdgfe'
-  smtp_require_tls: false
-
-templates:
-  - '/etc/alertmanager/conf/*.tmpl'
-
-route:
-  group_by: ['alertname']
-  group_wait: 5m     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
-  group_interval: 5m  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
-  repeat_interval: 30m # 重复报警的间隔时间
-  receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
-
-  routes:
-  - receiver: 'ops_notify'
-    group_wait: 10s
-    match_re:
-      alertname: '实例存活告警|磁盘使用率告警'
-      
-  - receiver: 'info_notify'
-    group_wait: 10s
-    match_re:
-      alertname: '内存使用率告警|CPU使用率告警'
-
-receivers:
-- name: 'default'
-  email_configs:
-  - to: '1451343603@qq.com'
-    send_resolved: true
-    
-- name: 'ops_notify'
-  wechat_configs:
-  - send_resolved: true
-    api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
-    corp_id: 'ww34fac7bd8c8ade8d'
-    to_party: '1'         # 企业微信中创建的接收告警的部门【告警机器人】的部门ID
-    agent_id: '1000002'     # 企业微信中创建的应用的ID
-    api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'  # 企业微信中，应用的Secret
-    
-- name: 'info_notify'
-  webhook_configs:
-  - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook/send'
-    send_resolved: true
-
-inhibit_rules:            #告警收敛
-  - source_match:
-      severity: 'critical'
-    target_match:
-      severity: 'warning'
-    equal: ['alertname', 'dev', 'instance']
+cat<< 'EOF' >alertmanager-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/component: alert-router
+    app.kubernetes.io/instance: main
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 0.23.0
+  name: alertmanager-main
+  namespace: monitoring
+stringData:
+  alertmanager.yaml: |- #配置发件信息
+    global:
+      resolve_timeout: 5m # 在没有报警的情况下声明为已解决的时间
+      # 配置邮件发送信息
+      smtp_smarthost: 'smtp.qq.com:25'
+      smtp_from: '2847182882@qq.com'
+      smtp_auth_username: '2847182882@qq.com'
+      smtp_auth_password: 'smsprvohacphdgfe'
+      smtp_require_tls: false
+    templates:
+      - '/etc/alertmanager/config/*.tmpl'
+    route:
+      group_by: ['alertname']
+      group_wait: 5m     # 当第一个报警发送后，等待'group_interval'时间来发送新的一组报警信息。
+      group_interval: 5m  # 如果一个报警信息已经发送成功了，等待'repeat_interval'时间来重新发送他们
+      repeat_interval: 30m # 重复报警的间隔时间
+      receiver: default   # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
+      routes:
+      - receiver: 'ops_notify'
+        group_wait: 10s
+        match_re:
+          alertname: '实例存活告警|磁盘使用率告警'    
+      - receiver: 'info_notify'
+        group_wait: 10s
+        match_re:
+          alertname: '内存使用率告警|CPU使用率告警'
+    receivers:
+    - name: 'default'
+      email_configs:
+      - to: '1451343603@qq.com'
+        send_resolved: true   
+    - name: 'ops_notify'
+      wechat_configs:
+      - send_resolved: true
+        api_url: 'https://qyapi.weixin.qq.com/cgi-bin/'
+        corp_id: 'ww34fac7bd8c8ade8d'
+        to_party: '1'         # 企业微信中创建的接收告警的部门【告警机器人】的部门ID
+        agent_id: '1000002'     # 企业微信中创建的应用的ID
+        api_secret: 'c2fdJBsAlrb2IkJAb53cGurd-RRAm-0XUYjepoVpEF4'  # 企业微信中，应用的Secret  
+    - name: 'info_notify'
+      webhook_configs:
+      - url: 'http://prometheus-webhook-dingtalk:8060/dingtalk/webhook/send'
+        send_resolved: true
+    inhibit_rules:            #告警收敛
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'dev', 'instance']
+  wechat.tmpl: |- #告警模板
+    {{ define "wechat.default.message" }}
+    {{- if gt (len .Alerts.Firing) 0 -}}
+    {{- range $index, $alert := .Alerts -}}
+    {{- if eq $index 0 }}
+    ==========异常告警==========
+    告警类型: {{ $alert.Labels.alertname }}
+    告警级别: {{ $alert.Labels.severity }}
+    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+    故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    {{- if gt (len $alert.Labels.instance) 0 }}
+    实例信息: {{ $alert.Labels.instance }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.namespace) 0 }}
+    命名空间: {{ $alert.Labels.namespace }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.node) 0 }}
+    节点信息: {{ $alert.Labels.node }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.pod) 0 }}
+    实例名称: {{ $alert.Labels.pod }}
+    {{- end }}
+    ============END============
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if gt (len .Alerts.Resolved) 0 -}}
+    {{- range $index, $alert := .Alerts -}}
+    {{- if eq $index 0 }}
+    ==========异常恢复==========
+    告警类型: {{ $alert.Labels.alertname }}
+    告警级别: {{ $alert.Labels.severity }}
+    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+    故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    {{- if gt (len $alert.Labels.instance) 0 }}
+    实例信息: {{ $alert.Labels.instance }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.namespace) 0 }}
+    命名空间: {{ $alert.Labels.namespace }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.node) 0 }}
+    节点信息: {{ $alert.Labels.node }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.pod) 0 }}
+    实例名称: {{ $alert.Labels.pod }}
+    {{- end }}
+    ============END============
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- end }}    
+type: Opaque
 EOF
 ```
 
