@@ -303,13 +303,13 @@ cat << EOF >/apps/coredns/conf/Corefile
       tls ${ETCD_SSL}/etcd.pem ${ETCD_SSL}/etcd-key.pem ${ETCD_SSL}/ca.pem
    }
   # 最后所有的都转发到系统配置的上游dns服务器去解析
-  prometheus :9153
+  prometheus $(hostname -I|awk '{print $1}'):9153
   forward . 223.5.5.5:53 114.114.114.114:53 1.2.4.8:53 119.29.29.29:53
   cache 120 # 缓存时间ttl
   reload 6s # 自动加载配置文件的间隔时间
   log # 输出日志
   errors # 输出错误
-  health #查看健康状况
+  #health #查看健康状况 8080
 }
     test.com:53 {              #外部dns
     errors
