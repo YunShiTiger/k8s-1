@@ -10,10 +10,10 @@ mkdir -p /apps/{coredns/{conf,bin},etcd/{bin,data}}
 #### etcd下载
 
 ```bash
-wget https://github.com/etcd-io/etcd/releases/download/v3.4.7/etcd-v3.4.7-linux-amd64.tar.gz
-tar xf etcd-v3.4.7-linux-amd64.tar.gz
-mv etcd-v3.4.7-linux-amd64/etcd /apps/etcd/bin
-mv etcd-v3.4.7-linux-amd64/etcdctl /usr/local/bin
+wget https://github.com/etcd-io/etcd/releases/download/v3.5.0/etcd-v3.5.0-linux-amd64.tar.gz
+tar xf etcd-v3.5.0-linux-amd64.tar.gz
+mv etcd-v3.5.0-linux-amd64/etcd /apps/etcd/bin
+mv etcd-v3.5.0-linux-amd64/etcdctl /usr/local/bin
 ```
 
 #### coredns systemctl
@@ -71,8 +71,8 @@ etcdctl get  /name/1
 上述配置文件表达的是：DNS server负责根域 . 的解析，其中插件是chaos且没有参数。
 
 ```bash
-wget https://github.com/coredns/coredns/releases/download/v1.8.4/coredns_1.8.4_linux_amd64.tgz
-tar zxf coredns_1.8.4_linux_amd64.tgz -C /apps/coredns/bin/
+wget https://github.com/coredns/coredns/releases/download/v1.8.6/coredns_1.8.6_linux_amd64.tgz
+tar zxf coredns_1.8.6_linux_amd64.tgz -C /apps/coredns/bin/
 ```
 
 增加运行账户
@@ -217,11 +217,13 @@ cat << EOF >/apps/coredns/conf/Corefile
       #tls /apps/coredns/ssl/etcd.pem /apps/coredns/ssl/etcd-key.pem /apps/coredns/ssl/ca.pem
    }
   # 最后所有的都转发到系统配置的上游dns服务器去解析
+  prometheus :9153
   forward . 223.5.5.5:53 114.114.114.114:53 1.2.4.8:53 119.29.29.29:53
   cache 120 # 缓存时间ttl
   reload 6s # 自动加载配置文件的间隔时间
   log # 输出日志
   errors # 输出错误
+  health #查看健康状况
 }
     wzxmt.com:53 {              #外部dns
     errors
@@ -254,7 +256,7 @@ CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
 User=coredns
-WorkingDirectory=~
+WorkingDirectory=/apps/coredns
 ExecStart=/apps/coredns/bin/coredns -conf=/apps/coredns/conf/Corefile
 ExecReload=/bin/kill -SIGUSR1 $MAINPID
 Restart=on-failure
@@ -272,9 +274,24 @@ systemctl enable coredns --now
 
 ### 测试添加相应记录
 
-#### A记录
+dns接入
+
+```bash
+#vim /etc/sysconfig/network-scripts/ifcfg-eth0
+...
+DNS1="10.0.0.100"
+...
+```
+
+安装dig
 
 ```
+yum install bind-utils
+```
+
+#### A记录
+
+```bash
 etcdctl put /coredns/com/leffss/www '{"host":"1.1.1.1","ttl":10}'
 ```
 
@@ -365,6 +382,4 @@ etcdctl put /coredns/com/leffss/www '{"text":"This is text!","ttl":10}'
 [root@dns ~]# dig -t TXT @localhost +short www.leffss.com
 "This is text!"
 ```
-
-
 
