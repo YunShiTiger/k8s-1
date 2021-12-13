@@ -489,6 +489,12 @@ etcdctl --cacert=${ETCD_SSL}/ca.pem \
 "This is text!"
 ```
 
+## coredns 在etcd 存储查看
+
+```bash
+etcdctl --cacert=${ETCD_SSL}/ca.pem --cert=${ETCD_SSL}/etcd.pem --key=${ETCD_SSL}/etcd-key.pem --endpoints=${ENDPOINTS} get / --prefix
+```
+
 ## coredns 高可用
 
 按照前面的部署方式部署3个coredns服务
@@ -511,4 +517,3 @@ stream {
     }
 }
 ```
-
