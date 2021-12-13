@@ -489,3 +489,26 @@ etcdctl --cacert=${ETCD_SSL}/ca.pem \
 "This is text!"
 ```
 
+## coredns 高可用
+
+按照前面的部署方式部署3个coredns服务
+
+通过nginx转发实现高可用
+
+```nginx
+stream {
+    upstream dns_upstreams {
+        server 10.0.0.31:53; 
+        server 10.0.0.32:53;
+        server 10.0.0.33:53; 
+    }
+    server {
+        listen 53 udp;
+        proxy_pass dns_upstreams;
+        proxy_timeout 1s;
+        proxy_responses 1;
+        error_log logs/dns.log;
+    }
+}
+```
+
