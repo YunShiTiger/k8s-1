@@ -4,6 +4,11 @@
 
 ## 1、集群部署常用
 
+```bash
+export ETCD_SSL=/etc/kubernetes/pki
+export ENDPOINTS="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379"
+```
+
 查看集群
 
 ```
@@ -13,20 +18,20 @@ etcdctl member list
 查看集群健康状态
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 endpoint health
 ```
 
 查看集群状态
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status --write-out=table
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} endpoint status --write-out=table
 ```
 
 ## 2、用户操作常用
@@ -36,71 +41,71 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 #### 1.1. 添加root用户并设置密码
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
 user add root
 ```
 
 #### 1.2. 添加非root用户并设置密码
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 user add huwh01
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin user add coredns
 ```
 
 #### 1.3. 查看当前所有用户
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 user list
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin user list
 ```
 
 #### 1.4. 将用户添加到对应角色
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 user grant-role huwh01 role01 
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin user grant-role coredns role01 
 ```
 
 #### 1.5. 查看用户拥有哪些角色
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 user get huwh01
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin user get coredns
 ```
 
 #### 1.6 删除用户下的某个角色
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 user revoke-role huwh01 role01
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin user revoke-role coredns role01
 ```
 
 #### 1.7. 删除用户
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 user delete huwh01
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin user delete coredns
 ```
 
 ### role相关命令
@@ -108,21 +113,21 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 #### 2.1. 添加角色
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role add role01 
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role add role01 
 ```
 
 #### 2.2. 查看所有角色
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role list
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role list
 ```
 
 #### 2.3. 给角色分配权限
@@ -132,31 +137,31 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 给 role01 角色赋予键 /foo 的读操作
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role grant-permission role01 read /foo
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role grant-permission role01 read /foo
 ```
 
  role01 角色赋予键 /foo/* 的写操作
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role grant-permission role01 write /foo/*
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role grant-permission role01 write /foo/*
 ```
 
  role01 角色赋予键 /foo 读写操作
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role grant-permission role01 readwrite /foo/*
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role grant-permission role01 readwrite /foo/*
 ```
 
 #####    2.3.2、收回访问权限
@@ -164,40 +169,51 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 收回 role01 角色对 /foo 的权限
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role revoke-permission role01 /foo
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role revoke-permission role01 /foo
 ```
 
 收回 role01 角色对 /foo/* 的权限
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role revoke-permission role01 /foo/*
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role revoke-permission role01 /foo/*
 ```
 
 ####  2.4. 查看角色所拥有的权限
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 \
---user root:123 role get role01
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} \
+--user root:admin role get role01
 ```
 
 ## 3、auth相关操作
 
+开启auth
+
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints https://10.0.0.31:2379 auth enable
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} --user root:admin auth enable
+```
+
+关闭auth
+
+```bash
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints ${ENDPOINTS} --user root:admin auth disable
 ```
 
 ## 4、写入数据与查看数据
@@ -205,21 +221,21 @@ etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
 写入
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
---user root:123 put /foo/test wzxmt
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
+--user root:admin put /foo/test wzxmt
 ```
 
 查看数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
---user root:123 get /foo/test
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
+--user root:admin get /foo/test
 ```
 
 ## 二、持久化数据备份和恢复
@@ -236,16 +252,16 @@ etcd v2 和 v3 的数据不能混合存放。etcd的数据默认会存放在我�
 ```bash
 写入数据
 ETCDCTL_API=2 etcdctl \
---ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
+--ca-file ${ETCD_SSL}/ca.pem \
+--cert-file ${ETCD_SSL}/etcd.pem \
+--key-file ${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 set /test wzxmt
 读取API 2写入数据
 ETCDCTL_API=2 etcdctl \
---ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
+--ca-file ${ETCD_SSL}/ca.pem \
+--cert-file ${ETCD_SSL}/etcd.pem \
+--key-file ${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 get /test
 ```
@@ -294,9 +310,9 @@ systemctl daemon-reload && systemctl start etcd.service
 
 ```bash
 ETCDCTL_API=2 etcdctl \
---ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
+--ca-file ${ETCD_SSL}/ca.pem \
+--cert-file ${ETCD_SSL}/etcd.pem \
+--key-file ${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 get /test
 ```
@@ -390,9 +406,9 @@ bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:23
 
 ```bash
 ETCDCTL_API=2 etcdctl \
---ca-file /etc/kubernetes/pki/ca.pem \
---cert-file /etc/kubernetes/pki/etcd.pem \
---key-file /etc/kubernetes/pki/etcd-key.pem \
+--ca-file ${ETCD_SSL}/ca.pem \
+--cert-file ${ETCD_SSL}/etcd.pem \
+--key-file ${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 get /test
 ```
@@ -406,29 +422,29 @@ get /test
 使用API 3写入数据库
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 put /name/1 test
 ```
 
 读取数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 get  /name/1
 ```
 
 ### 2 备份etcd数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 snapshot save mysnapshot.db
 ```
@@ -438,10 +454,10 @@ snapshot save mysnapshot.db
 查看状态
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 endpoint status
 ```
 
@@ -503,20 +519,20 @@ systemctl start etcd
 ### 6 查看状态
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 endpoint status --write-out=table
 ```
 
 ### 7 验证数据完整性
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 get  /name/1
 ```
 
@@ -550,7 +566,7 @@ cat << 'EOF' >/usr/local/scripts/etcd-backup-v3.sh
 timestamp=`date +%Y%m%d-%H%M%S`
 back_dir=/data/backup/etcd
 etcd_ip=10.0.0.31
-ssl_dir=/etc/kubernetes/pki
+ssl_dir=${ETCD_SSL}
 cluster_name=test
 file_name=${back_dir}/${cluster_name}_snapshot_$timestamp.db
 
@@ -578,18 +594,18 @@ echo -e "\n#etcd backup \n0 0 * * * /usr/local/scripts/etcd-backup-v3.sh" >>/var
 ### 1）在正常节点上查看集群状态并摘除异常节点
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" endpoint status --write-out=table
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} endpoint status --write-out=table
 ```
 
 ### 2）摘除异常节点
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 member remove f1ec1f6015c9d4a4
 ```
 
@@ -600,10 +616,10 @@ member remove f1ec1f6015c9d4a4
 - 删除新增成员的旧数据目录，更改相关配置需将原etcd服务的旧数据目录删除，否则etcd会无法正常启动。将节点重新加入集群（name要与配置文件的--name一致）
 
   ```bash
-  etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
-  --cert=/etc/kubernetes/pki/etcd.pem \
-  --key=/etc/kubernetes/pki/etcd-key.pem \
-  --endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+  etcdctl --cacert=${ETCD_SSL}/ca.pem \
+  --cert=${ETCD_SSL}/etcd.pem \
+  --key=${ETCD_SSL}/etcd-key.pem \
+  --endpoints=${ENDPOINTS} \
   member add etcd03 --peer-urls=https://10.0.0.33:2380
   ```
 
@@ -654,9 +670,9 @@ systemctl start etcd
 ### 1）备份数据
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 snapshot save mysnapshot.db
 ```
@@ -664,40 +680,40 @@ snapshot save mysnapshot.db
 ### 2）获取reversion
 
 ```bash
-etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --write-out="json" --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 endpoint status |grep -o '"revision":[0-9]*'
 ```
 
 ### 3）compact(压缩旧版本)
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 compact $revision
 ```
 
 ### 4）defrag(清理磁盘碎片)
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 defrag
 ```
 
 ### 5）删除清除(必需删除，否则集群仍然无法使用)
 
 ```bash
-etcdctl --write-out="json" --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
---endpoints="https://10.0.0.31:2379,https://10.0.0.32:2379,https://10.0.0.33:2379" \
+etcdctl --write-out="json" --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
+--endpoints=${ENDPOINTS} \
 alarm disarm
 ```
 
@@ -718,15 +734,15 @@ kubectl delete namespace NAMESPACENAME --force --grace-period=0
 
 ```bash
 # 删除default namespace下的pod名为pod-to-be-deleted-0
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 del /registry/pods/default/pod-to-be-deleted-0
 # 删除需要删除的NAMESPACE
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 del /registry/namespaces/NAMESPACENAME
 ```
@@ -734,9 +750,9 @@ del /registry/namespaces/NAMESPACENAME
 **查询都有哪些namespaces**
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 get /registry/namespaces/ --prefix --keys-only
 
@@ -764,9 +780,9 @@ test                   Active        4h51m
 **在查询default namespace中的pod**
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 get /registry/pods/default --prefix --keys-only
 
@@ -788,9 +804,9 @@ myapp-deploy-c7b5fb585-pb296   1/1     Running   0          8m11s
 **在etcd中删除pod testpod-t7ps7**
 
 ```bash
-etcdctl --cacert=/etc/kubernetes/pki/ca.pem \
---cert=/etc/kubernetes/pki/etcd.pem \
---key=/etc/kubernetes/pki/etcd-key.pem \
+etcdctl --cacert=${ETCD_SSL}/ca.pem \
+--cert=${ETCD_SSL}/etcd.pem \
+--key=${ETCD_SSL}/etcd-key.pem \
 --endpoints="https://10.0.0.31:2379" \
 del /registry/pods/default/myapp-deploy-c7b5fb585-pb296    
 
