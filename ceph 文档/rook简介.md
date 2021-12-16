@@ -110,8 +110,8 @@ lsmod | grep rbd
 #### 克隆rook github仓库到本地
 
 ```shell
-git clone --single-branch --branch v1.5.1 https://github.com/rook/rook.git
-cd rook/cluster/examples/kubernetes/ceph
+git clone --single-branch --branch master https://github.com/rook/rook.git
+cd rook/deploy/examples
 ```
 
 #### 安装公共部分
@@ -126,18 +126,15 @@ operator的配置在ceph安装后不能修改，否则rook会删除集群并重�
 
 ```yaml
 cp operator.yaml{,.bak}
-#修改csi镜像为私有仓，加速部署时间
-  ROOK_CSI_CEPH_IMAGE: "harbor.wzxmt.com/infra/cephcsi:v3.1.2"
-  ROOK_CSI_REGISTRAR_IMAGE: "harbor.wzxmt.com/infra/csi-node-driver-registrar:v2.0.1"
-  ROOK_CSI_RESIZER_IMAGE: "harbor.wzxmt.com/infra/csi-resizer:v1.0.0"
-  ROOK_CSI_PROVISIONER_IMAGE: "harbor.wzxmt.com/infra/csi-provisioner:v2.0.0"
-  ROOK_CSI_SNAPSHOTTER_IMAGE: "harbor.wzxmt.com/infra/csi-snapshotter:v3.0.0"
-  ROOK_CSI_ATTACHER_IMAGE: "harbor.wzxmt.com/infra/csi-attacher:v3.0.0"
+  ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.4.0"
+  ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.3.0"
+  ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.3.0"
+  ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v3.0.0"
+  ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0"
+  ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.3.0"
 #plugin和provisioner分开
   CSI_PROVISIONER_NODE_AFFINITY: "app.rook.role=csi-provisioner"
   CSI_PLUGIN_NODE_AFFINITY: "app.rook.plugin=csi"
-# 修改rook镜像，加速部署时间
-        image: harbor.wzxmt.com/infra/rook/ceph:v1.5.1
 # 指定节点做存储
         - name: DISCOVER_AGENT_NODE_AFFINITY
           value: "app.role=storage"
@@ -151,77 +148,10 @@ cp operator.yaml{,.bak}
       operator: Exists
 ```
 
-拉取镜像，并推送至私有仓库
+修改镜像地址
 
 ```bash
-cat << 'EOF' >ceph_get_images.sh
-#!/bin/bash
-## 使用如下脚本下载国内镜像，并修改tag为harbor的tag
-set -e
-cephcsi_version=v3.1.2
-node_driver_registrar_version=v2.0.1
-attacher_version=v3.0.0
-provisioner_version=v2.0.0
-snapshotter_version=v3.0.0
-resizer_version=v1.0.0
-
-HARBOR_URL=harbor.wzxmt.com/infra
-ALIYUN_URL=registry.aliyuncs.com/it00021hot
-
-images=(cephcsi:${cephcsi_version}
-csi-node-driver-registrar:${node_driver_registrar_version}
-csi-attacher:${attacher_version}
-csi-provisioner:${provisioner_version}
-csi-snapshotter:${snapshotter_version}
-csi-resizer:${resizer_version})
-
-for imageName in ${images[@]} ; do
-  docker pull $ALIYUN_URL/$imageName
-  docker tag  $ALIYUN_URL/$imageName $HARBOR_URL/$imageName 
-  docker push $HARBOR_URL/$imageName
-  docker rmi $HARBOR_URL/$imageName $ALIYUN_URL/$imageName
-done
-docker pull ceph/ceph:v15.2.5
-docker tag ceph/ceph:v15.2.5 harbor.wzxmt.com/infra/ceph/ceph:v15.2.5
-docker pull rook/ceph:v1.5.1
-docker tag rook/ceph:v1.5.1 harbor.wzxmt.com/infra/rook/ceph:v1.5.1 
-docker push harbor.wzxmt.com/infra/ceph/ceph:v15.2.5
-docker push harbor.wzxmt.com/infra/rook/ceph:v1.5.1
-docker rmi rook/ceph:v1.5.1 harbor.wzxmt.com/infra/rook/ceph:v1.5.1 ceph/ceph:v15.2.5 harbor.wzxmt.com/infra/ceph/ceph:v15.2.5
-EOF
-sh ceph_get_images.sh
-```
-
-各节点拉取镜像
-
-```bash
-cat << 'EOF' >ceph_getharbor_images.sh
-#!/bin/bash
-## 使用如下脚本下载国内镜像，并修改tag为harbor的tag
-set -e
-cephcsi_version=v3.1.2
-node_driver_registrar_version=v2.0.1
-attacher_version=v3.0.0
-provisioner_version=v2.0.0
-snapshotter_version=v3.0.0
-resizer_version=v1.0.0
-
-HARBOR_URL=harbor.wzxmt.com/infra
-
-images=(
-cephcsi:${cephcsi_version}
-csi-node-driver-registrar:${node_driver_registrar_version}
-csi-attacher:${attacher_version}
-csi-provisioner:${provisioner_version}
-csi-snapshotter:${snapshotter_version}
-csi-resizer:${resizer_version})
-for imageName in ${images[@]} ; do
-  docker pull $HARBOR_URL/$imageName 
-done
-docker pull harbor.wzxmt.com/infra/ceph/ceph:v15.2.5
-docker pull harbor.wzxmt.com/infra/rook/ceph:v1.5.1
-EOF
-sh ceph_getharbor_images.sh
+sed -ri "s#k8s.gcr.io#lank8s.cn#g" operator.yaml
 ```
 
 安装operator
@@ -230,7 +160,7 @@ sh ceph_getharbor_images.sh
 kubectl apply -f operator.yaml
 ```
 
-### 部署ceph集群
+#### 部署ceph集群
 
 修改yaml文件：
 
@@ -247,8 +177,6 @@ spec:
 # ceph版本说明
 # v13 is mimic, v14 is nautilus, and v15 is octopus.
   cephVersion:
-#修改ceph镜像，加速部署时间
-    image: harbor.wzxmt.com/infra/ceph/ceph:v15.2.5
 # 是否允许不支持的ceph版本
     allowUnsupported: false
 #指定rook数据在节点的保存路径
@@ -329,10 +257,7 @@ EOF
 节点添加label
 
 ```bash
-for n in n{1..3};do kubectl label nodes $n ceph-mgr=enabled;done
-for n in n{1..3};do kubectl label nodes $n ceph-osd=enabled;done
-for n in n{1..3};do kubectl label nodes $n ceph-mon=enabled;done
-for n in n{1..3};do kubectl label nodes $n app.rook.role=csi-provisioner;done
+for n in n{1..3};do kubectl label nodes $n ceph-mgr=enabled  ceph-osd=enabled ceph-mon=enabled app.rook.role=csi-provisioner;done
 for n in n{1..3};do ssh $n "mkdir -p /var/lib/kubelet/{pods,plugins_registry}";done
 ```
 

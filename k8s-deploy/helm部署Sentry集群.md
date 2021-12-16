@@ -23,7 +23,7 @@ sentry 是一个开源的实时错误监控的项目，它支持很多端的配�
 
 # 3、搭建sentry服务
 
-部署local-path
+### 部署local-path
 
 ```yaml
 cat << 'EOF' >local-path.yaml
@@ -176,9 +176,10 @@ provisioner: rancher.io/local-path
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Delete
 EOF
+kubectl apply -f local-path.yaml
 ```
 
-部署sentry
+### 部署sentry
 
 添加repo
 
