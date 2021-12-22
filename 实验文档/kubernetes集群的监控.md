@@ -1469,6 +1469,22 @@ scrape_configs:
       target_label: instance
     - target_label: __address__
       replacement: blackbox-exporter.monitoring:9115
+#harbor
+- job_name: 'harbor-registry'
+  metrics_path: /metrics
+  scheme: http
+  static_configs:
+  - targets:
+    - '128.199.111.192:19090'
+    
+- job_name: 'harbor-core'
+  scrape_interval: 20s
+  params:
+    comp: ['core']
+  static_configs:
+  - targets:
+    - '128.199.111.192:19090'
+
 EOF
 ```
 
@@ -2045,7 +2061,8 @@ kubernetes -> +New Cluster
 9965	Blackbox Exporter 0.14 for Prometheus
 11600	Docker Container
 10856 	K8 Cluster Detail Dashboard
-11543    blackbox
+11543   blackbox
+14075   harbor
 ```
 
 ## 部署alertmanager
