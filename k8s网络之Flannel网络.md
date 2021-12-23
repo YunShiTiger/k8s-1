@@ -71,7 +71,7 @@ overlay网络的设备，用来进行 vxlan 报文的处理（封包和解包）
 
  **Flanneld**：
 
-flannel在每个主机中运行flanneld作为agent，它会为所在主机从集群的网络地址空间中，获取一个小的网段subnet，本主机内所有容器的IP地址都将从中分配。同时Flanneld监听K8s集群数据库，为flannel.1设备提供封装数据时必要的mac，ip等网络数据信息。
+flannel在每个宿主机上运行flanneld作为agent，它会为所在主机从集群的网络地址空间中获取subnet，获取一个小的网段subnet，为宿主机预先分配一个子网。同时Flanneld监听etcd，为flannel.1设备提供封装数据时必要的mac，ip等网络数据信息。
 
 **不同node上的pod的通信流程：**
 
