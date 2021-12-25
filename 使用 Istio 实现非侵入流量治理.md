@@ -24,17 +24,17 @@ Service Mesh 会完成完整的服务间调用流程，如服务发现负载均�
 
 **有大量服务，表现为网络**
 
-![图片](acess/bI4KEsCLyJRsks8sTSb2s.jpg)大量服务调用
+![图片](acess/bI4KEsCLyJRsks8sTSb2s.jpg)
 
 如果有大量的服务，就会表现出来网格，图中左边绿色方格是应用，右边蓝色的方框是 Service Mesh，蓝色之间的线条是表示服务之间的调用关系。Sidecar 之间的连接就会形成一个网络，这个就是服务网格名字的由来，这个时候代理体现出来的就和前面的 Sidecar 不一样了，形成网状。
 
 首先第一个，服务网格是抽象的，实际上是抽象出了一个基础设施层，在应用之外。其次，功能是实现请求的可靠传递。部署上体现为轻量级的网络代理。最后一个关键词是，对应用程序透明。
 
-![图片](acess/bI4KEsCLyJRsks8hTSb2s.jpg)Service mesh
+![图片](acess/bI4KEsCLyJRsks8hTSb2s.jpg)
 
 大家注意看，上面的图中，网络在这种情况下，可能不是特别明显。但是如果把左边的应用程序去掉，现在只呈现出来 Service Mesh 和他们之间的调用，这个时候关系就会特别清晰，就是一个完整的网络。这是 Service Mesh 定义当中一个非常重要的关键点，和 Sidecar 不相同的地方：不再将代理视为单独的组件，而是强调由这些代理连接而形成的网络。在 Service Mesh 里面非常强调代理连接组成的网络，而不像 Sidecar 那样看待个体。
 
-现在我们基本上把 Service Mesh 的定义介绍清楚了，大家应该可以大概了解什么是 Service Mesh 了。现在实现 Service Mesh 的开源方案有很多，比如 Linkerd、Istio 等，当然目前最流行最火热的还是要数 Istio 了，记下来我们就来开始讲解 Istio 的使用。
+现在我们基本上把 Service Mesh 的定义介绍清楚了，大家应该可以大概了解什么是 Service Mesh 了。现在实现 Service Mesh 的开源方案有很多，比如 Linkerd、Istio 等，当然目前最流行最火热的还是要数Istio了，记下来我们就来开始讲解Istio的使用。
 
 ## 什么是Istio？
 
@@ -47,7 +47,7 @@ Istio 解决了开发人员和运维在分布式或微服务架构方面面临�
 Istio 是一个开源服务网格，它透明地分层到现有的分布式应用程序上。Istio 强大的特性提供了一种统一和更有效的方式来保护、连接和监视服务。Istio 是实现负载平衡、服务到服务身份验证和监视的路径——只需要很少或不需要更改服务代码。它强大的控制平面带来了重要的特点，包括：
 
 - 使用 TLS 加密、强身份认证和授权的集群内服务到服务的安全通信
-- 自动负载均衡的 HTTP, gRPC, WebSocket，和 TCP 流量
+- 自动负载均衡的HTTP、gRPC、WebSocket和TCP流量
 - 通过丰富的路由规则、重试、故障转移和故障注入对流量行为进行细粒度控制
 - 一个可插入的策略层和配置 API，支持访问控制、速率限制和配额
 - 对集群内的所有流量(包括集群入口和出口)进行自动度量、日志和跟踪
@@ -74,7 +74,7 @@ Istio 有两个组成部分：**数据平面**和**控制平面**。
 
 下图则是 Istio 每个平面的不同组件的架构：
 
-![图片](acess/bI4KEsCLyJRs4ks8TSb2s.jpg)Istio 架构
+![图片](acess/bI4KEsCLyJRs4ks8TSb2s.jpg)
 
 ### Envoy
 
@@ -123,70 +123,46 @@ Istiod 充当证书授权（CA），并生成证书以允许在数据平面中�
 
 下面的命令可以下载指定的 1.10.3 版本的 Istio：
 
-```
+```bash
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.3 sh -
 ```
 
 如果安装失败，可以用手动方式进行安装，在 GitHub Release 页面获取对应系统的下载地址：
 
-```
-# 注意选择和自己操作系统匹配的文件
-[root@k8s ~]# wget https://github.com/istio/istio/releases/download/1.10.3/istio-1.10.3-linux-amd64.tar.gz
-[root@k8s ~]# tar -xzf istio-1.10.3-linux-amd64.tar.gz
-# 进入到 istio 解压的目录
-[root@k8s ~]# cd istio-1.10.3 && ls -la
-total 28
--rw-r--r--@   1 ych  staff  11348 Jul 15 13:32 LICENSE
--rw-r--r--@   1 ych  staff   5866 Jul 15 13:32 README.md
-drwxr-x---@   3 ych  staff     96 Jul 15 13:32 bin
--rw-r-----@   1 ych  staff    854 Jul 15 13:32 manifest.yaml
-drwxr-xr-x@   5 ych  staff    160 Jul 15 13:32 manifests
-drwxr-xr-x@  21 ych  staff    672 Jul 15 13:32 samples
-drwxr-xr-x@   5 ych  staff    160 Jul 15 13:32 tools
+```bash
+wget https://github.com/istio/istio/releases/download/1.10.3/istio-1.10.3-linux-amd64.tar.gz
+tar -xzf istio-1.10.3-linux-amd64.tar.gz
+cd cd istio-1.10.3
 ```
 
-其中 `samples/` 目录下面是一些示例应用程序，`bin/` 目录下面的 `istioctl` 是 Istio 的 CLI 工具，可以将该 `bin/` 目录加入到 PATH 路径之下，也可以直接拷贝到某个 PATH 目录下去：
+其中 `samples/` 目录下面是一些示例应用程序，`bin/` 目录下面的 `istioctl` 是 Istio 的 CLI 工具：
 
-```
-[root@k8s ~]# cp bin/istioctl /usr/local/bin/istioctl
-[root@k8s ~]# istioctl version
-no running Istio pods in "istio-system"
-1.10.3
+```bash
+cp bin/istioctl /usr/local/bin/istioctl
+istioctl version
 ```
 
 安装 istio 的工具和文件准备好过后，直接执行如下所示的安装命令即可，这里我们采用的是 `demo` 配置组合的形式，这是因为它包含了一组专为测试准备的功能集合，另外还有用于生产或性能测试的配置组合。
 
-```
-[root@k8s ~]# istioctl install --set profile=demo -y
-Detected that your cluster does not support third party JWT authentication. Falling back to less secure first party JWT. See https://istio.io/v1.10/docs/ops/best-practices/security/#configure-third-party-service-account-tokens for details.
-! values.global.jwtPolicy is deprecated; use Values.global.jwtPolicy=third-party-jwt. See http://istio.io/latest/docs/ops/best-practices/security/#configure-third-party-service-account-tokens for more information instead
-✔ Istio core installed
-✔ Istiod installed
-✔ Ingress gateways installed
-✔ Egress gateways installed
-✔ Installation complete
+```bash
+istioctl install --set profile=demo -y
 ```
 
 安装完成后我们可以查看 istio-system 命名空间下面的 Pod 运行状态：
 
-```
-[root@k8s ~]# kubectl get pods -n istio-system
-NAME                                    READY   STATUS    RESTARTS   AGE
-istio-egressgateway-7f8f879549-9h5dj    1/1     Running   0          2m1s
-istio-ingressgateway-6ffdc56559-tjdrn   1/1     Running   0          2m1s
-istiod-6dff7cdd47-5fbnl                 1/1     Running   0          3m11s
+```bash
+kubectl get pods -n istio-system
 ```
 
 如果都是 Running 状态证明 istio 就已经安装成功了。然后我们还可以给 namespace 添加一个 `isito-injection=enabled` 的 label 标签，指示 Istio 在部署应用的时候，可以自动注入 Envoy Sidecar 代理，比如这里我们给 `default` 命名空间注入自动标签：
 
-```
-[root@k8s ~]# kubectl label namespace default istio-injection=enabled
-namespace/default labeled
+```bash
+kubectl label namespace default istio-injection=enabled
 ```
 
 卸载
 
-```
+```bash
 istioctl manifest generate --set profile=demo | kubectl delete -f -
 ```
 
@@ -221,93 +197,55 @@ Bookinfo 应用中的几个微服务是由不同的语言编写而成的，这�
 
 进入上面的 Istio 安装目录，执行如下命令：
 
-```
-[root@k8s istio-1.10.3]# kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
-service/details created
-serviceaccount/bookinfo-details created
-deployment.apps/details-v1 created
-service/ratings created
-serviceaccount/bookinfo-ratings created
-deployment.apps/ratings-v1 created
-service/reviews created
-serviceaccount/bookinfo-reviews created
-deployment.apps/reviews-v1 created
-deployment.apps/reviews-v2 created
-deployment.apps/reviews-v3 created
-service/productpage created
-serviceaccount/bookinfo-productpage created
-deployment.apps/productpage-v1 created
+```bash
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
 ```
 
 > 如果在安装过程中禁用了 Sidecar 自动注入功能而选择手动注入 Sidecar，请在部署应用之前可以使用 `istioctl kube-inject` 命令来注入 sidecar 容器。
 
-```
-[root@k8s istio-1.10.3]# kubectl apply -f <(istioctl kube-inject -f samples/bookinfo/platform/kube/bookinfo.yaml)
+```bash
+kubectl apply -f <(istioctl kube-inject -f samples/bookinfo/platform/kube/bookinfo.yaml)
 ```
 
 这里我们部署的 `bookinfo.yaml` 资源清单文件就是普通的 Kubernetes 的 Deployment 和 Service 的 yaml 文件，使用 `istioctl kube-inject` 或者配置自动注入后会在这个文件的基础上向其中的 Deployment 追加一个镜像为 `docker.io/istio/proxyv2:1.10.3` 的 sidecar 容器，上面的命令会启动全部的四个服务，其中也包括了 reviews 服务的三个版本（v1、v2 以及 v3）。
 
 过一会儿就可以看到如下 service 和 pod 启动:
 
-```
-[root@k8s istio-1.10.3]#  kubectl get pods
-NAME                              READY   STATUS    RESTARTS   AGE
-details-v1-66b6955995-7pf2d       2/2     Running   0          8m19s
-productpage-v1-5d9b4c9849-4nv7x   2/2     Running   0          8m19s
-ratings-v1-fd78f799f-qz5dc        2/2     Running   0          8m19s
-reviews-v1-6549ddccc5-5lz92       2/2     Running   0          8m18s
-reviews-v2-76c4865449-9nfst       2/2     Running   0          8m19s
-reviews-v3-6b554c875-66slz        2/2     Running   0          8m19s
-[root@k8s istio-1.10.3]# kubectl get svc
-NAME          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-details       ClusterIP   10.96.84.157    <none>        9080/TCP   9m16s
-kubernetes    ClusterIP   10.96.0.1       <none>        443/TCP    8d
-productpage   ClusterIP   10.96.222.132   <none>        9080/TCP   9m16s
-ratings       ClusterIP   10.96.84.4      <none>        9080/TCP   9m16s
-reviews       ClusterIP   10.96.139.87    <none>        9080/TCP   9m16s
+```bash
+kubectl get pods,svc
 ```
 
 现在应用的服务都部署成功并启动了，如果我们需要在集群外部访问，就需要添加一个 istio gateway，gateway 相当于 k8s 的 ingress controller 和 ingress，它为 HTTP/TCP 流量配置负载均衡，通常在服务网格边缘作为应用的 ingress 流量管理。
 
 创建一个 Ingress gateway:
 
-```
-[root@k8s istio-1.10.3]#kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
-gateway.networking.istio.io/bookinfo-gateway created
-virtualservice.networking.istio.io/bookinfo created
+```bash
+kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
 验证 gateway 是否创建成功:
 
-```
-[root@k8s ~]# kubectl get gateway
-NAME               AGE
-bookinfo-gateway   25s
+```bash
+kubectl get gateway
 ```
 
 要想访问这个应用，这里我们需要更改下 istio 提供的 `istio-ingressgateway` 这个 Service 对象，默认是 LoadBalancer 类型的服务：
 
-```
-[root@k8s ~]# kubectl get svc -n istio-system
-grafana                ClusterIP   10.96.152.250   <none>        3000/TCP                                   
-istio-egressgateway    ClusterIP   10.96.51.90     <none>        80/TCP,443/TCP                            
-istio-ingressgateway   NodePort    10.96.118.115   <none>        15021:43422/TCP,80:60979/TCP,443:44241/TCP,31400:31668/TCP,15443:43461/TCP  
-istiod                 ClusterIP   10.96.50.1      <none>        15010/TCP,15012/TCP,443/TCP,15014/TCP       
-jaeger-collector       ClusterIP   10.96.205.96    <none>        14268/TCP,14250/TCP                         
-kiali                  NodePort    10.96.19.219    <none>        20001:30542/TCP,9090:58441/TCP             
-prometheus             ClusterIP   10.96.148.113   <none>        9090/TCP                                   
-tracing                ClusterIP   10.96.254.171   <none>        80/TCP                                     
-zipkin                 ClusterIP   10.96.251.213   <none>        9411/TCPP
+```bash
+kubectl get svc -n istio-system|grep istio-ingressgateway
 ```
 
 LoadBalancer 类型的服务，实际上是用来对接云服务厂商的，如果我们没有对接云服务厂商的话，可以将这里类型改成 `NodePort`，但是这样当访问我们的服务的时候就需要加上 nodePort 端口了：
 
+```bash
+kubectl -n istio-system patch svc istio-ingressgateway -p '{"spec":{"type": "NodePort"}}'
 ```
-[root@k8s ~]# kubectl edit svc istio-ingressgateway -n istio-system
-......
-type: NodePort  # 修改成 NodePort 类型
-status:
-  loadBalancer: {}
+
+查看svc
+
+```bash
+[root@k8s istio-1.10.3]# kubectl get svc -n istio-system|grep istio-ingressgateway
+istio-ingressgateway   NodePort    10.96.147.197   <none>        15021:46835/TCP,80:41995/TCP,443:26955/TCP,31400:50477/TCP,15443:49445/TCP   20m
 ```
 
 这样我们就可以通过 `http://<NodeIP>:<nodePort>/productpage` 从集群外部访问 Bookinfo 应用了：
@@ -322,35 +260,25 @@ status:
 
 我们可以使用下面的命令来部署 Kiali、Prometheus、Grafana 以及 Jaeger：
 
-```
-[root@k8s istio-1.10.3]# kubectl apply -f samples/addons
-# 如果出现了错误，则可以重新执行上面的命令
-[root@k8s ~]# kubectl get pods -n istio-system
-NAME                                    READY   STATUS    RESTARTS   AGE
-grafana-56cd796c54-qz89l                1/1     Running   0          3m7s
-istio-egressgateway-7f8f879549-9h5dj    1/1     Running   0          29m
-istio-ingressgateway-6ffdc56559-tjdrn   1/1     Running   0          29m
-istiod-6dff7cdd47-5fbnl                 1/1     Running   0          30m
-jaeger-5c7675974-l2nqb                  1/1     Running   0          3m7s
-kiali-6c77f9c466-779dl                  1/1     Running   0          3m5s
-prometheus-bcfc495b8-69wr7              3/3     Running   0          3m4s
+```bash
+kubectl apply -f samples/addons
 ```
 
 上面几个组件部署完成后我们就可以查看前面 Bookinfo 示例应用的遥测信息了，比如可以使用下面的命令访问 Kiali：
 
 ```
-[root@k8s ~]# istioctl dashboard kiali
+istioctl dashboard kiali
 ```
 
 在左侧的导航菜单，选择 Graph ，然后在 Namespace 下拉列表中，选择 default 。Kiali 仪表板展示了网格的概览、以及 Bookinfo 示例应用的各个服务之间的关系。它还提供过滤器来可视化流量的流动。
 
-![图片](acess/bI4KEsCLyJRsk8s8TSb2s.jpg)kiali dashboard
+![图片](acess/bI4KEsCLyJRsk8s8TSb2s.jpg)
 
 至此，整个 Istio 和 Bookinfo 示例应用就安装并验证成功了，现在就可以使用这一应用来体验 Istio 的特性了，其中包括了流量的路由、错误注入、速率限制等特性。
 
 目前搭建 Bookinfo 应用我们只用到了下面两个资源文件：
 
-```
+```bash
 samples/bookinfo/platform/kube/bookinfo.yaml
 samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
@@ -374,7 +302,7 @@ samples/bookinfo/networking/bookinfo-gateway.yaml
 
 如下所示我们定义一个虚拟服务，根据请求是否来自某个特定用户，把它们路由到服务的不同版本去。
 
-```
+```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -399,7 +327,7 @@ spec:
 
 我们使用 `hosts` 字段列举虚拟服务的主机——即用户指定的目标或是路由规则设定的目标，这是客户端向服务发送请求时使用的一个或多个地址。
 
-```
+```yaml
 hosts:
 - reviews
 ```
@@ -410,7 +338,7 @@ hosts:
 
 比如上面示例中的第一个路由规则有一个条件，所以使用 `match` 字段开始定义，我们希望该路由应用于来自 `jason` 用户的所有请求，所以使用 headers、end-user 和 exact 字段来匹配合适的请求。
 
-```
+```yaml
 - match:
   - headers:
     end-user:
@@ -419,7 +347,7 @@ hosts:
 
 然后后面的 route 部分的 `destination` 字段指定了符合该条件的流量的实际目标地址，与虚拟服务的 hosts 不同，destination 的 host 必须是存在于 Istio 服务注册中心的实际目标地址，否则 Envoy 不知道该将请求发送到哪里。可以是一个有代理的服务网格，或者是一个通过服务入口被添加进来的非网格服务。本示例运行在 Kubernetes 环境中，host 名为一个 Kubernetes 服务名：
 
-```
+```yaml
 route:
 - destination:
     host: reviews  # Kubernetes Service 短名称
@@ -430,7 +358,7 @@ route:
 
 路由规则是按从上到下的顺序选择的，虚拟服务中定义的**第一条规则有最高优先级**。比如上面我们定义的虚拟服务中，不满足第一个路由规则的流量均会流向一个默认的目标，第二条规则没有配置 match 条件，直接将流量导向 v3 子集。
 
-```
+```yaml
 - route:
   - destination:
       host: reviews
@@ -453,7 +381,7 @@ route:
 
 比如在下面的示例中，目标规则为 `my-svc` 目标服务配置了 3 个具有不同负载均衡策略的子集：
 
-```
+```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
@@ -486,7 +414,7 @@ spec:
 
 对 Reviews 服务添加一条路由规则，启用 `samples/bookinfo/networking/virtual-service-reviews-v3.yaml` 定义的 VirtualService 规则，内容如下：
 
-```
+```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -503,14 +431,13 @@ spec:
 
 这样，所有访问 reviews 服务的流量就会被引导到 reviews 服务对应的 subset 为 v3 的 Pod 中。启用这条规则：
 
-```
-[root@k8s ~]# kubectl apply -f  samples/bookinfo/networking/virtual-service-reviews-v3.yaml
-virtualservice.networking.istio.io/reviews created
+```bash
+kubectl apply -f  samples/bookinfo/networking/virtual-service-reviews-v3.yaml
 ```
 
 然后查看所有的路由规则：
 
-```
+```bash
 [root@k8s ~]# kubectl get virtualservices
 NAME       GATEWAYS             HOSTS       AGE
 bookinfo   [bookinfo-gateway]   [*]         158d
@@ -519,13 +446,13 @@ reviews                         [reviews]   20s
 
 我们可以看到 reviews 的 `VirtualService` 已经创建成功了，此时我们去刷新应用的页面，发现访问 Reviews 失败了：
 
-![图片](acess/bI4KEsCLyJxfRsks8TSb2s.jpg)bookinfo reviews v3 failed
+![bookinfo reviews v3 failed](acess/bI4KEsCLyJxfRsks8TSb2s.jpg)
 
 这是因为我们还没有创建 `DestinationRule` 对象，DestinationRule 对象是 VirtualService 路由生效后，配置应用与请求的策略集，用来将 VirtualService 中指定的 `subset` 与对应的 Pod 关联起来。
 
 在 `samples/bookinfo/networking/destination-rule-all.yaml` 文件中有定义所有该应用中要用到的所有 DestinationRule 资源对象，其中有一段就是对 Reviews 相关的 DestinationRule 的定义:
 
-```
+```yaml
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -547,7 +474,7 @@ spec:
 
 我们可以看到 DestinationRule 中定义了 `subsets` 集合，其中 labels 就和我们之前 Service 的 `labelselector` 一样是去匹配 Pod 的 labels 标签的，比如我们这里 subsets 中就包含一个名为 v3 的 subset，而这个 subset 匹配的就是具有 `version=v3` 这个 label 标签的 Pod 集合，前面我们创建的 Bookinfo 中也有这个标签的 Pod:
 
-```
+```bash
 [root@k8s ~]# kubectl get pods -l version=v3
 NAME                          READY   STATUS    RESTARTS   AGE
 reviews-v3-84779c7bbc-bsld9   2/2     Running   2          47h
@@ -555,12 +482,8 @@ reviews-v3-84779c7bbc-bsld9   2/2     Running   2          47h
 
 这样我们就通过 DestinationRule 将 VirtualService 与 Service 不同的版本关联起来了。现在我们直接创建 DestinationRule 资源：
 
-```
-[root@k8s ~]# kubectl apply -f samples/bookinfo/networking/destination-rule-all.yaml
-destinationrule.networking.istio.io/productpage created
-destinationrule.networking.istio.io/reviews created
-destinationrule.networking.istio.io/ratings created
-destinationrule.networking.istio.io/details created
+```bash
+kubectl apply -f samples/bookinfo/networking/destination-rule-all.yaml
 ```
 
 创建完成后，我们就可以查看目前我们网格中的 DestinationRules:
@@ -576,7 +499,7 @@ reviews       reviews       30s
 
 此时再访问应用就成功了，多次刷新页面发现 Reviews 始终都展示的是 v3 版本（带红色星的）的 Ratings 了，说明我们VirtualService 的配置成功了。
 
-![图片](acess/bI4KEsCLyJRsks8ddTSb2s.jpg)reviews v3
+![reviews v3](acess/bI4KEsCLyJRsks8ddTSb2s.jpg)
 
 ## 基于权重的服务访问规则
 
@@ -584,17 +507,13 @@ reviews       reviews       30s
 
 首先移除刚刚创建的 VirtualService 对象，排除对环境的影响：
 
-```
-[root@k8s ~]# kubectl delete virtualservice reviews
-virtualservice.networking.istio.io "reviews" deleted
-[root@k8s ~]# kubectl get virtualservice
-NAME       GATEWAYS               HOSTS   AGE
-bookinfo   ["bookinfo-gateway"]   ["*"]   2d
+```bash
+kubectl delete virtualservice reviews
 ```
 
 现在我们再去访问 Bookinfo 应用又回到最初随机访问 Reviews 的情况了。现在我们查看文件 `samples/bookinfo/networking/virtual-service-reviews-80-20.yaml` 的定义：
 
-```
+```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -616,13 +535,8 @@ spec:
 
 这个规则定义了 80% 的对 Reviews 的流量会落入到 v1（没有 Ratings）这个 subset，20% 会落入 v2（带黑色 Ratings）子集，然后我们创建这个资源对象：
 
-```
-[root@k8s ~]# kubectl apply -f samples/bookinfo/networking/virtual-service-reviews-80-20.yaml
-virtualservice.networking.istio.io/reviews created
-[root@k8s ~]# kubectl get virtualservice
-NAME       GATEWAYS               HOSTS         AGE
-bookinfo   ["bookinfo-gateway"]   ["*"]         2d
-reviews                           ["reviews"]   8s
+```bash
+kubectl apply -f samples/bookinfo/networking/virtual-service-reviews-80-20.yaml
 ```
 
 我们查看当前网格中的 VirtualService 对象，可以看到已经有 reviews 了，证明已经创建成功了，由于上面我们已经将应用中所有的 DestinationRules 都已经创建过了，所以现在我们直接访问应用就可以了，我们多次刷新，可以发现没有出现 Ratings 的次数与出现黑色星 Ratings 的比例大概在`4:1`左右，并且没有红色星的 Ratings 的情况出现，说明我们配置的基于权重的 VirtualService 访问规则配置生效了。
@@ -633,17 +547,13 @@ reviews                           ["reviews"]   8s
 
 同样，将上面创建的 VirtualService 对象删除：
 
-```
-[root@k8s ~]# kubectl delete virtualservice reviews
-virtualservice.networking.istio.io "reviews" deleted
-[root@k8s ~]# kubectl get virtualservice
-NAME       GATEWAYS               HOSTS         AGE
-bookinfo   ["bookinfo-gateway"]   ["*"]         2d
+```bash
+kubectl delete virtualservice reviews
 ```
 
 查看文件 `samples/bookinfo/networking/virtual-service-reviews-jason-v2-v3.yaml` 的定义：
 
-```
+```yaml
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
@@ -670,21 +580,16 @@ spec:
 
 我们先不启用这个 VirtualService，先去访问下 Bookinfo 这个应用。
 
-![图片](data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==)bookinfo login
+![图片](acess/640sfddfads.jpg)
 
-右上角有登录按钮，在没有登录的情况下刷新页面，reviews 服务是被随机访问的，可以看到有带星不带星的样式，点击登录，在弹窗中 `User Name` 输入 jason，Password 为空，登录：
+右上角有登录按钮，在没有登录的情况下刷新页面，reviews 服务是被随机访问的，可以看到有带星不带星的样式，点击登录，在弹窗中 `User Name` 输入jason，Password 为空，登录：
 
-![图片](data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==)bookinfo logined
+![图片](acess/asadasdasdkjyhasd.jpg)
 
 再刷新页面，可以看到跟未登录前的访问规则一样，也是随机的。现在我们来创建上面的 VirtualService 这个对象:
 
-```
-[root@k8s ~]# kubectl apply -f samples/bookinfo/networking/virtual-service-reviews-jason-v2-v3.yaml
-virtualservice.networking.istio.io/reviews created
-[root@k8s ~]# kubectl get virtualservice
-NAME       GATEWAYS               HOSTS         AGE
-bookinfo   ["bookinfo-gateway"]   ["*"]         2d
-reviews                           ["reviews"]   8s
+```bash
+kubectl apply -f samples/bookinfo/networking/virtual-service-reviews-jason-v2-v3.yaml
 ```
 
 此时再回去刷新页面，发现一直都是黑星的 Reviews 版本(v2)被访问到了，注销退出后再访问，此时又一直是红星的版本(v3)被访问了。
@@ -707,3 +612,143 @@ All conditions inside a single match block have AND semantics, while the list of
 ```
 
 多个 match 块之间是只要有一个 match 匹配成功了，就会被路由到它指定的服务版本去，而忽略其他的。我们的示例中在登录的条件下，满足第一个 match，所以服务一直会访问到 v2 版本。退出登录后，没有 match 规则满足匹配，所以就走最后一个 route 规则，即 v3 版本。
+
+## 故障注入
+
+是一种评估系统可靠性的有效方法，例如异常处理、故障恢复等。只有当系统的所有服务都经过故障测试且具备容错能力时，整个应用才健壮可靠。故障注入从方法上来说有编译期故障注入和运行期故障注入，前者要通过修改代码来模拟故障，后者在运行阶段触发故障。Istio 的故障注入就是在网格中对特定的应用层协议进行故障注入，这样，基于 Istio 的故障注入就可以模拟出应用的故障场景了。
+
+### 延迟故障注入
+
+为了测试微服务应用程序 Bookinfo 的弹性，我们将为用户 jason 在 `reviews:v2` 和 `ratings` 服务之间注入一个 7 秒的延迟，这个测试将会发现一个故意引入 Bookinfo 应用程序中的 bug。首先移除之前创建的 VirtualService:
+
+```bash
+kubectl delete virtualservice reviews
+```
+
+为了能够让请求稳定，这里我们对 Reviews 服务配置请求路由，对应的资源清单文件 `samples/bookinfo/networking/virtual-service-reviews-test-v2.yaml`：
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: reviews
+spec:
+  hosts:
+    - reviews
+  http:
+  - match:
+    - headers:
+        end-user:
+          exact: jason
+    route:
+    - destination:
+        host: reviews
+        subset: v2
+  - route:
+    - destination:
+        host: reviews
+        subset: v1
+```
+
+上面的配置应用过后 jason 用户会被路由到 `reviews:v2` 版本服务，其他用户路由到 `reviews:v1` 版本服务。创建故障注入规则以延迟来自测试用户 jason 的流量，对应的资源清单为 `samples/bookinfo/networking/virtual-service-ratings-test-delay.yaml`：
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: ratings
+spec:
+  hosts:
+  - ratings
+  http:
+  - match:
+    - headers:
+        end-user:
+          exact: jason
+    fault:
+      delay:
+        percentage:
+          value: 100.0
+        fixedDelay: 7s
+    route:
+    - destination:
+        host: ratings
+        subset: v1
+  - route:
+    - destination:
+        host: ratings
+        subset: v1
+```
+
+这个 VirtualService 定义了一个在 jason 登录的情况下，访问 ratings 服务的 100% 的 7s 访问延迟。前面我们知道，Bookinfo 这个示例 productpage 服务调用 reviews，reviews 的不同版本会对 ratings 进行不同的调用，其中 reviews-v1 不调用 ratings，reviews-v2 和 reviews-v3 会调用 ratings，并做不同样式的渲染。注意 `reviews:v2` 服务对 `ratings` 服务的调用具有 10 秒的硬编码连接超时。因此，尽管引入了 7 秒的延迟，我们仍然期望端到端的流程是没有任何错误的。
+
+了解这一点后，我们现在来创建上面的 VirtualService 资源对象：
+
+```bash
+kubectl apply -f samples/bookinfo/networking/virtual-service-reviews-test-v2.yaml
+kubectl apply -f samples/bookinfo/networking/virtual-service-ratings-test-delay.yaml
+```
+
+通过浏览器打开 Bookinfo 应用，使用用户 `jason` 登录到 `/productpage` 页面。我们期望的是 Bookinfo 主页在大约 7 秒钟加载完成并且没有错误，但是 Reviews 部分显示了一个错误消息：`Sorry, product reviews are currently unavailable for this book.`
+
+![reviews unavailable](acess/dsflasdas.jpg)
+
+而且我们可以看到页面加载实际上用了大约6s，按照预期，我们引入的 7s 延迟不会影响到 reviews 服务，因为 reviews 和 ratings 服务间的超时被硬编码为 10 秒，但实际上在 productpage 和 reviews 服务之间也有一个 3s 的硬编码的超时，再加 1 次重试，一共 6s，所以 productpage 对 reviews 的调用在 6s 后提前超时并抛出错误了。
+
+这种类型的错误在不同的团队独立开发不同的微服务的企业应用程序中是可能会出现的，Istio 的故障注入规则可以帮助我们识别此类异常，而不会影响最终用户。
+
+> 请注意，此次故障注入限制为仅影响用户 jason，如果你以任何其他用户身份登录，则不会遇到任何延迟。
+
+我们可以增加 productpage 与 reviews 服务之间的超时或降低 reviews 与 ratings 的超时来解决这个问题，在 reviews 服务的 v3 版本中已经修复了这个问题，`reviews:v3` 服务已将 reviews 与 ratings 的超时时间从 10s 降低为 2.5s，因此它可以兼容（小于）下游的 productpage 的请求。
+
+如果我们将上面 Reviews 的流量转移到 `reviews:v3` 服务，然后可以尝试修改延迟规则为任何低于 2.5s 的数值，例如 2s，然后可以确认端到端的流程没有任何错误。
+
+通过这种超时故障注入，可以帮助我们方便地发现服务间相互访问中存在的潜在问题。
+
+### 中断访问故障注入
+
+测试微服务弹性的另一种方法是引入 HTTP abort 故障，接下来我们将给 ratings 微服务为测试用户 jason 引入一个 HTTP abort。在这种情况下，我们希望页面能够立即加载，同时显示 `Ratings service is currently unavailable` 这样的消息。
+
+这里我们需要使用到的资源清单文件为 `samples/bookinfo/networking/virtual-service-ratings-test-abort.yaml`：
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: ratings
+spec:
+  hosts:
+  - ratings
+  http:
+  - match:
+    - headers:
+        end-user:
+          exact: jason
+    fault:
+      abort:
+        percentage:
+          value: 100.0
+        httpStatus: 500
+    route:
+    - destination:
+        host: ratings
+        subset: v1
+  - route:
+    - destination:
+        host: ratings
+        subset: v1
+```
+
+上面这个 VirtualService 资源对象配置了在 jason 登录时，reviews 对 ratings 访问时 100% 的返回一个500错误响应。然后创建这个资源对象：
+
+```bash
+kubectl apply -f samples/bookinfo/networking/virtual-service-ratings-test-abort.yaml
+```
+
+现在我们回到 BookInfo 应用，登录 jason，刷新页面，有时候可以很快就看到 Rating 服务不可用的提示信息：
+
+![bookinfo error](acess/kkjasd.jpg)
+
+如果注销用户 jason，我们将看到 `/productpage` 为除 jason 以外的其他用户调用了 `reviews:v1`（完全不调用 ratings），因此，不会看到任何错误消息，不会显示星标的图形。
+
+![图片](acess/kasdhla.jpg)
