@@ -2333,7 +2333,7 @@ stringData:
     {{- if gt (len $alert.Annotations.value) 0 }}
     触发阀值: {{ $alert.Annotations.value }}
     {{- end }}
-    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+    告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
     故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     ============END============
     {{- end }}
@@ -2364,7 +2364,7 @@ stringData:
     {{- if gt (len $alert.Annotations.value) 0 }}
     触发阀值: {{ $alert.Annotations.value }}
     {{- end }}
-    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+    告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
     故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     ============END============
@@ -2406,7 +2406,7 @@ pod名称: {{ $alert.Labels.pod }}
 {{- if gt (len $alert.Annotations.value) 0 }}
 触发阀值: {{ $alert.Annotations.value }}
 {{- end }}
-告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
 故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 ============END============
 {{- end }}
@@ -2437,7 +2437,7 @@ pod名称: {{ $alert.Labels.pod }}
 {{- if gt (len $alert.Annotations.value) 0 }}
 触发阀值: {{ $alert.Annotations.value }}
 {{- end }}
-告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
 故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 ============END============
@@ -2669,8 +2669,8 @@ groups:
       severity: warning
       cluster: k8s
     annotations:
-      summary: 'Container: {{ $labels.container }} down'
-      description: 'Namespace: {{ $labels.namespace }}, Pod: {{ $labels.pod }} is not running'
+      summary: '{{ $labels.container }} down'
+      description: '{{ $labels.pod }} is not running'
   - alert: Pod_Ready
     expr: kube_pod_container_status_ready != 1  
     for: 5m   #Ready持续5分钟，说明启动有问题
@@ -2678,8 +2678,8 @@ groups:
       severity: warning
       cluster: k8s
     annotations:
-      summary: 'Container: {{ $labels.container }} ready'
-      description: 'Namespace: {{ $labels.namespace }}, Pod: {{ $labels.pod }} always ready for 5 minitue'
+      summary: '{{ $labels.container }} ready'
+      description: '{{ $labels.pod }} always ready for 5 minitue'
   - alert: Pod_Restart
     expr: changes(kube_pod_container_status_restarts_total[30m])>0 #最近30分钟pod重启
     for: 2s
@@ -2687,8 +2687,8 @@ groups:
       severity: warning
       cluster: k8s
     annotations:
-      summary: 'Container: {{ $labels.container }} restart'
-      description: 'namespace: {{ $labels.namespace }}, pod: {{ $labels.pod }} restart {{ $value }} times'
+      summary: '{{ $labels.container }} restart'
+      description: '{{ $labels.pod }} restart {{ $value }} times'
 
   - alert: daemonset_unavailable
     expr: kube_daemonset_status_number_unavailable >0
@@ -2697,8 +2697,8 @@ groups:
       severity: warning
       cluster: k8s
     annotations:
-      summary: 'Daemonset: {{ $labels.daemonset }} is unavailable'
-      description: 'namespace: {{ $labels.namespace }}, daemonset: {{ $labels.daemonset }} is unavailable'
+      summary: '{{ $labels.daemonset }} is unavailable!'
+      description: '{{ $labels.daemonset }} is unavailable!'
 
   - alert: node_unavailable
     expr: kube_node_status_condition{job="kube-state-metrics",condition="Ready",status="true"} !=1
@@ -2707,8 +2707,8 @@ groups:
       severity: warning
       cluster: k8s
     annotations:
-      summary: 'Node: {{ $labels.node }} not Ready'
-      description: 'node: {{ $labels.node }} not Ready'
+      summary: '{{ $labels.node }} not Ready'
+      description: '{{ $labels.node }} not Ready'
 EOF
 ```
 
