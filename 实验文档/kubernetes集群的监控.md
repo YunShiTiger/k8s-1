@@ -2312,12 +2312,14 @@ stringData:
     {{- range $index, $alert := .Alerts -}}
     {{- if eq $index 0 }}
     ==========异常告警==========
-    告警类型: {{ $alert.Labels.alertname }}
+    告警状态: {{ $alert.Labels.status }}
     告警级别: {{ $alert.Labels.severity }}
-    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
-    故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    告警类型: {{ $alert.Labels.alertname }}
     {{- if gt (len $alert.Labels.instance) 0 }}
     实例信息: {{ $alert.Labels.instance }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.container) 0 }}
+    故障服务: {{ $alert.Labels.container }}
     {{- end }}
     {{- if gt (len $alert.Labels.namespace) 0 }}
     命名空间: {{ $alert.Labels.namespace }}
@@ -2326,8 +2328,13 @@ stringData:
     节点信息: {{ $alert.Labels.node }}
     {{- end }}
     {{- if gt (len $alert.Labels.pod) 0 }}
-    实例名称: {{ $alert.Labels.pod }}
+    pod名称: {{ $alert.Labels.pod }}
     {{- end }}
+    {{- if gt (len $alert.Annotations.value) 0 }}
+    触发阀值: {{ $alert.Annotations.value }}
+    {{- end }}
+    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+    故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     ============END============
     {{- end }}
     {{- end }}
@@ -2336,13 +2343,14 @@ stringData:
     {{- range $index, $alert := .Alerts -}}
     {{- if eq $index 0 }}
     ==========异常恢复==========
-    告警类型: {{ $alert.Labels.alertname }}
+    告警状态: {{   .Status }}
     告警级别: {{ $alert.Labels.severity }}
-    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
-    故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
-    恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    告警类型: {{ $alert.Labels.alertname }}
     {{- if gt (len $alert.Labels.instance) 0 }}
     实例信息: {{ $alert.Labels.instance }}
+    {{- end }}
+    {{- if gt (len $alert.Labels.container) 0 }}
+    故障服务: {{ $alert.Labels.container }}
     {{- end }}
     {{- if gt (len $alert.Labels.namespace) 0 }}
     命名空间: {{ $alert.Labels.namespace }}
@@ -2351,13 +2359,19 @@ stringData:
     节点信息: {{ $alert.Labels.node }}
     {{- end }}
     {{- if gt (len $alert.Labels.pod) 0 }}
-    实例名称: {{ $alert.Labels.pod }}
+    pod名称: {{ $alert.Labels.pod }}
     {{- end }}
+    {{- if gt (len $alert.Annotations.value) 0 }}
+    触发阀值: {{ $alert.Annotations.value }}
+    {{- end }}
+    告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+    故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+    恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     ============END============
     {{- end }}
     {{- end }}
     {{- end }}
-    {{- end }}    
+    {{- end }}   
 type: Opaque
 EOF
 ```
@@ -2371,12 +2385,14 @@ cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
 {{- range $index, $alert := .Alerts -}}
 {{- if eq $index 0 }}
 ==========异常告警==========
-告警类型: {{ $alert.Labels.alertname }}
+告警状态: {{ $alert.Labels.status }}
 告警级别: {{ $alert.Labels.severity }}
-告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
-故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+告警类型: {{ $alert.Labels.alertname }}
 {{- if gt (len $alert.Labels.instance) 0 }}
 实例信息: {{ $alert.Labels.instance }}
+{{- end }}
+{{- if gt (len $alert.Labels.container) 0 }}
+故障服务: {{ $alert.Labels.container }}
 {{- end }}
 {{- if gt (len $alert.Labels.namespace) 0 }}
 命名空间: {{ $alert.Labels.namespace }}
@@ -2385,8 +2401,13 @@ cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
 节点信息: {{ $alert.Labels.node }}
 {{- end }}
 {{- if gt (len $alert.Labels.pod) 0 }}
-实例名称: {{ $alert.Labels.pod }}
+pod名称: {{ $alert.Labels.pod }}
 {{- end }}
+{{- if gt (len $alert.Annotations.value) 0 }}
+触发阀值: {{ $alert.Annotations.value }}
+{{- end }}
+告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 ============END============
 {{- end }}
 {{- end }}
@@ -2395,13 +2416,14 @@ cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
 {{- range $index, $alert := .Alerts -}}
 {{- if eq $index 0 }}
 ==========异常恢复==========
-告警类型: {{ $alert.Labels.alertname }}
+告警状态: {{   .Status }}
 告警级别: {{ $alert.Labels.severity }}
-告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
-故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
-恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+告警类型: {{ $alert.Labels.alertname }}
 {{- if gt (len $alert.Labels.instance) 0 }}
 实例信息: {{ $alert.Labels.instance }}
+{{- end }}
+{{- if gt (len $alert.Labels.container) 0 }}
+故障服务: {{ $alert.Labels.container }}
 {{- end }}
 {{- if gt (len $alert.Labels.namespace) 0 }}
 命名空间: {{ $alert.Labels.namespace }}
@@ -2410,8 +2432,14 @@ cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
 节点信息: {{ $alert.Labels.node }}
 {{- end }}
 {{- if gt (len $alert.Labels.pod) 0 }}
-实例名称: {{ $alert.Labels.pod }}
+pod名称: {{ $alert.Labels.pod }}
 {{- end }}
+{{- if gt (len $alert.Annotations.value) 0 }}
+触发阀值: {{ $alert.Annotations.value }}
+{{- end }}
+告警详情: {{ $alert.Annotations.message }}{{ $alert.Annotations.description}};{{$alert.Annotations.summary}}
+故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
+恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 ============END============
 {{- end }}
 {{- end }}
