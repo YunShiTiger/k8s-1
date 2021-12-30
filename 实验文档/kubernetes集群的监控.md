@@ -2312,7 +2312,7 @@ stringData:
     {{- range $index, $alert := .Alerts -}}
     {{- if eq $index 0 }}
     ==========异常告警==========
-    告警状态: {{ $alert.Labels.status }}
+    告警状态: {{ .Status }}
     告警级别: {{ $alert.Labels.severity }}
     告警类型: {{ $alert.Labels.alertname }}
     {{- if gt (len $alert.Labels.instance) 0 }}
@@ -2344,7 +2344,7 @@ stringData:
     {{- range $index, $alert := .Alerts -}}
     {{- if eq $index 0 }}
     ==========异常恢复==========
-    告警状态: {{   .Status }}
+    告警状态: {{ .Status }}
     告警级别: {{ $alert.Labels.severity }}
     告警类型: {{ $alert.Labels.alertname }}
     {{- if gt (len $alert.Labels.instance) 0 }}
@@ -2387,7 +2387,7 @@ cat << 'EOF' >/data/prometheus/alertmanager/wechat.tmpl
 {{- range $index, $alert := .Alerts -}}
 {{- if eq $index 0 }}
 ==========异常告警==========
-告警状态: {{ $alert.Labels.status }}
+告警状态: {{ .Status }}
 告警级别: {{ $alert.Labels.severity }}
 告警类型: {{ $alert.Labels.alertname }}
 {{- if gt (len $alert.Labels.instance) 0 }}
@@ -2419,7 +2419,7 @@ pod名称: {{ $alert.Labels.pod }}
 {{- range $index, $alert := .Alerts -}}
 {{- if eq $index 0 }}
 ==========异常恢复==========
-告警状态: {{   .Status }}
+告警状态: {{ .Status }}
 告警级别: {{ $alert.Labels.severity }}
 告警类型: {{ $alert.Labels.alertname }}
 {{- if gt (len $alert.Labels.instance) 0 }}

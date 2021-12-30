@@ -1,0 +1,25 @@
+cat << 'EOF' >wechat_notice.py
+#!/usr/bin/python
+#-*- coding: utf-8 -*-
+import requests
+import json
+import sys
+import os
+
+headers = {'Content-Type': 'application/json;charset=utf-8'}
+api_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=ac5b9547-25ea-4ecd-9de3-cc1987d431e0"
+def msg(text):
+    json_text= {
+     "msgtype": "text",
+        "text": {
+            "content": text
+        },
+    }
+    print requests.post(api_url,json.dumps(json_text),headers=headers).content
+
+if __name__ == '__main__':
+    text = sys.argv[1]
+    msg(text)
+EOF
+
+python wechat_notice.py "test deployment is successful, please wait 60 seconds to view"
