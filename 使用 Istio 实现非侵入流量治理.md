@@ -191,7 +191,7 @@ Bookinfo 应用中的几个微服务是由不同的语言编写而成的，这�
 
 我们要在 Istio 中运行这个应用，不需要对应用本身做任何改变，只要简单的在 Istio 环境中对服务进行配置和运行，也就是把 Envoy sidecar 注入到每个服务之中。最终的部署结果将如下图所示：
 
-![图片](acess/bI4KEsCL6yJRsks8TSb2s.jpg)istio bookinfo
+![istio bookinfo](acess/bI4KEsCL6yJRsks8TSb2s.jpg)
 
 所有的微服务都和 Envoy sidecar 集成在一起，被集成服务所有的出入流量都被 sidecar 所劫持，这样就为外部控制准备了所需的 Hook，然后就可以利用 Istio 控制平面为应用提供服务路由、遥测数据收集以及策略实施等功能。
 
