@@ -2333,7 +2333,8 @@ stringData:
     {{- if gt (len $alert.Annotations.value) 0 }}
     触发阀值: {{ $alert.Annotations.value }}
     {{- end }}
-    告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
+    告警主题: {{ $alert.Annotations.summary }}
+    告警详情: {{ $alert.Annotations.description }}
     故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     ============END============
     {{- end }}
@@ -2364,7 +2365,8 @@ stringData:
     {{- if gt (len $alert.Annotations.value) 0 }}
     触发阀值: {{ $alert.Annotations.value }}
     {{- end }}
-    告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
+    告警主题: {{ $alert.Annotations.summary }}
+    告警详情: {{ $alert.Annotations.description }}
     故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
     ============END============
@@ -2406,7 +2408,8 @@ pod名称: {{ $alert.Labels.pod }}
 {{- if gt (len $alert.Annotations.value) 0 }}
 触发阀值: {{ $alert.Annotations.value }}
 {{- end }}
-告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
+告警主题: {{ $alert.Annotations.summary }}
+告警详情: {{ $alert.Annotations.description }}
 故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 ============END============
 {{- end }}
@@ -2437,7 +2440,8 @@ pod名称: {{ $alert.Labels.pod }}
 {{- if gt (len $alert.Annotations.value) 0 }}
 触发阀值: {{ $alert.Annotations.value }}
 {{- end }}
-告警详情: {{ $alert.Annotations.message }};{{ $alert.Annotations.summary }};{{ $alert.Annotations.description }}
+告警主题: {{ $alert.Annotations.summary }}
+告警详情: {{ $alert.Annotations.description }}
 故障时间: {{ ($alert.StartsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 恢复时间: {{ ($alert.EndsAt.Add 28800e9).Format "2006-01-02 15:04:05" }}
 ============END============
