@@ -12,7 +12,8 @@ def msg(text):
     json_text= {
      "msgtype": "text",
         "text": {
-            "content": text
+            "content": text,
+            "mentioned_list": ["@all"] #@所有人
         },
     }
     print requests.post(api_url,json.dumps(json_text),headers=headers).content
