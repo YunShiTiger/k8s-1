@@ -36,7 +36,7 @@ Service Mesh 会完成完整的服务间调用流程，如服务发现负载均�
 
 现在我们基本上把 Service Mesh 的定义介绍清楚了，大家应该可以大概了解什么是 Service Mesh 了。现在实现 Service Mesh 的开源方案有很多，比如 Linkerd、Istio 等，当然目前最流行最火热的还是要数Istio了，记下来我们就来开始讲解Istio的使用。
 
-## 什么是Istio？
+## 什么是[Istio](https://preliminary.istio.io/latest/zh/docs/setup/install/)？
 
 Istio 解决了开发人员和运维在分布式或微服务架构方面面临的挑战，无论是从头开始构建还是将现有应用程序迁移到云原生环境下，Istio 都可以提供帮助。
 
@@ -117,11 +117,9 @@ Istiod 通过内置的身份和凭证管理进行安全管理，你可以使用 
 
 Istiod 充当证书授权（CA），并生成证书以允许在数据平面中进行安全的 mTLS 通信。
 
-## 安装
+## 安装配置
 
-接下来我们将介绍如何在 Kubernetes 集群中安装 Istio，这里我们使用的是最新的 `1.10.3` 版本。
-
-下面的命令可以下载指定的 1.10.3 版本的 Istio：
+### Kubernetes集群中安装Istio
 
 ```bash
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.10.3 sh -
@@ -154,13 +152,41 @@ istioctl install --set profile=demo -y
 kubectl get pods -n istio-system
 ```
 
-如果都是 Running 状态证明 istio 就已经安装成功了。然后我们还可以给 namespace 添加一个 `isito-injection=enabled` 的 label 标签，指示 Istio 在部署应用的时候，可以自动注入 Envoy Sidecar 代理，比如这里我们给 `default` 命名空间注入自动标签：
+如果都是 Running 状态证明 istio 就已经安装成功了。
+
+istio-ingressgateway默认是 LoadBalancer
+
+```bash
+kubectl get svc -n istio-system|grep istio-ingressgateway
+```
+
+nodePort类型修改
+
+```bash
+kubectl -n istio-system patch svc istio-ingressgateway -p '{"spec":{"type": "NodePort"}}'
+```
+
+ClusterIP类型修改(删除nodePort与type字段)
+
+```bash
+kubectl -n istio-system edit svc istio-ingressgateway 
+```
+
+### 注入Envoy Sidecar 代理
+
+自动注入：namespace 添加一个 `isito-injection=enabled` 的 label 标签，在部署应用的时候，可以自动注入 Envoy Sidecar 代理
 
 ```bash
 kubectl label namespace default istio-injection=enabled
 ```
 
-卸载
+手动注入：
+
+```
+kubectl apply -f <(istioctl kube-inject -f samples/bookinfo/platform/kube/bookinfo.yaml)
+```
+
+### 卸载
 
 ```bash
 istioctl manifest generate --set profile=demo | kubectl delete -f -
@@ -229,28 +255,31 @@ kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
 kubectl get gateway
 ```
 
-要想访问这个应用，这里我们需要更改下 istio 提供的 `istio-ingressgateway` 这个 Service 对象，默认是 LoadBalancer 类型的服务：
+ingress暴露服务
 
-```bash
-kubectl get svc -n istio-system|grep istio-ingressgateway
+```yaml
+cat << 'EOF' >istio-http-ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: istio-http
+  namespace: istio-system
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`test.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: istio-ingressgateway
+      port: 80
+EOF
+kubectl apply -f istio-http-ingress.yaml
 ```
 
-LoadBalancer 类型的服务，实际上是用来对接云服务厂商的，如果我们没有对接云服务厂商的话，可以将这里类型改成 `NodePort`，但是这样当访问我们的服务的时候就需要加上 nodePort 端口了：
+这样我们就可以通过 `http://test.wzxmt.com/productpage` 从集群外部访问 Bookinfo 应用了：
 
-```bash
-kubectl -n istio-system patch svc istio-ingressgateway -p '{"spec":{"type": "NodePort"}}'
-```
-
-查看svc
-
-```bash
-[root@k8s istio-1.10.3]# kubectl get svc -n istio-system|grep istio-ingressgateway
-istio-ingressgateway   NodePort    10.96.147.197   <none>        15021:46835/TCP,80:41995/TCP,443:26955/TCP,31400:50477/TCP,15443:49445/TCP   20m
-```
-
-这样我们就可以通过 `http://<NodeIP>:<nodePort>/productpage` 从集群外部访问 Bookinfo 应用了：
-
-![image-20210802152544056](acess/image-20210802152544056.png)
+![image-20211231161630039](acess/image-20211231161630039.jpg)
 
 刷新页面可以看到 Book Reviews 发生了改变（红色、黑色的星形或者没有显示），因为每次请求会被路由到到了不同的 Reviews 服务版本去。
 
@@ -264,15 +293,31 @@ istio-ingressgateway   NodePort    10.96.147.197   <none>        15021:46835/TCP
 kubectl apply -f samples/addons
 ```
 
-上面几个组件部署完成后我们就可以查看前面 Bookinfo 示例应用的遥测信息了，比如可以使用下面的命令访问 Kiali：
+上面几个组件部署完成后我们就可以查看前面 Bookinfo 示例应用的遥测信息了
 
 ```
-istioctl dashboard kiali
+cat << 'EOF' >istio-kiali-ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: istio-kiali
+  namespace: istio-system
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`kiali.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: kiali
+      port: 20001
+EOF
+kubectl apply -f istio-kiali-ingress.yaml
 ```
 
 在左侧的导航菜单，选择 Graph ，然后在 Namespace 下拉列表中，选择 default 。Kiali 仪表板展示了网格的概览、以及 Bookinfo 示例应用的各个服务之间的关系。它还提供过滤器来可视化流量的流动。
 
-![图片](acess/bI4KEsCLyJRsk8s8TSb2s.jpg)
+![image-20211231163701145](acess/image-20211231163701145.jpg)
 
 至此，整个 Istio 和 Bookinfo 示例应用就安装并验证成功了，现在就可以使用这一应用来体验 Istio 的特性了，其中包括了流量的路由、错误注入、速率限制等特性。
 
