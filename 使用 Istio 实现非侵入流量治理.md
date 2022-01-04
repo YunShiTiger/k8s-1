@@ -154,7 +154,9 @@ kubectl get pods -n istio-system
 
 如果都是 Running 状态证明 istio 就已经安装成功了。
 
-istio-ingressgateway默认是 LoadBalancer
+### ingressgateway类型修改
+
+istio-ingressgateway默认负载均衡模式是 LoadBalancer
 
 ```bash
 kubectl get svc -n istio-system|grep istio-ingressgateway
@@ -172,9 +174,9 @@ ClusterIP类型修改(删除nodePort与type字段)
 kubectl -n istio-system edit svc istio-ingressgateway 
 ```
 
-### 注入Envoy Sidecar 代理
+### 注入Envoy Sidecar代理
 
-自动注入：namespace 添加一个 `isito-injection=enabled` 的 label 标签，在部署应用的时候，可以自动注入 Envoy Sidecar 代理
+自动注入：在每个namespace 添加`isito-injection=enabled` 的label标签，在部署应用的时候，可以自动注入 Envoy Sidecar 代理
 
 ```bash
 kubectl label namespace default istio-injection=enabled
@@ -191,6 +193,63 @@ kubectl apply -f <(istioctl kube-inject -f samples/bookinfo/platform/kube/bookin
 ```bash
 istioctl manifest generate --set profile=demo | kubectl delete -f -
 ```
+
+### 仪表盘
+
+上面我们是安装的 Istio 的核心组件，此外 Istio 还和一些遥测应用做了集成，遥测能帮助我们了解服务网格的结构、展示网络的拓扑结构、分析网格的健康状态等，对于分布式微服务应用也是非常重要的。
+
+部署 Kiali、Prometheus、Grafana 以及 Jaeger：
+
+```bash
+kubectl apply -f samples/addons
+```
+
+上面几个组件部署完成后我们就可以查看前面 Bookinfo 示例应用的遥测信息了
+
+```yaml
+cat << 'EOF' >istio-dashbor-ingress.yaml
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: istio-kiali
+  namespace: istio-system
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`kiali.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: kiali
+      port: 20001
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: istio-grafana
+  namespace: istio-system
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`grafana.wzxmt.com`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: grafana
+      port: 3000
+EOF
+kubectl apply -f istio-dashbor-ingress.yaml
+```
+
+访问http://kiali.wzxmt.com，在左侧的导航菜单，选择 Graph ，然后在 Namespace 下拉列表中，选择 default 。Kiali 仪表板展示了网格的概览、以及 Bookinfo 示例应用的各个服务之间的关系。它还提供过滤器来可视化流量的流动。
+
+![image-20211231163701145](acess/image-20211231163701145.jpg)
+
+访问http://grafana.wzxmt.com可以看到相应的istio监控信息 。
+
+![image-20220104141043944](acess/image-20220104141043944.jpg)
+
+至此，整个 Istio 和 Bookinfo 示例应用就安装并验证成功了，现在就可以使用这一应用来体验 Istio 的特性了，其中包括了流量的路由、错误注入、速率限制等特性。
 
 ## 部署示例应用
 
@@ -211,7 +270,7 @@ Bookinfo 应用分为四个单独的微服务：
 
 下图可以用来说明我们这个示例应用的整体架构：
 
-![图片](acess/bI4KEsCLyJRsks8TS5b2s.jpg)没有使用 Istio 之前的架构
+![没有使用 Istio 之前的架构](acess/bI4KEsCLyJRsks8TS5b2s.jpg)
 
 Bookinfo 应用中的几个微服务是由不同的语言编写而成的，这些服务对 Istio 并无依赖，但是构成了一个有代表性的服务网格的例子：它由多个服务、多个语言构成，并且 reviews 服务具有多个版本。
 
@@ -243,7 +302,7 @@ kubectl get pods,svc
 
 现在应用的服务都部署成功并启动了，如果我们需要在集群外部访问，就需要添加一个 istio gateway，gateway 相当于 k8s 的 ingress controller 和 ingress，它为 HTTP/TCP 流量配置负载均衡，通常在服务网格边缘作为应用的 ingress 流量管理。
 
-创建一个 Ingress gateway:
+创建Ingress gateway:
 
 ```bash
 kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
@@ -277,49 +336,11 @@ EOF
 kubectl apply -f istio-http-ingress.yaml
 ```
 
-这样我们就可以通过 `http://test.wzxmt.com/productpage` 从集群外部访问 Bookinfo 应用了：
+这样我们就可以通过http://test.wzxmt.com/productpage从集群外部访问 Bookinfo 应用了：
 
 ![image-20211231161630039](acess/image-20211231161630039.jpg)
 
 刷新页面可以看到 Book Reviews 发生了改变（红色、黑色的星形或者没有显示），因为每次请求会被路由到到了不同的 Reviews 服务版本去。
-
-## 仪表盘
-
-上面我们是安装的 Istio 的核心组件，此外 Istio 还和一些遥测应用做了集成，遥测能帮助我们了解服务网格的结构、展示网络的拓扑结构、分析网格的健康状态等，对于分布式微服务应用也是非常重要的。
-
-我们可以使用下面的命令来部署 Kiali、Prometheus、Grafana 以及 Jaeger：
-
-```bash
-kubectl apply -f samples/addons
-```
-
-上面几个组件部署完成后我们就可以查看前面 Bookinfo 示例应用的遥测信息了
-
-```
-cat << 'EOF' >istio-kiali-ingress.yaml
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
-metadata:
-  name: istio-kiali
-  namespace: istio-system
-spec:
-  entryPoints:
-    - web
-  routes:
-  - match: Host(`kiali.wzxmt.com`) && PathPrefix(`/`)
-    kind: Rule
-    services:
-    - name: kiali
-      port: 20001
-EOF
-kubectl apply -f istio-kiali-ingress.yaml
-```
-
-在左侧的导航菜单，选择 Graph ，然后在 Namespace 下拉列表中，选择 default 。Kiali 仪表板展示了网格的概览、以及 Bookinfo 示例应用的各个服务之间的关系。它还提供过滤器来可视化流量的流动。
-
-![image-20211231163701145](acess/image-20211231163701145.jpg)
-
-至此，整个 Istio 和 Bookinfo 示例应用就安装并验证成功了，现在就可以使用这一应用来体验 Istio 的特性了，其中包括了流量的路由、错误注入、速率限制等特性。
 
 目前搭建 Bookinfo 应用我们只用到了下面两个资源文件：
 
