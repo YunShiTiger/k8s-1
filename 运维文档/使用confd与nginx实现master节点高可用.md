@@ -89,8 +89,8 @@ FROM alpine:3.3
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories && apk update && apk upgrade
 # 设置环境变量
 ENV NGINX_VERSION 1.18.0
-# 编译安装NGINX
 WORKDIR /tmp
+# 编译安装NGINX
 RUN NGINX_CONFIG="\
       --prefix=/etc/nginx \
       --sbin-path=/usr/sbin/nginx \
