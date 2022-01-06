@@ -162,9 +162,8 @@ RUN  sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositori
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \ 
   && apk update \
   && apk add nginx \
-#  && build_pkgs="build-base linux-headers openssl-dev pcre-dev wget zlib-dev" \
-#  && runtime_pkgs="ca-certificate openssl pcre zlib" \
-#  && apk --update add ${build_pkgs} ${runtime_pkgs} \
+#  && build_pkgs="build-base linux-headers openssl-dev pcre-dev wget zlib-dev openssl pcre zlib" \
+#  && apk --update add ${build_pkgs} \
 #  && cd /tmp \
 #  && wget http://nginx.org/download/nginx-1.16.1.tar.gz \
 #  && tar xzf nginx-1.16.1.tar.gz \
@@ -205,7 +204,6 @@ RUN  sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositori
 #    --with-mail_ssl_module \
 #    --with-file-aio \
 #    --with-http_v2_module \
-#    --with-ipv6 \
 #&& make \
 #&& make install \
 #&& sed -i -e 's/#access_log  logs\/access.log  main;/access_log  \/dev\/stdout;/' -e 's/#error_log  logs\/error.log  notice;/error_log stderr notice;/' /etc/nginx/nginx.conf \
