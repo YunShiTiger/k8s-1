@@ -349,7 +349,7 @@ ETCD_INITIAL_CLUSTER_STATE="existing"
 f1bc007d404a1fee, unstarted, , http://10.0.0.32:2380, , false
 ```
 
-更新/usr//lib/systemd/system/etcd.service的配置
+更新/usr/lib/systemd/system/etcd.service的配置
 
 ```bash
 --initial-cluster etcd-m1=https://10.0.0.31:2380,etcd-m2=https://10.0.0.32:2380
