@@ -145,7 +145,10 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/re
    && mkdir -p /var/log/nginx \
    && chown -R nginx:nginx /var/log/nginx \
    && rm -rf /var/cache/apk/* \
-   && mkdir -p /etc/confd 
+   && mkdir -p /etc/confd \
+   && apk add -U tzdata \
+   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+   && apk del tzdata
 #COPY 编译结果  
 COPY --from=0  /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=0  /etc/nginx  /etc/nginx  
