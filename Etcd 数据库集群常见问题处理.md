@@ -132,7 +132,7 @@ etcdctl --cacert=${ETCD_SSL}/ca.pem \
 
 #### 2.3. 给角色分配权限
 
-##### 2.3.1、赋予访问权限
+##### 1、赋予访问权限
 
 给 role01 角色赋予键 /foo 的读操作
 
@@ -164,7 +164,7 @@ etcdctl --cacert=${ETCD_SSL}/ca.pem \
 --user root:admin role grant-permission role01 readwrite /foo/*
 ```
 
-#####    2.3.2、收回访问权限
+#####    2、收回访问权限
 
 收回 role01 角色对 /foo 的权限
 
@@ -238,6 +238,93 @@ etcdctl --cacert=${ETCD_SSL}/ca.pem \
 --user root:admin get /foo/test
 ```
 
+## 5、etcd集群节点添加与删除
+
+#### 添加节点
+
+添加第二个节点
+
+```bash
+[root@m1 ~]# etcdctl member add etcd-m2 --peer-urls=https://10.0.0.32:2380
+Member f1bc007d404a1fee added to cluster     7763ba8f3602
+
+ETCD_NAME="etcd-m2"
+ETCD_INITIAL_CLUSTER="etcd-m1=https://10.0.0.31:2380,etcd-m2=http://10.0.0.32:2380"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.0.0.32:2380"
+ETCD_INITIAL_CLUSTER_STATE="existing"
+
+[root@m1 ~]# etcdctl member list
+7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
+f1bc007d404a1fee, unstarted, , http://10.0.0.32:2380, , false
+```
+
+更新/usr/lib/systemd/system/etcd.service的配置
+
+```bash
+--initial-cluster etcd-m1=https://10.0.0.31:2380,etcd-m2=https://10.0.0.32:2380
+--initial-cluster-state=existing 
+```
+
+启动第二个节点
+
+```bash
+rm -rf /data/etcd/data
+systemctl daemon-reload && systemctl start etcd
+```
+
+添加第三个节点
+
+```bash
+[root@m1 ~]# etcdctl member add etcd-m3 --peer-urls=https://10.0.0.33:2380
+Member 1ffab5c9fbd3e060 added to cluster     7763ba8f3602
+
+ETCD_NAME="etcd-m3"
+ETCD_INITIAL_CLUSTER="etcd-m1=https://10.0.0.31:2380,etcd-m3=https://10.0.0.33:2380,etcd-m2=https://10.0.0.32:2380"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="https://10.0.0.33:2380"
+ETCD_INITIAL_CLUSTER_STATE="existing"
+[root@m1 ~]# etcdctl member list
+7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
+1ffab5c9fbd3e060, unstarted, , https://10.0.0.33:2380, , false
+bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:2379, false
+```
+
+更新/usr//lib/systemd/system/etcd.service的配置
+
+```bash
+--initial-cluster etcd-m1=https://10.0.0.31:2380,etcd-m2=https://10.0.0.32:2380,etcd-m3=https://10.0.0.33:2380
+--initial-cluster-state=existing 
+```
+
+启动第三个节点
+
+```bash
+rm -rf /data/etcd/data
+systemctl daemon-reload && systemctl start etcd
+```
+
+查看节点id 
+
+```bash
+[root@m1 ~]# etcdctl member list
+7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
+1ffab5c9fbd3e060, started, etcd-m3, https://10.0.0.33:2380, https://10.0.0.33:2379, false
+bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:2379, false
+```
+
+#### 删除节点
+
+查看集群节点信息
+
+```bash
+etcdctl member list --write-out=table
+```
+
+删除节点
+
+```bash
+etcdctl member remove f1ec1f6015c9d4a4
+```
+
 ## 二、持久化数据备份和恢复
 
 etcd v2 和 v3 的数据不能混合存放。etcd的数据默认会存放在我们的命令工作目录中，我们发现数据所在的目录，会被分为两个文件夹中：
@@ -275,11 +362,9 @@ tar -zcvf backup.etcd.tar.gz etcd_backup
 
 ### 3 恢复
 
-#### （1） 恢复数据
-
 将backup.etcd.tar.gz 复制到要恢复的集群任意一个服务器上
 
-更新/usr//lib/systemd/system/etcd.service的配置
+更新/usr/lib/systemd/system/etcd.service的配置
 
 ```bash
 --initial-cluster etcd-m1=https://10.0.0.31:2380
@@ -331,75 +416,6 @@ get /test
 
 [root@m1 ~]# etcdctl member list
 7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
-```
-
-#### （2）添加节点
-
-```bash
-[root@m1 ~]# etcdctl member add etcd-m2 --peer-urls=https://10.0.0.32:2380
-Member f1bc007d404a1fee added to cluster     7763ba8f3602
-
-ETCD_NAME="etcd-m2"
-ETCD_INITIAL_CLUSTER="etcd-m1=https://10.0.0.31:2380,etcd-m2=http://10.0.0.32:2380"
-ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.0.0.32:2380"
-ETCD_INITIAL_CLUSTER_STATE="existing"
-
-[root@m1 ~]# etcdctl member list
-7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
-f1bc007d404a1fee, unstarted, , http://10.0.0.32:2380, , false
-```
-
-更新/usr/lib/systemd/system/etcd.service的配置
-
-```bash
---initial-cluster etcd-m1=https://10.0.0.31:2380,etcd-m2=https://10.0.0.32:2380
---initial-cluster-state=existing 
-```
-
-启动第二个节点
-
-```bash
-rm -rf /data/etcd/data
-systemctl daemon-reload && systemctl start etcd
-```
-
-#### （3）添加节点
-
-```bash
-[root@m1 ~]# etcdctl member add etcd-m3 --peer-urls=https://10.0.0.33:2380
-Member 1ffab5c9fbd3e060 added to cluster     7763ba8f3602
-
-ETCD_NAME="etcd-m3"
-ETCD_INITIAL_CLUSTER="etcd-m1=https://10.0.0.31:2380,etcd-m3=https://10.0.0.33:2380,etcd-m2=https://10.0.0.32:2380"
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://10.0.0.33:2380"
-ETCD_INITIAL_CLUSTER_STATE="existing"
-[root@m1 ~]# etcdctl member list
-7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
-1ffab5c9fbd3e060, unstarted, , https://10.0.0.33:2380, , false
-bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:2379, false
-```
-
-更新/usr//lib/systemd/system/etcd.service的配置
-
-```bash
---initial-cluster etcd-m1=https://10.0.0.31:2380,etcd-m2=https://10.0.0.32:2380,etcd-m3=https://10.0.0.33:2380
---initial-cluster-state=existing 
-```
-
-启动第三个节点
-
-```bash
-rm -rf /data/etcd/data
-systemctl daemon-reload && systemctl start etcd
-```
-
-查看节点id 
-
-```bash
-[root@m1 ~]# etcdctl member list
-7763ba8f3601, started, etcd-m1, https://10.0.0.31:2380, https://10.0.0.31:2379, false
-1ffab5c9fbd3e060, started, etcd-m3, https://10.0.0.33:2380, https://10.0.0.33:2379, false
-bd44b980d536ebb1, started, etcd-m2, https://10.0.0.32:2380, https://10.0.0.32:2379, false
 ```
 
 ### 4 验证数据完整性
@@ -603,10 +619,7 @@ etcdctl --cacert=${ETCD_SSL}/ca.pem \
 ### 2）摘除异常节点
 
 ```bash
-etcdctl --cacert=${ETCD_SSL}/ca.pem \
---cert=${ETCD_SSL}/etcd.pem \
---key=${ETCD_SSL}/etcd-key.pem \
-member remove f1ec1f6015c9d4a4
+etcdctl member remove f1ec1f6015c9d4a4
 ```
 
 ### 3）重新部署服务后，将节点重新加入集群
