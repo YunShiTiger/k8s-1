@@ -1,7 +1,7 @@
 ## 下载confd
 
 ```bash
-mkdir -p confd
+mkdir -p confd && cd  confd
 wget https://github.com/kelseyhightower/confd/releases/download/v0.16.0/confd-0.16.0-linux-amd64
 mv confd-0.16.0-linux-amd64  confd
 chmod +x confd
@@ -41,13 +41,14 @@ worker_rlimit_nofile 4096;
 events {
   multi_accept on;
   use epoll;
-  worker_connections 4096;
+  worker_connections 65535;
 }
 
 stream {
         upstream kube_apiserver {
+          hash  consistent;
           {{ $servers := split (getenv "CP_HOSTS") "," }}{{range $servers}}
-          server {{.}}:{{ getenv "TARGET_PORT"}};
+          server {{.}}:{{ getenv "TARGET_PORT"}} weight=6 max_fails=5 fail_timeout=10s;
           {{end}}
         }
 
@@ -60,7 +61,7 @@ stream {
             proxy_buffer_size 512k;
             proxy_pass    kube_apiserver;
             proxy_timeout 5m;
-            proxy_connect_timeout 2s;
+            proxy_connect_timeout 5s;
       }
 }
 EOF
@@ -71,9 +72,7 @@ EOF
 ```bash
 cat << EOF >nginx-proxy
 #!/bin/sh
-# Run confd
 confd -onetime -backend env
-# Start nginx
 nginx -g 'daemon off;'
 EOF
 chmod +x nginx-proxy
@@ -88,7 +87,7 @@ FROM alpine:3.3
 # 修改源
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories && apk update && apk upgrade
 # 设置环境变量
-ENV NGINX_VERSION 1.18.0
+ENV NGINX_VERSION 1.20.0
 WORKDIR /tmp
 # 编译安装NGINX
 RUN NGINX_CONFIG="\
@@ -162,7 +161,7 @@ EOF
 ## 构建镜像
 
 ```bash
-docker build -t ha-tools:v1.18.0 .
+docker build -t nginx-proxy:v1.20.0 .
 ```
 
 ## 测试生成的镜像
@@ -170,19 +169,19 @@ docker build -t ha-tools:v1.18.0 .
 单个IP
 
 ```bash
-docker run --name=ha-nginx -d --network=host -e "CP_HOSTS=10.0.0.80" -e "CPU_NUM=1" -e "HOST_PORT=8443" -e "TARGET_PORT=6443" ha-tools:v1.18.0 CP_HOSTS=10.0.0.80
+docker run --name=ha-test -d --network=host -e "CP_HOSTS=10.0.0.80" -e "CPU_NUM=1" -e "HOST_PORT=8443" -e "TARGET_PORT=6443" nginx-proxy:v1.20.0 CP_HOSTS=10.0.0.80
 ```
 
 多ip
 
 ```bash
-docker run --name=ha-nginxs -d --network=host -e "CP_HOSTS=10.0.0.80,10.0.0.90" -e "CPU_NUM=1" -e "HOST_PORT=8443" -e "TARGET_PORT=6443" ha-tools:v1.18.0 CP_HOSTS=10.0.0.80,10.0.0.90
+docker run --name=ha-tests -d --network=host -e "CP_HOSTS=10.0.0.80,10.0.0.90" -e "CPU_NUM=1" -e "HOST_PORT=8443" -e "TARGET_PORT=6443" nginx-proxy:v1.20.0 CP_HOSTS=10.0.0.80,10.0.0.90
 ```
 
 测试
 
 ```bash
-[root@k8s confd]# docker exec -ti ha-nginx curl -k https://127.0.0.1:8443
+[root@k8s confd]# docker exec -ti ha-test curl -k https://127.0.0.1:8443
 {
   "kind": "Status",
   "apiVersion": "v1",
@@ -198,7 +197,7 @@ docker run --name=ha-nginxs -d --network=host -e "CP_HOSTS=10.0.0.80,10.0.0.90" 
 
 代理正常有数据返回
 
-## k8s 使用 ha-tools
+## k8s 使用 nginx-proxy
 
 使用静态pod
 
@@ -216,7 +215,7 @@ spec:
   containers:
   - args:
     - "CP_HOSTS=${MASTER_CLUSTER_IP}"
-    image: ha-tools:v1.18.0
+    image: nginx-proxy:v1.20.0
     imagePullPolicy: IfNotPresent
     name: kube-apiserver-ha-proxy
     env:
@@ -236,6 +235,6 @@ EOF
 docker运行
 
 ```bash
-docker run --name=ha-nginxs -d --network=host -e "CP_HOSTS=10.0.0.80,10.0.0.90" -e "CPU_NUM=1" -e "HOST_PORT=8443" -e "TARGET_PORT=6443" ha-tools:v1.18.0 CP_HOSTS=10.0.0.80,10.0.0.90
+docker run --name=ha-tests -d --network=host -e "CP_HOSTS=10.0.0.80,10.0.0.90" -e "CPU_NUM=1" -e "HOST_PORT=8443" -e "TARGET_PORT=6443" nginx-proxy:v1.20.0 CP_HOSTS=10.0.0.80,10.0.0.90
 ```
 
