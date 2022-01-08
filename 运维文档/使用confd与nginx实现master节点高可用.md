@@ -19,7 +19,7 @@ mkdir -p conf.d templates
 cat << EOF >conf.d/nginx.toml
 [template]
 src = "nginx.tmpl"
-dest = "/etc/nginx/nginx.conf"
+dest = "/etc/nginx/conf/nginx.conf"
 keys = [
     "CP_HOSTS",
 ]
@@ -30,6 +30,7 @@ EOF
 
 ```nginx
 cat << 'EOF' >templates/nginx.tmpl
+user nginx;
 error_log stderr notice;
 {{ $servers := split (getenv "CPU_NUM") "," }}{{range $servers}}
 worker_processes {{.}};
@@ -73,6 +74,9 @@ EOF
 cat << EOF >nginx-proxy
 #!/bin/sh
 confd -onetime -backend env
+mkdir -p /etc/nginx/cache && cd /etc/nginx/cache
+mkdir -p client_temp proxy_temp fastcgi_temp uwsgi_temp scgi_temp
+chown -R nginx:nginx /etc/nginx
 nginx -g 'daemon off;'
 EOF
 chmod +x nginx-proxy
@@ -84,19 +88,24 @@ chmod +x nginx-proxy
 cat << 'EOF' >Dockerfile
 # 基础镜像
 FROM alpine:3.3
-# 修改源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories && apk update && apk upgrade
 # 设置环境变量
 ENV NGINX_VERSION 1.20.0
+# 工作目录
 WORKDIR /tmp
 # 编译安装NGINX
 RUN NGINX_CONFIG="\
       --prefix=/etc/nginx \
       --sbin-path=/usr/sbin/nginx \
-      --conf-path=/etc/nginx/nginx.conf \
-      --error-log-path=/var/log/nginx/error.log \
-      --http-log-path=/var/log/nginx/access.log \
-      --pid-path=/var/run/nginx.pid \
+      --conf-path=/etc/nginx/conf/nginx.conf \
+      --error-log-path=/etc/nginx/logs/error.log \
+      --http-log-path=/etc/nginx/logs/access.log \
+      --pid-path=/etc/nginx/run/nginx.pid \
+      --lock-path=/etc/nginx/run/nginx.lock \
+      --http-client-body-temp-path=/etc/nginx/cache/client_temp \
+      --http-proxy-temp-path=/etc/nginx/cache/proxy_temp \
+      --http-fastcgi-temp-path=/etc/nginx/cache/fastcgi_temp \
+      --http-uwsgi-temp-path=/etc/nginx/cache/uwsgi_temp \
+      --http-scgi-temp-path=/etc/nginx/cache/scgi_temp \
       --user=nginx \
       --group=nginx \
       --with-pcre \
@@ -111,9 +120,11 @@ RUN NGINX_CONFIG="\
       --with-stream_ssl_module \
       --with-stream_ssl_preread_module \
       " \
-     && addgroup -S nginx \
-     && adduser -D -S -h /www -s /sbin/nologin -G nginx nginx \
-     && apk add --no-cache --virtual .build-deps \
+        && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+        && apk update && apk upgrade \
+        && addgroup -S nginx \
+        && adduser -D -S -s /sbin/nologin -G nginx nginx \
+        && apk add --no-cache --virtual .build-deps \
         build-base \
         curl \
         linux-headers \
@@ -123,32 +134,14 @@ RUN NGINX_CONFIG="\
         openssl \
         pcre \
         zlib \
-        && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o /tmp/nginx-$NGINX_VERSION.tar.gz \
-        && cd /tmp \
+        && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx-$NGINX_VERSION.tar.gz \
         && tar -xzf nginx-$NGINX_VERSION.tar.gz \
-        && cd  /tmp/nginx-$NGINX_VERSION \
+        && cd  nginx-$NGINX_VERSION \
         && ./configure $NGINX_CONFIG \
         && make \
         && make install
-
 # 构建confd nginx 镜像
 FROM alpine:3.3
-# 修改源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
-   && apk update && apk upgrade \
-   && apk add  --no-cache  \ 
-   curl \
-   pcre \
-   ca-certificates \
-   && addgroup -S nginx \
-   && adduser -D -S -h /var/lib/nginx -s /sbin/nologin -G nginx nginx \
-   && mkdir -p /var/log/nginx \
-   && chown -R nginx:nginx /var/log/nginx \
-   && rm -rf /var/cache/apk/* \
-   && mkdir -p /etc/confd \
-   && apk add -U tzdata \
-   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-   && apk del tzdata
 #COPY 编译结果  
 COPY --from=0  /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=0  /etc/nginx  /etc/nginx  
@@ -156,6 +149,19 @@ ADD confd  /usr/sbin/confd
 ADD conf.d /etc/confd/conf.d 
 ADD templates /etc/confd/templates
 ADD nginx-proxy /usr/bin/nginx-proxy
+# 安装基础
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+   && apk update && apk upgrade \
+   && apk add -U --no-cache  \ 
+   curl \
+   pcre \
+   ca-certificates \
+   tzdata \
+   && addgroup -S nginx \
+   && adduser -D -S -s /sbin/nologin -G nginx nginx \
+   && rm -rf /var/cache/apk/* \
+   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+   && apk del tzdata
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/usr/bin/nginx-proxy"]
 EOF
