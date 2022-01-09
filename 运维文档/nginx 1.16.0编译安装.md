@@ -7,6 +7,9 @@ yum install gcc gcc-c++ pcre pcre-devel zlib zlib-devel openssl openssl-devel -y
 #### 二、下载[nginx](http://nginx.org/download/nginx-1.16.0.tar.gz)
 ```bash
 cd /usr/local/src
+git clone git://github.com/vozlt/nginx-module-sts.git \
+git clone git://github.com/vozlt/nginx-module-stream-sts.git \
+git clone git://github.com/vozlt/nginx-module-vts.git \
 wget http://nginx.org/download/nginx-1.16.0.tar.gz
 tar xf nginx-1.16.0.tar.gz
 cd nginx-1.16.0
@@ -34,7 +37,10 @@ useradd -M -s /sbin/nologin -g nginx nginx
 --with-http_stub_status_module \
 --with-http_gzip_static_module \
 --with-stream_ssl_module \
---with-stream_realip_module
+--with-stream_realip_module \
+--add-module=/tmp/nginx-module-sts \
+--add-module=/tmp/nginx-module-stream-sts \
+--add-module=/tmp/nginx-module-vts 
 ```
 
 参数说明：
