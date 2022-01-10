@@ -126,7 +126,7 @@ RUN NGINX_CONFIG="\
         && adduser -D -S -s /sbin/nologin -G nginx nginx \
         && apk add --no-cache --virtual .build-deps \
         build-base \
-        curl \
+        wget \
         linux-headers \
         openssl-dev \
         pcre-dev \
@@ -134,7 +134,7 @@ RUN NGINX_CONFIG="\
         openssl \
         pcre \
         zlib \
-        && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz \
+        && wget --no-check-certificate https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz \
         && tar -xzf nginx-$NGINX_VERSION.tar.gz \
         && cd  nginx-$NGINX_VERSION \
         && ./configure $NGINX_CONFIG \
@@ -155,7 +155,6 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/re
    && apk add -U --no-cache  \ 
    curl \
    pcre \
-   ca-certificates \
    tzdata \
    && addgroup -S nginx \
    && adduser -D -S -s /sbin/nologin -G nginx nginx \

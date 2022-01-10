@@ -151,78 +151,117 @@ ENTRYPOINT ["mysql"]
 2、构建一个nginx镜像
 
 ```bash
+cat << 'EOF' >Dockerfile
 FROM alpine:3.3
-MAINTAINER Marin "1164216442@qq.com.cn"
- 
+MAINTAINER Marin "wzxmt@qq.com.cn"
+ENV NGINX_VERSION 1.20.0 
+WORKDIR /tmp
+RUN NGINX_CONFIG="\
+     --prefix=/etc/nginx \
+     --sbin-path=/usr/sbin/nginx \
+     --conf-path=/etc/nginx/conf/nginx.conf \
+     --error-log-path=/etc/nginx/logs/error.log \
+     --http-log-path=/etc/nginx/logs/access.log \
+     --pid-path=/etc/nginx/run/nginx.pid \
+     --lock-path=/etc/nginx/run/nginx.lock \
+     --http-client-body-temp-path=/etc/nginx/cache/client_temp \
+     --http-proxy-temp-path=/etc/nginx/cache/proxy_temp \
+     --http-fastcgi-temp-path=/etc/nginx/cache/fastcgi_temp \
+     --http-uwsgi-temp-path=/etc/nginx/cache/uwsgi_temp \
+     --http-scgi-temp-path=/etc/nginx/cache/scgi_temp \
+     --user=nginx \
+     --group=nginx \
+     --with-http_ssl_module \
+     --with-http_realip_module \
+     --with-http_addition_module \
+     --with-http_sub_module \
+     --with-http_dav_module \
+     --with-http_flv_module \
+     --with-http_mp4_module \
+     --with-http_gunzip_module \
+     --with-http_gzip_static_module \
+     --with-http_random_index_module \
+     --with-http_secure_link_module \
+     --with-http_stub_status_module \
+     --with-http_auth_request_module \
+     --with-threads \
+     --with-stream \
+     --with-stream_ssl_module \
+     --with-http_slice_module \
+     --with-mail \
+     --with-mail_ssl_module \
+     --with-file-aio \
+     --with-http_v2_module \
+     " \
+    build_pkgs="\
+      build-base \
+      linux-headers \
+      openssl-dev \
+      pcre-dev \
+      wget \
+      zlib-dev \
+      openssl \
+      pcre \
+      zlib \
+      patch \
+      " \
+   && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \ 
+   && apk update && apk upgrade \
+   && apk add --update -U ${build_pkgs} \
+   && wget --no-check-certificate https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz \
+   && tar -xzf nginx-$NGINX_VERSION.tar.gz \
+   && cd  nginx-$NGINX_VERSION \
+   && ./configure $NGINX_CONFIG \
+   && make \
+   && make install 
+# 构建镜像
+FROM alpine:3.3
+#COPY 编译结果  
+COPY --from=0  /usr/sbin/nginx /usr/sbin/nginx
+COPY --from=0  /etc/nginx  /etc/nginx  
+ADD entrypoint.sh /usr/bin/entrypoint.sh
+# 安装基础
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+   && apk update && apk upgrade \
+   && apk add -U --no-cache  \ 
+   curl \
+   pcre \
+   tzdata \
+   && addgroup -S nginx \
+   && adduser -D -S -s /sbin/nologin -G nginx nginx \
+   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+   && apk del tzdata \
+   && rm -rf /var/cache/apk/* \
+STOPSIGNAL SIGTERM
 EXPOSE 80 443
-CMD ["nginx", "-g", "daemon off;"]
-VOLUME ["/var/cache/nginx"]
- 
-RUN  sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \ 
-  && echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \ 
-  && apk update \
-  && apk add nginx \
-#  && build_pkgs="build-base linux-headers openssl-dev pcre-dev wget zlib-dev openssl pcre zlib" \
-#  && apk --update add ${build_pkgs} \
-#  && cd /tmp \
-#  && wget http://nginx.org/download/nginx-1.16.1.tar.gz \
-#  && tar xzf nginx-1.16.1.tar.gz \
-#  && cd /tmp/nginx-1.16.1 \
-#  && ./configure \
-#    --prefix=/etc/nginx \
-#    --sbin-path=/usr/sbin/nginx \
-#    --conf-path=/etc/nginx/nginx.conf \
-#    --error-log-path=/var/log/nginx/error.log \
-#    --http-log-path=/var/log/nginx/access.log \
-#    --pid-path=/var/run/nginx.pid \
-#    --lock-path=/var/run/nginx.lock \
-#    --http-client-body-temp-path=/var/cache/nginx/client_temp \
-#    --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-#    --http-fascgi-temp-path=/var/cache/nginx/fascgi_temp \
-#    --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-#    --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-#    --user=nginx \
-#    --group=nginx \
-#    --with-http_ssl_module \
-#    --with-http_realip_module \
-#    --with-http_addition_module \
-#    --with-http_sub_module \
-#    --with-http_dav_module \
-#    --with-http_flv_module \
-#    --with-http_mp4_module \
-#    --with-http_gunzip_module \
-#    --with-http_gzip_static_module \
-#    --with-http_random_index_module \
-#    --with-http_secure_link_module \
-#    --with-http_stub_status_module \
-#    --with-http_auth_request_module \
-#    --with-threads \
-#    --with-stream \
-#    --with-stream_ssl_module \
-#    --with-http_slice_module \
-#    --with-mail \
-#    --with-mail_ssl_module \
-#    --with-file-aio \
-#    --with-http_v2_module \
-#&& make \
-#&& make install \
-#&& sed -i -e 's/#access_log  logs\/access.log  main;/access_log  \/dev\/stdout;/' -e 's/#error_log  logs\/error.log  notice;/error_log stderr notice;/' /etc/nginx/nginx.conf \
-&& rm -rf /tmp/* \
-&& apk del ${build_pkgs} \
-rm -rf /var/cache/apk/*
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+EOF
 ```
 
-注："nginx", "-g", "daemon off;"
+启动文件
 
-在容器里nginx是以daemon方式启动，退出容器时，nginx程序也会随着停止
-/usr/local/nginx/sbin/nginx 使用前台方式永久运行: /usr/local/nginx/sbin/nginx -g "daemon off;"
+```bash
+cat << 'EOF' >entrypoint.sh
+#!/bin/sh
+mkdir -p /etc/nginx/cache && cd /etc/nginx/cache
+mkdir -p client_temp proxy_temp fastcgi_temp uwsgi_temp scgi_temp
+chown -R nginx:nginx /etc/nginx
+nginx -g 'daemon off;'
+EOF
+chmod +x entrypoint.sh
+```
+
+build
+
+```
+docker build -t nginx:v1.20.0 .
+```
 
 ### **多阶段构建，go应用容器化打包示例**
 
 基础镜像 golang:1.16.2-alpine比golang:1.16.2小500M左右
 
 ```bash
-
 # 构建阶段 build stage
 FROM golang:stretch AS build-env
 ADD . /go/src
