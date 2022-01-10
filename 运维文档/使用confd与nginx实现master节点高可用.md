@@ -134,7 +134,7 @@ RUN NGINX_CONFIG="\
         openssl \
         pcre \
         zlib \
-        && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx-$NGINX_VERSION.tar.gz \
+        && curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz \
         && tar -xzf nginx-$NGINX_VERSION.tar.gz \
         && cd  nginx-$NGINX_VERSION \
         && ./configure $NGINX_CONFIG \

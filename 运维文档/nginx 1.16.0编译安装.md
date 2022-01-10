@@ -1,15 +1,17 @@
 #### 一、安装依赖
 
 ```bash
-yum install gcc gcc-c++ pcre pcre-devel zlib zlib-devel openssl openssl-devel -y 
+yum install gcc gcc-c++ pcre pcre-devel zlib zlib-devel openssl openssl-devel patch -y 
 ```
 
 #### 二、下载[nginx](http://nginx.org/download/nginx-1.16.0.tar.gz)
 ```bash
 cd /usr/local/src
-git clone git://github.com/vozlt/nginx-module-sts.git \
-git clone git://github.com/vozlt/nginx-module-stream-sts.git \
-git clone git://github.com/vozlt/nginx-module-vts.git \
+git clone git://github.com/vozlt/nginx-module-sts.git 
+git clone git://github.com/vozlt/nginx-module-stream-sts.git 
+git clone git://github.com/vozlt/nginx-module-vts.git 
+git clone https://github.com/yaoweibin/nginx_upstream_check_module.git
+git clone https://gitee.com/mirrors/nginx_tcp_proxy_module.git
 wget http://nginx.org/download/nginx-1.16.0.tar.gz
 tar xf nginx-1.16.0.tar.gz
 cd nginx-1.16.0
@@ -22,6 +24,14 @@ useradd -M -s /sbin/nologin -g nginx nginx
  ```
 
 #### 三、指定nginx编译参数
+
+加载补丁
+
+```
+patch -p1 <../nginx_upstream_check_module/check_1.20.1+.patch
+```
+
+预编译
 
 ```bash
 ./configure \
@@ -38,9 +48,11 @@ useradd -M -s /sbin/nologin -g nginx nginx
 --with-http_gzip_static_module \
 --with-stream_ssl_module \
 --with-stream_realip_module \
---add-module=/tmp/nginx-module-sts \
---add-module=/tmp/nginx-module-stream-sts \
---add-module=/tmp/nginx-module-vts 
+--add-module=../nginx-module-sts \
+--add-module=../nginx-module-stream-sts \
+--add-module=../nginx-module-vts \
+--add-module=../nginx_upstream_check_module
+--add-module=../nginx_tcp_proxy_module
 ```
 
 参数说明：
@@ -119,6 +131,57 @@ EOF
 
 ```bash
 mkdir -p /usr/local/nginx/conf/{vhost,stream}
+```
+
+生成测试配置
+
+http
+
+```nginx
+cat << 'EOF' >/usr/local/nginx/conf/vhost/test-http.conf
+upstream cluster {
+    # simple round-robin
+    server 10.0.0.80:80;
+    check interval=5000 rise=1 fall=3 timeout=4000;
+    #check interval=3000 rise=2 fall=5 timeout=1000 type=ssl_hello;
+    #check interval=3000 rise=2 fall=5 timeout=1000 type=http;
+    #check_http_send "HEAD / HTTP/1.0\r\n\r\n";
+    #check_http_expect_alive http_2xx http_3xx;
+}
+server {
+    listen 80;
+    location / {
+      proxy_pass http://cluster;
+    }
+    location /status {
+      check_status;
+      access_log   off;
+  }
+}
+EOF
+```
+
+tcp
+
+```nginx
+cat << 'EOF' >/usr/local/nginx/conf/vhost/test-http.conf
+tcp {
+  upstream server {
+      server 10.100.138.15:8787;
+      #check interval 健康检查时间间隔，单位为毫秒
+      #rise 检查几次正常后，将server加入以负载列表中
+      #fall 检查几次失败后，从负载队列移除server
+      #timeout 检查超时时间，单位为毫秒
+      check interval=3000 rise=2 fall=5 timeout=1000;
+   }
+   server {
+      listen 8787;
+      proxy_pass server;
+      so_keepalive on; 
+      tcp_nodelay on;  
+  }
+}
+EOF
 ```
 
 #### 七、授权并启动
